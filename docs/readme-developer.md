@@ -58,6 +58,25 @@ $ brew install cmake ninja mad libpng jpeg-turbo sdl2 minizip
 
 If you want to build the libraries from source instead of using Homebrew, you can pass `-DES_USE_SYSTEM_LIBRARIES=OFF` to CMake when configuring.
 
+#### Special Notes for Apple Silicon (M1/M2/M3)
+
+When building on Apple Silicon Macs, you may encounter OpenGL rendering issues when the game links against X11's OpenGL libraries instead of the native macOS OpenGL framework. To fix this, use the following CMake configuration command:
+
+```bash
+$ cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake \
+   -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip
+```
+
+The above command ensures that:
+1. The build uses vcpkg for dependencies
+2. The correct path to the minizip package is specified 
+3. The native macOS OpenGL framework is used rather than X11's OpenGL libraries
+
+For faster builds, you can use all available CPU cores:
+```bash
+$ cmake --build build -j$(sysctl -n hw.ncpu)
+```
+
 ### Linux
 
 You can use your favorite package manager to install the needed dependencies. If you're using a slower moving distro like Ubuntu or Debian (or any derivatives thereof), make sure to use at least Ubuntu 22.04 LTS or Debian 12.
@@ -122,7 +141,7 @@ $ ctest --preset <preset>-integration                           # run the integr
 The executable will be located in `build/<preset>/Debug/`. If you'd like to debug a specific integration test (on any OS), you can do so as follows:
 
 ```bash
-$ ctest --preset <preset>-integration-debug -R <name>
+$ ctest --preset <preset>-integration-debug -R <n>
 ```
 
 You can get a list of integration tests with `ctest --preset <preset>-integration-debug -N`.
