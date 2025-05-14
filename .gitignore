@@ -27,6 +27,23 @@ scons-local*
 .sconsign.dblite
 /*.d
 /vcpkg/
+/vcpkg_installed/
+CMakeFiles/
+source/CMakeFiles/
+tests/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+source/cmake_install.cmake
+tests/cmake_install.cmake
+CTestTestfile.cmake
+tests/CTestTestfile.cmake
+DartConfiguration.tcl
+Makefile
+source/Makefile
+tests/Makefile
+build.sh
+vcpkg-manifest-install.log
+tests/IntegrationTests_tests.cmake
 
 # Test Reports
 test-report.xml
