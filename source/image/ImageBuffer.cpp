@@ -26,6 +26,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <cstring>  // For strstr
 
 using namespace std;
 
@@ -38,6 +39,24 @@ namespace {
 		extensions.insert(JPG_EXTENSIONS.begin(), JPG_EXTENSIONS.end());
 		return extensions;
 	}();
+
+	// Custom error handler for libpng
+	void png_error_handler(png_structp png_ptr, png_const_charp message)
+	{
+		// We must use the longjmp to return control to the setjmp point
+		png_longjmp(png_ptr, 1);
+	}
+
+	// Custom warning handler for libpng - filters out eXIf warnings
+	void png_warning_handler(png_structp png_ptr, png_const_charp message)
+	{
+		// Suppress "eXIf: invalid" warnings
+		if (message && (strstr(message, "eXIf: invalid") != nullptr))
+			return;
+			
+		// For other warnings, log them using the available Logger method
+		Logger::LogError("libpng warning: " + string(message));
+	}
 
 	bool ReadPNG(const filesystem::path &path, ImageBuffer &buffer, int frame);
 	bool ReadJPG(const filesystem::path &path, ImageBuffer &buffer, int frame);
@@ -206,8 +225,9 @@ namespace {
 		if(!file)
 			return false;
 
-		// Set up libpng.
-		png_struct *png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+		// Set up libpng with custom error and warning handlers
+		png_struct *png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, 
+			png_error_handler, png_warning_handler);
 		if(!png)
 			return false;
 
