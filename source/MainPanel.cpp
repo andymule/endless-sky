@@ -59,16 +59,6 @@ MainPanel::MainPanel(PlayerInfo &player)
 	: player(player), engine(player)
 {
 	SetIsFullScreen(true);
-	
-	// Initialize AdaptiveMusicLib
-	if (music.Initialize())
-	{
-		// Load and play background music
-		if (music.PlayMusic("sounds/music/main_menu.mp3", 0.5f))
-		{
-			musicPlaying = true;
-		}
-	}
 }
 
 

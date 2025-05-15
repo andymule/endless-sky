@@ -98,8 +98,7 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 	{
 		// First, try the stems directory
 		fs::path musicPath = Files::Resources() / "sounds" / "music" / "mainmenu";
-		fs::path fallbackPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
-		
+
 		Logger::LogError("AdaptiveMusicLib: Checking for music stems in: " + musicPath.string());
 		
 		// Check if the directory exists and try to play the stems
@@ -112,22 +111,11 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 			else
 			{
 				Logger::LogError("AdaptiveMusicLib: Failed to load main menu music stems from: " + musicPath.string());
-				// Fall back to regular music file
-				Logger::LogError("AdaptiveMusicLib: Trying fallback music file: " + fallbackPath.string());
-				if (fs::exists(fallbackPath) && audioLib.PlayMusic(fallbackPath.string(), 0.8f))
-					Logger::LogError("AdaptiveMusicLib: Playing fallback main menu music");
-				else
-					Logger::LogError("AdaptiveMusicLib: Failed to load fallback main menu music: " + fallbackPath.string());
 			}
 		}
 		else
 		{
 			Logger::LogError("AdaptiveMusicLib: Stems directory does not exist: " + musicPath.string());
-			// Try fallback file
-			if (fs::exists(fallbackPath) && audioLib.PlayMusic(fallbackPath.string(), 0.8f))
-				Logger::LogError("AdaptiveMusicLib: Playing fallback main menu music");
-			else
-				Logger::LogError("AdaptiveMusicLib: Failed to load fallback main menu music: " + fallbackPath.string());
 		}
 	}
 	else
