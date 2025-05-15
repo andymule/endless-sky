@@ -28,6 +28,8 @@ scons-local*
 /*.d
 /vcpkg/
 /vcpkg_installed/
+sound_staging/
+/sound_staging/
 
 # Test Reports
 test-report.xml

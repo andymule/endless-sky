@@ -17,8 +17,11 @@ if [ ! -d "vcpkg" ]; then
     ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
 fi
 
-echo "Installing minizip dependency..."
-./vcpkg/vcpkg install minizip:arm64-osx --classic
+# Check if minizip is installed
+if [ ! -d "vcpkg/packages/minizip_arm64-osx" ]; then
+    echo "Installing minizip dependency..."
+    ./vcpkg/vcpkg install minizip:arm64-osx --classic
+fi
 
 # Check for SDL2 on macOS
 if [ "$(uname)" == "Darwin" ]; then
@@ -31,27 +34,36 @@ if [ "$(uname)" == "Darwin" ]; then
     echo "Using SDL2 from: $SDL2_DIR"
 fi
 
-# Build AudioLib
-echo "Building standalone AudioLib..."
-mkdir -p standalone_audio_lib/build
-cd standalone_audio_lib
-cmake -B build
-cmake --build build -j$(sysctl -n hw.ncpu)
-cd ..
+# Build AudioLib only if it doesn't exist
+if [ ! -f "standalone_audio_lib/build/libaudiolib.a" ]; then
+    echo "Building standalone AudioLib..."
+    mkdir -p standalone_audio_lib/build
+    cd standalone_audio_lib
+    cmake -B build
+    cmake --build build -j$(sysctl -n hw.ncpu)
+    cd ..
+else
+    echo "AudioLib already built, skipping..."
+fi
 
-# Build main project
-echo "Building Endless Sky..."
-rm -rf build
-mkdir -p build
+# Create build directory if it doesn't exist
+if [ ! -d "build" ]; then
+    echo "Creating build directory..."
+    mkdir -p build
+fi
 
-# Configure with CMake
-cmake -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake \
-    -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip \
-    -DBUILD_TESTING=OFF
+# Configure with CMake if not already configured
+if [ ! -f "build/CMakeCache.txt" ]; then
+    echo "Configuring Endless Sky with CMake..."
+    cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake \
+        -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip \
+        -DBUILD_TESTING=OFF
+fi
 
 # Build only the main executable
+echo "Building Endless Sky..."
 cmake --build build -j$(sysctl -n hw.ncpu) --target EndlessSky
 
 echo ""
