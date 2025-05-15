@@ -60,7 +60,7 @@ MainPanel::MainPanel(PlayerInfo &player)
 {
 	SetIsFullScreen(true);
 	
-	// Initialize AdaptiveMusic
+	// Initialize AdaptiveMusicLib
 	if (music.Initialize())
 	{
 		// Load and play background music
@@ -94,7 +94,7 @@ void MainPanel::Step()
 		}
 	}
 	
-	// Update AdaptiveMusic
+	// Update AdaptiveMusicLib
 	if (musicPlaying)
 	{
 		music.Update();

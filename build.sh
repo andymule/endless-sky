@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e  # Exit on error
 
-echo "=== Building Endless Sky with AudioLib ==="
+echo "=== Building Endless Sky with AdaptiveMusicLib ==="
 echo ""
 
 # Check for prerequisites
@@ -34,16 +34,16 @@ if [ "$(uname)" == "Darwin" ]; then
     echo "Using SDL2 from: $SDL2_DIR"
 fi
 
-# Build AudioLib only if it doesn't exist
-if [ ! -f "standalone_audio_lib/build/libaudiolib.a" ]; then
-    echo "Building standalone AudioLib..."
-    mkdir -p standalone_audio_lib/build
-    cd standalone_audio_lib
+# Build AdaptiveMusicLib only if it doesn't exist
+if [ ! -f "standalone_adaptive_music_lib/build/libadaptivemusiclib.a" ]; then
+    echo "Building standalone AdaptiveMusicLib..."
+    mkdir -p standalone_adaptive_music_lib/build
+    cd standalone_adaptive_music_lib
     cmake -B build
     cmake --build build -j$(sysctl -n hw.ncpu)
     cd ..
 else
-    echo "AudioLib already built, skipping..."
+    echo "AdaptiveMusicLib already built, skipping..."
 fi
 
 # Create build directory if it doesn't exist

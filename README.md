@@ -28,15 +28,15 @@ Development is done using [CMake](https://cmake.org) to compile the project. Mos
 
 For full installation instructions, consult the [Build Instructions](docs/readme-developer.md) readme.
 
-## AudioLib Integration
+## AdaptiveMusicLib Integration
 
-This version of Endless Sky includes AudioLib, a custom audio library that enables the game to play MP3 music files. The integration uses SoLoud as its backend and is compiled separately as a standalone library that the main game links against.
+This version of Endless Sky includes AdaptiveMusicLib, a custom audio library that enables the game to play MP3 music files. The integration uses SoLoud as its backend and is compiled separately as a standalone library that the main game links against.
 
-To build the game with AudioLib support, use the included `build.sh` script, which will:
+To build the game with AdaptiveMusicLib support, use the included `build.sh` script, which will:
 1. Clone the SoLoud repository (if not already present)
 2. Install required dependencies using vcpkg
-3. Build the AudioLib as a separate library
-4. Build the main game with AudioLib integration
+3. Build the AdaptiveMusicLib as a separate library
+4. Build the main game with AdaptiveMusicLib integration
 
 Once built, the game will automatically play MP3 music files from the sounds/music directory.
 

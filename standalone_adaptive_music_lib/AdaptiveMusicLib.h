@@ -8,10 +8,10 @@ namespace SoLoud {
     class WavStream;
 }
 
-class AudioLib {
+class AdaptiveMusicLib {
 public:
-    AudioLib();
-    ~AudioLib();
+    AdaptiveMusicLib();
+    ~AdaptiveMusicLib();
     
     // Initialize the audio engine
     bool Initialize();

@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "Command.h"
 #include "Engine.h"
-#include "../standalone_audio_lib/AudioLib.h"
+#include "../standalone_adaptive_music_lib/AdaptiveMusicLib.h"
 
 #include <list>
 
@@ -73,8 +73,8 @@ private:
 
 	Engine engine;
 
-	// AudioLib integration
-	AudioLib music;
+	// AdaptiveMusicLib integration
+	AdaptiveMusicLib music;
 	bool musicPlaying = false;
 
 	// These are the pending ShipEvents that have yet to be processed.

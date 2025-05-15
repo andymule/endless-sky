@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(AudioLib)
+project(AdaptiveMusicLib)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -87,26 +87,26 @@ target_compile_definitions(soloud PRIVATE
 # Link SoLoud with SDL2
 target_link_libraries(soloud PUBLIC ${SDL2_LIBRARIES})
 
-# Create AudioLib library
-add_library(audiolib STATIC
-    AudioLib.cpp
+# Create AdaptiveMusicLib library
+add_library(adaptivemusiclib STATIC
+    AdaptiveMusicLib.cpp
 )
 
-# Include directories for AudioLib
-target_include_directories(audiolib PUBLIC 
+# Include directories for AdaptiveMusicLib
+target_include_directories(adaptivemusiclib PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${SOLOUD_DIR}/include
 )
 
-# Link AudioLib with SoLoud
-target_link_libraries(audiolib PUBLIC soloud)
+# Link AdaptiveMusicLib with SoLoud
+target_link_libraries(adaptivemusiclib PUBLIC soloud)
 
 # Create a test executable
-add_executable(audiolib_test main.cpp)
-target_link_libraries(audiolib_test PRIVATE audiolib)
+add_executable(adaptivemusiclib_test main.cpp)
+target_link_libraries(adaptivemusiclib_test PRIVATE adaptivemusiclib)
 
 # Copy the audio file to the build directory
-add_custom_command(TARGET audiolib_test POST_BUILD
+add_custom_command(TARGET adaptivemusiclib_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
     ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/main_menu.mp3
     ${CMAKE_CURRENT_BINARY_DIR}/main_menu.mp3

@@ -218,48 +218,48 @@ $ cmake -G Xcode --preset macos # macos-arm for Apple Silicon
 
 The XCode project is located in the `build/` directory.
 
-## AudioLib Integration
+## AdaptiveMusicLib Integration
 
-This project includes AudioLib, a custom wrapper around the SoLoud audio library that enables Endless Sky to play MP3 music files. Here's how to build with AudioLib support:
+This project includes AdaptiveMusicLib, a custom wrapper around the SoLoud audio library that enables Endless Sky to play MP3 music files. Here's how to build with AdaptiveMusicLib support:
 
-### Building with AudioLib
+### Building with AdaptiveMusicLib
 
 The main `build.sh` script in the root directory will automatically:
 1. Clone the SoLoud repository (if not already present in `extern/soloud`)
 2. Install required dependencies using vcpkg
-3. Build the standalone AudioLib
-4. Build the main game with AudioLib integration
+3. Build the standalone AdaptiveMusicLib
+4. Build the main game with AdaptiveMusicLib integration
 
 To run the build script:
 ```bash
 $ ./build.sh
 ```
 
-### Manual AudioLib Integration
+### Manual AdaptiveMusicLib Integration
 
-If you prefer to integrate AudioLib manually in your build process:
+If you prefer to integrate AdaptiveMusicLib manually in your build process:
 
 1. Ensure SoLoud is cloned in `extern/soloud`
-2. Build the standalone AudioLib first:
+2. Build the standalone AdaptiveMusicLib first:
    ```bash
-   mkdir -p standalone_audio_lib/build
-   cd standalone_audio_lib
+   mkdir -p standalone_adaptive_music_lib/build
+   cd standalone_adaptive_music_lib
    cmake -B build
    cmake --build build
    cd ..
    ```
-3. Configure the main project with CMake, which will automatically detect and link with AudioLib
+3. Configure the main project with CMake, which will automatically detect and link with AdaptiveMusicLib
 4. Build the main game
 
-### Using AudioLib in the code
+### Using AdaptiveMusicLib in the code
 
-AudioLib is already integrated in `MainPanel.cpp` and `MenuPanel.cpp` to play music files. To use AudioLib in your own code:
+AdaptiveMusicLib is already integrated in `MainPanel.cpp` and `MenuPanel.cpp` to play music files. To use AdaptiveMusicLib in your own code:
 
 ```cpp
-#include "../standalone_audio_lib/AudioLib.h"
+#include "../standalone_adaptive_music_lib/AdaptiveMusicLib.h"
 
 // Create an instance
-AudioLib music;
+AdaptiveMusicLib music;
 
 // Initialize
 if (music.Initialize())

@@ -1,16 +1,16 @@
-#include "AudioLib.h"
+#include "AdaptiveMusicLib.h"
 #include <iostream>
 
 // Include SoLoud headers
 #include "../extern/soloud/include/soloud.h"
 #include "../extern/soloud/include/soloud_wavstream.h"
 
-AudioLib::AudioLib()
+AdaptiveMusicLib::AdaptiveMusicLib()
     : mSoloud(nullptr), mMusic(nullptr), mMusicHandle(0), mInitialized(false)
 {
 }
 
-AudioLib::~AudioLib()
+AdaptiveMusicLib::~AdaptiveMusicLib()
 {
     // Clean up resources
     StopMusic();
@@ -29,7 +29,7 @@ AudioLib::~AudioLib()
     }
 }
 
-bool AudioLib::Initialize()
+bool AdaptiveMusicLib::Initialize()
 {
     if(mInitialized)
         return true;
@@ -50,7 +50,7 @@ bool AudioLib::Initialize()
     return true;
 }
 
-bool AudioLib::PlayMusic(const std::string& filename, float volume)
+bool AdaptiveMusicLib::PlayMusic(const std::string& filename, float volume)
 {
     if(!mInitialized || !mSoloud)
         return false;
@@ -85,7 +85,7 @@ bool AudioLib::PlayMusic(const std::string& filename, float volume)
     return mSoloud->isValidVoiceHandle(mMusicHandle);
 }
 
-void AudioLib::StopMusic()
+void AdaptiveMusicLib::StopMusic()
 {
     if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
@@ -94,7 +94,7 @@ void AudioLib::StopMusic()
     }
 }
 
-void AudioLib::PauseMusic()
+void AdaptiveMusicLib::PauseMusic()
 {
     if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
@@ -102,7 +102,7 @@ void AudioLib::PauseMusic()
     }
 }
 
-void AudioLib::ResumeMusic()
+void AdaptiveMusicLib::ResumeMusic()
 {
     if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
@@ -110,7 +110,7 @@ void AudioLib::ResumeMusic()
     }
 }
 
-void AudioLib::SetVolume(float volume)
+void AdaptiveMusicLib::SetVolume(float volume)
 {
     if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
@@ -118,7 +118,7 @@ void AudioLib::SetVolume(float volume)
     }
 }
 
-void AudioLib::Update()
+void AdaptiveMusicLib::Update()
 {
     // Nothing needed for basic functionality
 } 

@@ -171,14 +171,14 @@ endif()
 add_subdirectory(source)
 
 # Create audio library
-add_subdirectory(standalone_audio_lib)
+add_subdirectory(standalone_adaptive_music_lib)
 
 # Create an interface library that contains common libraries for the game and unit tests.
 add_library(ExternalLibraries INTERFACE)
 target_link_libraries(EndlessSkyLib PUBLIC ExternalLibraries)
 
-# Link EndlessSkyLib with the AudioLib
-target_link_libraries(EndlessSkyLib PUBLIC audiolib)
+# Link EndlessSkyLib with the AdaptiveMusicLib
+target_link_libraries(EndlessSkyLib PUBLIC adaptivemusiclib)
 
 # Enable sanitizers on debug builds, depending on platform support.
 if(NOT WIN32)

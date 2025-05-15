@@ -90,20 +90,20 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 		gamePanels.StepAll();
 	}
 
-	// Initialize AudioLib system
+	// Initialize AdaptiveMusicLib system
 	if (audioLib.Initialize())
 	{
 		std::filesystem::path musicPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
 		if (audioLib.PlayMusic(musicPath.string(), 0.8f))
 		{
-			Logger::LogError("AudioLib: Playing main menu music");
+			Logger::LogError("AdaptiveMusicLib: Playing main menu music");
 		}
 		else
-			Logger::LogError("AudioLib: Failed to load main menu music");
+			Logger::LogError("AdaptiveMusicLib: Failed to load main menu music");
 	}
 	else
 	{
-		Logger::LogError("AudioLib: Failed to initialize");
+		Logger::LogError("AdaptiveMusicLib: Failed to initialize");
 		// Fall back to the standard audio system
 		if(player.GetPlanet())
 			Audio::PlayMusic(player.GetPlanet()->MusicName());
@@ -139,7 +139,7 @@ void MenuPanel::Step()
 			scroll = 0;
 	}
 	
-	// Update the audio
+	// Update the AdaptiveMusicLib
 	audioLib.Update();
 }
 

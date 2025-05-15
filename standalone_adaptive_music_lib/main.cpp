@@ -1,14 +1,14 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "AudioLib.h"
+#include "AdaptiveMusicLib.h"
 
 int main()
 {
-    std::cout << "AudioLib Test Program" << std::endl;
+    std::cout << "AdaptiveMusicLib Test Program" << std::endl;
     
     // Create audio library instance
-    AudioLib audio;
+    AdaptiveMusicLib audio;
     
     // Initialize the audio system
     std::cout << "Initializing audio system..." << std::endl;
