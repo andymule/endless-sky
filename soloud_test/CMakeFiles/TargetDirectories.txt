@@ -1,0 +1,4 @@
+/Users/arckex/source/endless-sky/soloud_test/CMakeFiles/soloud.dir
+/Users/arckex/source/endless-sky/soloud_test/CMakeFiles/soloud_test.dir
+/Users/arckex/source/endless-sky/soloud_test/CMakeFiles/edit_cache.dir
+/Users/arckex/source/endless-sky/soloud_test/CMakeFiles/rebuild_cache.dir

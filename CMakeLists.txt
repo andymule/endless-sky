@@ -335,3 +335,28 @@ execute_process(
 	COMMAND ${CMAKE_COMMAND} -E create_symlink
 	${CMAKE_BINARY_DIR}/compile_commands.json
 	${CMAKE_CURRENT_SOURCE_DIR}/build/compile_commands.json)
+
+project(SoloudTest)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Include SoLoud
+set(SOLOUD_BACKEND_OPENAL ON CACHE BOOL "Use OpenAL" FORCE)
+set(SOLOUD_DYNAMIC_LOAD OFF CACHE BOOL "Dynamically load OpenAL" FORCE)
+add_subdirectory(extern/soloud)
+
+# Create test executable
+add_executable(soloud_test src/soloud_test.cpp)
+target_include_directories(soloud_test PRIVATE extern/soloud/include)
+target_link_libraries(soloud_test PRIVATE soloud)
+
+# Copy sound file to build directory
+add_custom_command(
+    TARGET soloud_test
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_SOURCE_DIR}/sounds/alarm.wav
+    $<TARGET_FILE_DIR:soloud_test>/alarm.wav
+)
