@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Endless Sky",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/endless-sky",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build Endless Sky",
+            "terminal": "integrated"
+        }
+    ]
+} 

@@ -1,0 +1,15 @@
+{
+    "cmake.configureSettings": {
+        "CMAKE_TOOLCHAIN_FILE": "${workspaceFolder}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "unofficial-minizip_DIR": "${workspaceFolder}/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip",
+        "LIBMAD_INCLUDE_DIR": "${workspaceFolder}/vcpkg/packages/libmad_arm64-osx/include",
+        "LIBMAD_LIB_RELEASE": "${workspaceFolder}/vcpkg/packages/libmad_arm64-osx/lib/libmad.a",
+        "LIBMAD_LIB_DEBUG": "${workspaceFolder}/vcpkg/packages/libmad_arm64-osx/debug/lib/libmad.a"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.preferredGenerators": [
+        "Unix Makefiles",
+        "Ninja"
+    ],
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+} 
