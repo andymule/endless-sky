@@ -1,0 +1,5 @@
+/Users/arckex/source/endless-sky/standalone_audio_lib/CMakeFiles/soloud.dir
+/Users/arckex/source/endless-sky/standalone_audio_lib/CMakeFiles/audiolib.dir
+/Users/arckex/source/endless-sky/standalone_audio_lib/CMakeFiles/audiolib_test.dir
+/Users/arckex/source/endless-sky/standalone_audio_lib/CMakeFiles/edit_cache.dir
+/Users/arckex/source/endless-sky/standalone_audio_lib/CMakeFiles/rebuild_cache.dir

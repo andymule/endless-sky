@@ -1,0 +1,2 @@
+/usr/bin/ar qc libaudiolib.a CMakeFiles/audiolib.dir/AudioLib.cpp.o
+/usr/bin/ranlib libaudiolib.a

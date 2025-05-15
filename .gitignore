@@ -75,3 +75,14 @@ CMakeUserPresets.json
 
 # static code analysis
 /.scannerwork
+
+# Temporary build and test scripts
+simple-build.sh
+fix-build.sh
+build_with_audiolib.sh
+simple-audiolib-test.sh
+install-minizip.sh
+install-dependencies.sh
+*.backup
+CMakeLists.txt.backup
+soloud_test/

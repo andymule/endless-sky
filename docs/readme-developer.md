@@ -217,3 +217,60 @@ $ cmake -G Xcode --preset macos # macos-arm for Apple Silicon
 ```
 
 The XCode project is located in the `build/` directory.
+
+## AudioLib Integration
+
+This project includes AudioLib, a custom wrapper around the SoLoud audio library that enables Endless Sky to play MP3 music files. Here's how to build with AudioLib support:
+
+### Building with AudioLib
+
+The main `build.sh` script in the root directory will automatically:
+1. Clone the SoLoud repository (if not already present in `extern/soloud`)
+2. Install required dependencies using vcpkg
+3. Build the standalone AudioLib
+4. Build the main game with AudioLib integration
+
+To run the build script:
+```bash
+$ ./build.sh
+```
+
+### Manual AudioLib Integration
+
+If you prefer to integrate AudioLib manually in your build process:
+
+1. Ensure SoLoud is cloned in `extern/soloud`
+2. Build the standalone AudioLib first:
+   ```bash
+   mkdir -p standalone_audio_lib/build
+   cd standalone_audio_lib
+   cmake -B build
+   cmake --build build
+   cd ..
+   ```
+3. Configure the main project with CMake, which will automatically detect and link with AudioLib
+4. Build the main game
+
+### Using AudioLib in the code
+
+AudioLib is already integrated in `MainPanel.cpp` and `MenuPanel.cpp` to play music files. To use AudioLib in your own code:
+
+```cpp
+#include "../standalone_audio_lib/AudioLib.h"
+
+// Create an instance
+AudioLib music;
+
+// Initialize
+if (music.Initialize())
+{
+    // Play a music file
+    music.PlayMusic("path/to/music.mp3", 0.5f); // 0.5f is volume (0.0 to 1.0)
+    
+    // Update in your game loop
+    music.Update();
+    
+    // Stop music when needed
+    music.StopMusic();
+}
+```

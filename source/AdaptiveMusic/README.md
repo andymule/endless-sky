@@ -1,58 +1,59 @@
-# AdaptiveMusic Integration for Endless Sky
+# AdaptiveMusic Library for Endless Sky
 
-## Overview
+This is a prototype implementation of an adaptive music system for Endless Sky. 
 
-AdaptiveMusic is a simple library for playing background music in Endless Sky. It uses the SoLoud audio library with SDL2 backend to provide looping audio playback.
+## Current Functionality
 
-This integration is currently a proof-of-concept to demonstrate how to:
-1. Add a new audio system using SoLoud
-2. Load and play WAV files
-3. Integrate with Endless Sky's main game loop
+The current implementation provides a simple wrapper around Endless Sky's existing Audio system to demonstrate the integration of adaptive music in the MenuPanel. It offers:
 
-## Implementation Details
-
-The library consists of two main parts:
-- `AdaptiveMusic.h` - Header file with the API
-- `AdaptiveMusic.cpp` - Implementation file
-
-AdaptiveMusic is integrated into the MainPanel and plays a test sound ("alarm.wav") when the main game panel is active.
-
-## Building
-
-To build Endless Sky with AdaptiveMusic support:
-```bash
-./build_with_adaptive_music.sh
-```
-
-This script handles:
-- Downloading SoLoud (if needed)
-- Setting up SDL2 dependencies
-- Building Endless Sky with AdaptiveMusic
+- Basic music playback (currently uses Endless Sky's Audio system)
+- Music looping
+- Volume control (through Endless Sky's Audio system)
+- Play/pause/stop functionality
 
 ## Usage
 
-The AdaptiveMusic class provides the following functionality:
-- Initialize the audio system
-- Load audio files
-- Play audio in a loop
-- Control playback (stop, pause, resume)
-- Adjust volume
+```cpp
+// Create an instance of AdaptiveMusic
+AdaptiveMusic music;
 
-## Future Improvements
+// Initialize the audio system
+if (music.Initialize())
+{
+    // Load a music file
+    std::filesystem::path musicPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
+    if (music.LoadMusic(musicPath.string()))
+    {
+        // Play the music with looping
+        music.PlayMusicLooped(0.8f);
+    }
+}
 
-Possible enhancements include:
-- Support for different music tracks based on game state (combat, exploration, etc.)
-- Crossfading between tracks
-- More audio formats (not just WAV)
-- Configuration options for volume
-- Spatial audio for in-game sounds
+// Stop the music when you're done
+music.StopMusic();
+```
 
-## Dependencies
+## Integration Example
 
-- SoLoud audio library
-- SDL2 (reusing Endless Sky's existing dependency)
+The MenuPanel class now uses AdaptiveMusic to play the main menu music. See `source/MenuPanel.cpp` for an example of how to integrate AdaptiveMusic into your panels.
+
+## Future Plans
+
+This library is a starting point for a more sophisticated adaptive music system. Future enhancements could include:
+
+1. **SoLoud Integration**: Replace Endless Sky's current audio system with SoLoud for more advanced audio capabilities.
+2. **Layered Music**: Support for multiple layers of music that can fade in/out based on game state.
+3. **Combat Music**: Dynamic transition to combat music when entering battles.
+4. **Mood-based System**: Music that changes based on player actions, location, and story events.
+5. **Cross-fading**: Smooth transitions between different music tracks.
+6. **Per-system Music**: Different ambient music for different star systems.
+7. **Event-triggered Music**: Special music for significant events in the game.
+
+## Implementation Notes
+
+The current implementation is a simple wrapper around Endless Sky's existing Audio system. A full implementation would use SoLoud directly, but this would require more complex integration with the build system.
 
 ## Credits
 
-- SoLoud: https://github.com/jarikomppa/soloud
-- SDL2: https://www.libsdl.org/ 
+- Endless Sky: https://endless-sky.github.io/
+- SoLoud Audio Library: https://sol.gfxile.net/soloud/ 

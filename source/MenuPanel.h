@@ -16,6 +16,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #include "Panel.h"
+#include "../standalone_audio_lib/AudioLib.h"
 
 #include <string>
 #include <vector>
@@ -57,4 +58,7 @@ private:
 	std::vector<std::string> credits;
 	long long int scroll = 0;
 	bool scrollingPaused = false;
+	
+	// AudioLib instance for the menu
+	AudioLib audioLib;
 };

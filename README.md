@@ -28,6 +28,18 @@ Development is done using [CMake](https://cmake.org) to compile the project. Mos
 
 For full installation instructions, consult the [Build Instructions](docs/readme-developer.md) readme.
 
+## AudioLib Integration
+
+This version of Endless Sky includes AudioLib, a custom audio library that enables the game to play MP3 music files. The integration uses SoLoud as its backend and is compiled separately as a standalone library that the main game links against.
+
+To build the game with AudioLib support, use the included `build.sh` script, which will:
+1. Clone the SoLoud repository (if not already present)
+2. Install required dependencies using vcpkg
+3. Build the AudioLib as a separate library
+4. Build the main game with AudioLib integration
+
+Once built, the game will automatically play MP3 music files from the sounds/music directory.
+
 ## Contributing
 
 As a free and open source game, Endless Sky is the product of many people's work. Contributions of artwork, storylines, and other writing are most in-demand, though there is a loosely defined [roadmap](https://github.com/endless-sky/endless-sky/wiki/DevelopmentRoadmap). Those who wish to [contribute](docs/CONTRIBUTING.md) are encouraged to review the [wiki](https://github.com/endless-sky/endless-sky/wiki), and to post in the [community-run Discord](https://discord.gg/ZeuASSx) beforehand. Those who prefer to use Steam can use its [discussion rooms](https://steamcommunity.com/app/404410/discussions/) as well, or GitHub's [discussion zone](https://github.com/endless-sky/endless-sky/discussions).

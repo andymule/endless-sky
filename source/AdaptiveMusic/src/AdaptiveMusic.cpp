@@ -1,45 +1,56 @@
 #include "../include/AdaptiveMusic.h"
 
-// Include SoLoud headers
-#include "../../../extern/soloud/include/soloud.h"
-#include "../../../extern/soloud/include/soloud_wav.h"
+// Include SoLoud headers for direct integration
+#include "soloud.h"
+#include "soloud_wav.h"  // Using Wav instead of WavStream to avoid stb_vorbis dependency
 
-// Include SDL for initialization (already included in Endless Sky)
-#include <SDL.h>
+// Include Logger for consistent logging
+#include "../../Logger.h"
 
-#include <iostream>
+#include <filesystem>
+#include <string>
 
 AdaptiveMusic::AdaptiveMusic()
-    : mEngine(new SoLoud::Soloud())
-    , mMusic(new SoLoud::Wav())
-    , mMusicHandle(-1)
-    , mInitialized(false)
+    : mSoloud(nullptr), mMusic(nullptr), mMusicHandle(0), mInitialized(false)
 {
 }
 
 AdaptiveMusic::~AdaptiveMusic()
 {
-    // Cleanup resources
-    if (mInitialized)
+    // Clean up resources
+    StopMusic();
+    
+    if(mMusic)
     {
-        mEngine->deinit();
-        
-        // Don't quit SDL here as Endless Sky manages its lifecycle
+        delete mMusic;
+        mMusic = nullptr;
+    }
+    
+    if(mSoloud)
+    {
+        mSoloud->deinit();
+        delete mSoloud;
+        mSoloud = nullptr;
     }
 }
 
 bool AdaptiveMusic::Initialize()
 {
-    if (mInitialized)
+    if(mInitialized)
         return true;
     
-    // Don't initialize SDL here as Endless Sky already does it
+    Logger::LogError("AdaptiveMusic: Initializing audio system");
     
-    // Initialize SoLoud
-    auto result = mEngine->init();
-    if (result != SoLoud::SO_NO_ERROR)
+    mSoloud = new SoLoud::Soloud();
+    if(!mSoloud)
+        return false;
+    
+    int result = mSoloud->init(SoLoud::Soloud::CLIP_ROUNDOFF);
+    if(result != SoLoud::SO_NO_ERROR)
     {
-        std::cerr << "Failed to initialize SoLoud: " << result << std::endl;
+        Logger::LogError("AdaptiveMusic: Failed to initialize SoLoud");
+        delete mSoloud;
+        mSoloud = nullptr;
         return false;
     }
     
@@ -54,81 +65,103 @@ bool AdaptiveMusic::IsInitialized() const
 
 bool AdaptiveMusic::LoadMusic(const std::string& filename)
 {
-    if (!mInitialized)
+    if(!mInitialized || !mSoloud)
     {
-        std::cerr << "AdaptiveMusic not initialized" << std::endl;
+        Logger::LogError("AdaptiveMusic: Not initialized");
         return false;
+    }
+    
+    // Check if file exists
+    if(!std::filesystem::exists(filename))
+    {
+        Logger::LogError("AdaptiveMusic: File not found: " + filename);
+        return false;
+    }
+    
+    // Cleanup previous music if any
+    if(mMusic)
+    {
+        delete mMusic;
+        mMusic = nullptr;
     }
     
     // Load the music file
-    auto result = mMusic->load(filename.c_str());
-    if (result != SoLoud::SO_NO_ERROR)
+    mMusic = new SoLoud::Wav();
+    if(!mMusic)
+        return false;
+    
+    int result = mMusic->load(filename.c_str());
+    if(result != SoLoud::SO_NO_ERROR)
     {
-        std::cerr << "Failed to load music file '" << filename << "': " << result << std::endl;
+        Logger::LogError("AdaptiveMusic: Failed to load music file: " + filename);
+        delete mMusic;
+        mMusic = nullptr;
         return false;
     }
     
-    // Set the music to loop by default
-    mMusic->setLooping(true);
-    
+    mCurrentMusic = filename;
+    Logger::LogError("AdaptiveMusic: Loaded music file: " + filename);
     return true;
 }
 
 bool AdaptiveMusic::PlayMusicLooped(float volume)
 {
-    if (!mInitialized)
+    if(!mInitialized || !mSoloud || !mMusic)
     {
-        std::cerr << "AdaptiveMusic not initialized" << std::endl;
+        Logger::LogError("AdaptiveMusic: Not initialized or no music loaded");
         return false;
     }
     
-    // Stop any currently playing music
-    if (mMusicHandle != -1 && mEngine->isValidVoiceHandle(mMusicHandle))
+    // Set looping
+    mMusic->setLooping(true);
+    
+    // Play the music
+    mMusicHandle = mSoloud->play(*mMusic, volume);
+    
+    if(mSoloud->isValidVoiceHandle(mMusicHandle))
     {
-        mEngine->stop(mMusicHandle);
+        Logger::LogError("AdaptiveMusic: Playing music");
+        return true;
     }
     
-    // Play the music with looping
-    mMusicHandle = mEngine->play(*mMusic, volume);
-    
-    return mEngine->isValidVoiceHandle(mMusicHandle);
+    Logger::LogError("AdaptiveMusic: Failed to play music");
+    return false;
 }
 
 void AdaptiveMusic::StopMusic()
 {
-    if (mInitialized && mMusicHandle != -1 && mEngine->isValidVoiceHandle(mMusicHandle))
+    if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
-        mEngine->stop(mMusicHandle);
-        mMusicHandle = -1;
+        mSoloud->stop(mMusicHandle);
+        mMusicHandle = 0;
     }
 }
 
 void AdaptiveMusic::SetVolume(float volume)
 {
-    if (mInitialized && mMusicHandle != -1 && mEngine->isValidVoiceHandle(mMusicHandle))
+    if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
-        mEngine->setVolume(mMusicHandle, volume);
+        mSoloud->setVolume(mMusicHandle, volume);
     }
 }
 
 void AdaptiveMusic::PauseMusic()
 {
-    if (mInitialized && mMusicHandle != -1 && mEngine->isValidVoiceHandle(mMusicHandle))
+    if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
-        mEngine->setPause(mMusicHandle, true);
+        mSoloud->setPause(mMusicHandle, true);
     }
 }
 
 void AdaptiveMusic::ResumeMusic()
 {
-    if (mInitialized && mMusicHandle != -1 && mEngine->isValidVoiceHandle(mMusicHandle))
+    if(mInitialized && mSoloud && mSoloud->isValidVoiceHandle(mMusicHandle))
     {
-        mEngine->setPause(mMusicHandle, false);
+        mSoloud->setPause(mMusicHandle, false);
     }
 }
 
 void AdaptiveMusic::Update()
 {
-    // This method can be used for future adaptive music features
-    // like crossfading between tracks or dynamic adjustments
+    // No updates needed for simple playback
 } 

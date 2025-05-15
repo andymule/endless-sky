@@ -64,9 +64,8 @@ MainPanel::MainPanel(PlayerInfo &player)
 	if (music.Initialize())
 	{
 		// Load and play background music
-		if (music.LoadMusic("sounds/takeoff.wav"))
+		if (music.PlayMusic("sounds/music/main_menu.mp3", 0.5f))
 		{
-			music.PlayMusicLooped(0.5f);
 			musicPlaying = true;
 		}
 	}

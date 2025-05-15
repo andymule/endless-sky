@@ -1,16 +1,13 @@
 #pragma once
 
 #include <string>
-#include <memory>
 
-// Forward declarations to avoid exposing SoLoud internals
-namespace SoLoud {
-    class Soloud;
-    class Wav;
-}
+// Include SoLoud headers
+#include "soloud.h"
+#include "soloud_wav.h"
 
 /**
- * AdaptiveMusic class for integrating SoLoud audio with Endless Sky.
+ * AdaptiveMusic class for integrating with Endless Sky's audio system.
  * This provides a simplified interface to play and control background music.
  */
 class AdaptiveMusic {
@@ -38,8 +35,8 @@ public:
     bool IsInitialized() const;
     
     /**
-     * Load a wave file.
-     * @param filename The path to the wave file
+     * Load a music file (MP3, WAV, etc.).
+     * @param filename The path to the music file
      * @return true if the file was loaded successfully, false otherwise
      */
     bool LoadMusic(const std::string& filename);
@@ -79,9 +76,18 @@ public:
     void Update();
 
 private:
-    // Private implementation details
-    std::unique_ptr<SoLoud::Soloud> mEngine;
-    std::unique_ptr<SoLoud::Wav> mMusic;
-    int mMusicHandle = -1;
-    bool mInitialized = false;
+    // SoLoud engine
+    SoLoud::Soloud* mSoloud;
+    
+    // Music file
+    SoLoud::Wav* mMusic;
+    
+    // Handle to the currently playing music
+    unsigned int mMusicHandle;
+    
+    // Currently playing music file path
+    std::string mCurrentMusic;
+    
+    // Whether the engine is initialized
+    bool mInitialized;
 }; 

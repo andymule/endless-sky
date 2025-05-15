@@ -43,6 +43,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
+#include <filesystem>
 
 using namespace std;
 
@@ -89,8 +90,24 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 		gamePanels.StepAll();
 	}
 
-	if(player.GetPlanet())
-		Audio::PlayMusic(player.GetPlanet()->MusicName());
+	// Initialize AudioLib system
+	if (audioLib.Initialize())
+	{
+		std::filesystem::path musicPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
+		if (audioLib.PlayMusic(musicPath.string(), 0.8f))
+		{
+			Logger::LogError("AudioLib: Playing main menu music");
+		}
+		else
+			Logger::LogError("AudioLib: Failed to load main menu music");
+	}
+	else
+	{
+		Logger::LogError("AudioLib: Failed to initialize");
+		// Fall back to the standard audio system
+		if(player.GetPlanet())
+			Audio::PlayMusic(player.GetPlanet()->MusicName());
+	}
 
 	if(!scrollSpeed)
 		scrollSpeed = 1;
@@ -103,6 +120,9 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 
 MenuPanel::~MenuPanel()
 {
+	// Stop the audio when the panel is destroyed
+	audioLib.StopMusic();
+
 	Audio::Resume();
 }
 
@@ -118,6 +138,9 @@ void MenuPanel::Step()
 		if(scroll >= (20 * static_cast<long long int>(credits.size()) + 300) * SCROLL_MOD)
 			scroll = 0;
 	}
+	
+	// Update the audio
+	audioLib.Update();
 }
 
 

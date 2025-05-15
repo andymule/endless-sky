@@ -20,9 +20,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # We don't use modules, so avoid using unrecognised compiler-specific commands that cmake produces when they are enabled.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-# Use LTO for Release builds only.
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+# Disable LTO/IPO for all builds due to compiler compatibility issues
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 # On Linux use relative RPATH.
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 
@@ -97,6 +98,9 @@ set(SOLOUD_SRCS
     ${SOLOUD_DIR}/src/audiosource/wav/soloud_wav.cpp
     ${SOLOUD_DIR}/src/audiosource/wav/stb_vorbis.c
     ${SOLOUD_DIR}/src/audiosource/wav/dr_impl.cpp
+    
+    # WavStream audio source for MP3 playback
+    ${SOLOUD_DIR}/src/audiosource/wav/soloud_wavstream.cpp
 )
 
 project("Endless Sky" VERSION 0.10.13
@@ -166,9 +170,15 @@ endif()
 # Add the library target.
 add_subdirectory(source)
 
+# Create audio library
+add_subdirectory(standalone_audio_lib)
+
 # Create an interface library that contains common libraries for the game and unit tests.
 add_library(ExternalLibraries INTERFACE)
 target_link_libraries(EndlessSkyLib PUBLIC ExternalLibraries)
+
+# Link EndlessSkyLib with the AudioLib
+target_link_libraries(EndlessSkyLib PUBLIC audiolib)
 
 # Enable sanitizers on debug builds, depending on platform support.
 if(NOT WIN32)
@@ -373,57 +383,3 @@ execute_process(
 	COMMAND ${CMAKE_COMMAND} -E create_symlink
 	${CMAKE_BINARY_DIR}/compile_commands.json
 	${CMAKE_CURRENT_SOURCE_DIR}/build/compile_commands.json)
-
-project(SoloudTest)
-
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Include SoLoud
-set(SOLOUD_BACKEND_OPENAL ON CACHE BOOL "Use OpenAL" FORCE)
-set(SOLOUD_DYNAMIC_LOAD OFF CACHE BOOL "Dynamically load OpenAL" FORCE)
-add_subdirectory(extern/soloud)
-
-# Create test executable
-add_executable(soloud_test src/soloud_test.cpp)
-target_include_directories(soloud_test PRIVATE extern/soloud/include)
-target_link_libraries(soloud_test PRIVATE soloud)
-
-# Copy sound file to build directory
-add_custom_command(
-    TARGET soloud_test
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_SOURCE_DIR}/sounds/alarm.wav
-    $<TARGET_FILE_DIR:soloud_test>/alarm.wav
-)
-
-# After the existing dependencies section, add SoLoud and AdaptiveMusic
-# Find SDL2 if not already found (for SoLoud)
-if(NOT SDL2_FOUND)
-        find_package(SDL2 REQUIRED)
-endif()
-
-# Add AdaptiveMusic sources
-set(ADAPTIVE_MUSIC_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/AdaptiveMusic/src/AdaptiveMusic.cpp
-)
-
-# Add to the source list
-list(APPEND ENDLESS_SKY_SOURCES ${SOLOUD_SRCS} ${ADAPTIVE_MUSIC_SRCS})
-
-# In the target_include_directories section, add:
-target_include_directories(endless-sky PRIVATE 
-    ${SOLOUD_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/AdaptiveMusic/include
-)
-
-# Enable SDL2 static backend for SoLoud
-target_compile_definitions(endless-sky PRIVATE 
-    WITH_SDL2_STATIC=1
-    WITH_NOSOUND=1
-)
-
-# Add SoLoud sources to the build
-target_sources(EndlessSkyLib PRIVATE ${SOLOUD_SRCS})

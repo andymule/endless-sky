@@ -3,10 +3,17 @@ add_library(EndlessSkyLib OBJECT)
 # Set the appropriate compiler flags.
 target_include_directories(EndlessSkyLib PUBLIC "${LIBMAD_INCLUDE_DIR}")
 target_include_directories(EndlessSkyLib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}") 
-target_include_directories(EndlessSkyLib PRIVATE "${CMAKE_SOURCE_DIR}/extern/soloud/include")
 
-# Add SoLoud backend compile definitions
-target_compile_definitions(EndlessSkyLib PRIVATE WITH_SDL2_STATIC=1 WITH_NOSOUND=1)
+# Add AdaptiveMusic library
+# add_library(AdaptiveMusic STATIC
+# 	AdaptiveMusic/src/AdaptiveMusic.cpp
+# )
+
+# target_include_directories(AdaptiveMusic PUBLIC 
+# 	${CMAKE_CURRENT_SOURCE_DIR}/AdaptiveMusic/include
+# 	${SOLOUD_DIR}/include
+# )
+
 
 if(MSVC)
 	target_compile_options(EndlessSkyLib PUBLIC "/W3" "/permissive-" "/sdl" "/GR-" "/analyze-"
@@ -411,6 +418,4 @@ target_sources(EndlessSkyLib PRIVATE
 	text/Utf8.h
 	text/WrappedText.cpp
 	text/WrappedText.h
-	AdaptiveMusic/src/AdaptiveMusic.cpp
-	AdaptiveMusic/include/AdaptiveMusic.h
 )
