@@ -18,12 +18,17 @@ int main()
         return 1;
     }
     
-    // Play music
-    std::cout << "Loading and playing music..." << std::endl;
-    if (!audio.PlayMusic("main_menu.mp3", 0.5f))
+    // Play stems from the directory
+    std::cout << "Loading and playing music stems..." << std::endl;
+    if (!audio.PlayStemsFromDirectory("mainmenu", 0.5f))
     {
-        std::cerr << "Failed to play music" << std::endl;
-        return 1;
+        std::cerr << "Failed to play stems. Trying alternative path..." << std::endl;
+        // Try with full path as fallback
+        if (!audio.PlayStemsFromDirectory("../sounds/music/mainmenu", 0.5f))
+        {
+            std::cerr << "Failed to play stems with alternative path" << std::endl;
+            return 1;
+        }
     }
     
     // Wait for 5 seconds

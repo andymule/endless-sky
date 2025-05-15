@@ -68,3 +68,4 @@ cmake --build build -j$(sysctl -n hw.ncpu) --target EndlessSky
 
 echo ""
 echo "Build complete! Run with ./build/endless-sky"
+echo "The game will use the music stems in sounds/music/mainmenu/ when launched."

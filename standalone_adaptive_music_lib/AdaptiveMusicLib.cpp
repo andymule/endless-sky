@@ -8,7 +8,11 @@
 #include "../extern/soloud/include/soloud_wavstream.h"
 
 // Namespace alias to fix linter issues
-namespace fs = std::filesystem;
+#if defined(__cplusplus) && __cplusplus >= 201703L
+    namespace fs = std::filesystem;
+#else
+    #error "C++17 or later is required for std::filesystem"
+#endif
 
 AdaptiveMusicLib::AdaptiveMusicLib()
     : mSoloud(nullptr), mMasterVolume(1.0f), mInitialized(false)

@@ -105,9 +105,14 @@ target_link_libraries(adaptivemusiclib PUBLIC soloud)
 add_executable(adaptivemusiclib_test main.cpp)
 target_link_libraries(adaptivemusiclib_test PRIVATE adaptivemusiclib)
 
-# Copy the audio file to the build directory
+# Copy the stem files to the build directory
 add_custom_command(TARGET adaptivemusiclib_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/mainmenu
     COMMAND ${CMAKE_COMMAND} -E copy
-    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/main_menu.mp3
-    ${CMAKE_CURRENT_BINARY_DIR}/main_menu.mp3
+    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/mainmenu/airy.flac
+    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/mainmenu/bass1.flac
+    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/mainmenu/bass2.flac
+    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/mainmenu/drone.flac
+    ${CMAKE_CURRENT_SOURCE_DIR}/../sounds/music/mainmenu/drums.flac
+    ${CMAKE_CURRENT_BINARY_DIR}/mainmenu
 ) 
