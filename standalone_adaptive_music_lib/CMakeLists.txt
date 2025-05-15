@@ -71,6 +71,18 @@ set(SOLOUD_SRCS
     ${SOLOUD_DIR}/src/audiosource/wav/soloud_wavstream.cpp
     ${SOLOUD_DIR}/src/audiosource/wav/stb_vorbis.c
     ${SOLOUD_DIR}/src/audiosource/wav/dr_impl.cpp
+    
+    # Filters
+    ${SOLOUD_DIR}/src/filter/soloud_bassboostfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_biquadresonantfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_dcremovalfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_echofilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_fftfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_flangerfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_freeverbfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_lofifilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_robotizefilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_waveshaperfilter.cpp
 )
 
 # Create SoLoud library

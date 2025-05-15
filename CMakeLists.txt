@@ -101,6 +101,18 @@ set(SOLOUD_SRCS
     
     # WavStream audio source for MP3 playback
     ${SOLOUD_DIR}/src/audiosource/wav/soloud_wavstream.cpp
+    
+    # Filters
+    ${SOLOUD_DIR}/src/filter/soloud_bassboostfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_biquadresonantfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_dcremovalfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_echofilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_fftfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_flangerfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_freeverbfilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_lofifilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_robotizefilter.cpp
+    ${SOLOUD_DIR}/src/filter/soloud_waveshaperfilter.cpp
 )
 
 project("Endless Sky" VERSION 0.10.13
