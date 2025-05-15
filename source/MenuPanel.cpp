@@ -45,6 +45,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <stdexcept>
 #include <filesystem>
 
+// Add namespace alias for filesystem
+namespace fs = std::filesystem;
+
 using namespace std;
 
 namespace {
@@ -93,13 +96,39 @@ MenuPanel::MenuPanel(PlayerInfo &player, UI &gamePanels)
 	// Initialize AdaptiveMusicLib system
 	if (audioLib.Initialize())
 	{
-		std::filesystem::path musicPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
-		if (audioLib.PlayMusic(musicPath.string(), 0.8f))
+		// First, try the stems directory
+		fs::path musicPath = Files::Resources() / "sounds" / "music" / "mainmenu";
+		fs::path fallbackPath = Files::Resources() / "sounds" / "music" / "main_menu.mp3";
+		
+		Logger::LogError("AdaptiveMusicLib: Checking for music stems in: " + musicPath.string());
+		
+		// Check if the directory exists and try to play the stems
+		if (fs::exists(musicPath) && fs::is_directory(musicPath))
 		{
-			Logger::LogError("AdaptiveMusicLib: Playing main menu music");
+			if (audioLib.PlayStemsFromDirectory(musicPath.string(), 0.8f))
+			{
+				Logger::LogError("AdaptiveMusicLib: Successfully loaded and playing main menu music stems");
+			}
+			else
+			{
+				Logger::LogError("AdaptiveMusicLib: Failed to load main menu music stems from: " + musicPath.string());
+				// Fall back to regular music file
+				Logger::LogError("AdaptiveMusicLib: Trying fallback music file: " + fallbackPath.string());
+				if (fs::exists(fallbackPath) && audioLib.PlayMusic(fallbackPath.string(), 0.8f))
+					Logger::LogError("AdaptiveMusicLib: Playing fallback main menu music");
+				else
+					Logger::LogError("AdaptiveMusicLib: Failed to load fallback main menu music: " + fallbackPath.string());
+			}
 		}
 		else
-			Logger::LogError("AdaptiveMusicLib: Failed to load main menu music");
+		{
+			Logger::LogError("AdaptiveMusicLib: Stems directory does not exist: " + musicPath.string());
+			// Try fallback file
+			if (fs::exists(fallbackPath) && audioLib.PlayMusic(fallbackPath.string(), 0.8f))
+				Logger::LogError("AdaptiveMusicLib: Playing fallback main menu music");
+			else
+				Logger::LogError("AdaptiveMusicLib: Failed to load fallback main menu music: " + fallbackPath.string());
+		}
 	}
 	else
 	{

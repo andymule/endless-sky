@@ -68,4 +68,3 @@ cmake --build build -j$(sysctl -n hw.ncpu) --target EndlessSky
 
 echo ""
 echo "Build complete! Run with ./build/endless-sky"
-echo "The game will play main_menu.mp3 when launched." 
