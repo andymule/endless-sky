@@ -61,6 +61,44 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT EndlessSky)
 set(CMAKE_VS_JUST_MY_CODE_DEBUGGING ON)
 
+# SoLoud audio library setup for AdaptiveMusic
+set(SOLOUD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/soloud)
+
+# Define sources for SoLoud
+set(SOLOUD_SRCS
+    # Core
+    ${SOLOUD_DIR}/src/core/soloud.cpp
+    ${SOLOUD_DIR}/src/core/soloud_audiosource.cpp
+    ${SOLOUD_DIR}/src/core/soloud_bus.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_3d.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_basicops.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_faderops.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_filterops.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_getters.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_setters.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_voicegroup.cpp
+    ${SOLOUD_DIR}/src/core/soloud_core_voiceops.cpp
+    ${SOLOUD_DIR}/src/core/soloud_fader.cpp
+    ${SOLOUD_DIR}/src/core/soloud_fft.cpp
+    ${SOLOUD_DIR}/src/core/soloud_fft_lut.cpp
+    ${SOLOUD_DIR}/src/core/soloud_file.cpp
+    ${SOLOUD_DIR}/src/core/soloud_filter.cpp
+    ${SOLOUD_DIR}/src/core/soloud_misc.cpp
+    ${SOLOUD_DIR}/src/core/soloud_queue.cpp
+    ${SOLOUD_DIR}/src/core/soloud_thread.cpp
+    
+    # Using SDL2 static backend
+    ${SOLOUD_DIR}/src/backend/sdl2_static/soloud_sdl2_static.cpp
+    
+    # Add fallback for robustness
+    ${SOLOUD_DIR}/src/backend/nosound/soloud_nosound.cpp
+    
+    # Wav audio source
+    ${SOLOUD_DIR}/src/audiosource/wav/soloud_wav.cpp
+    ${SOLOUD_DIR}/src/audiosource/wav/stb_vorbis.c
+    ${SOLOUD_DIR}/src/audiosource/wav/dr_impl.cpp
+)
+
 project("Endless Sky" VERSION 0.10.13
 	DESCRIPTION "Space exploration, trading, and combat game."
 	HOMEPAGE_URL https://endless-sky.github.io/
@@ -360,3 +398,32 @@ add_custom_command(
     ${CMAKE_SOURCE_DIR}/sounds/alarm.wav
     $<TARGET_FILE_DIR:soloud_test>/alarm.wav
 )
+
+# After the existing dependencies section, add SoLoud and AdaptiveMusic
+# Find SDL2 if not already found (for SoLoud)
+if(NOT SDL2_FOUND)
+        find_package(SDL2 REQUIRED)
+endif()
+
+# Add AdaptiveMusic sources
+set(ADAPTIVE_MUSIC_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/AdaptiveMusic/src/AdaptiveMusic.cpp
+)
+
+# Add to the source list
+list(APPEND ENDLESS_SKY_SOURCES ${SOLOUD_SRCS} ${ADAPTIVE_MUSIC_SRCS})
+
+# In the target_include_directories section, add:
+target_include_directories(endless-sky PRIVATE 
+    ${SOLOUD_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/AdaptiveMusic/include
+)
+
+# Enable SDL2 static backend for SoLoud
+target_compile_definitions(endless-sky PRIVATE 
+    WITH_SDL2_STATIC=1
+    WITH_NOSOUND=1
+)
+
+# Add SoLoud sources to the build
+target_sources(EndlessSkyLib PRIVATE ${SOLOUD_SRCS})

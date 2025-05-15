@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "Command.h"
 #include "Engine.h"
+#include "AdaptiveMusic/include/AdaptiveMusic.h"
 
 #include <list>
 
@@ -71,6 +72,10 @@ private:
 	PlayerInfo &player;
 
 	Engine engine;
+
+	// AdaptiveMusic integration
+	AdaptiveMusic music;
+	bool musicPlaying = false;
 
 	// These are the pending ShipEvents that have yet to be processed.
 	std::list<ShipEvent> eventQueue;

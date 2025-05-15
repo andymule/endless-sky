@@ -59,6 +59,17 @@ MainPanel::MainPanel(PlayerInfo &player)
 	: player(player), engine(player)
 {
 	SetIsFullScreen(true);
+	
+	// Initialize AdaptiveMusic
+	if (music.Initialize())
+	{
+		// Load and play background music
+		if (music.LoadMusic("sounds/takeoff.wav"))
+		{
+			music.PlayMusicLooped(0.5f);
+			musicPlaying = true;
+		}
+	}
 }
 
 
@@ -73,7 +84,22 @@ void MainPanel::Step()
 
 	// If the player is dead, don't show anything.
 	if(player.IsDead())
+	{
 		show = Command::NONE;
+		
+		// Stop music if it was playing
+		if (musicPlaying)
+		{
+			music.StopMusic();
+			musicPlaying = false;
+		}
+	}
+	
+	// Update AdaptiveMusic
+	if (musicPlaying)
+	{
+		music.Update();
+	}
 
 	// Display any requested panels.
 	if(show.Has(Command::MAP))
