@@ -27,6 +27,7 @@ scons-local*
 .sconsign.dblite
 /*.d
 /vcpkg/
+/vcpkg_installed/
 
 # Test Reports
 test-report.xml

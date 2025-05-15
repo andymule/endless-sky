@@ -185,14 +185,15 @@ else()
 		set(OpenGL_GL_PREFERENCE "LEGACY")
 	endif()
 
-	find_package(OpenGL REQUIRED)
-	target_link_libraries(ExternalLibraries INTERFACE OpenGL::GL)
-
 	if(APPLE)
 		# Apple deprecated OpenGL in MacOS 10.14, but we don't care.
+		find_library(OPENGL_FRAMEWORK OpenGL)
+        target_link_libraries(ExternalLibraries INTERFACE ${OPENGL_FRAMEWORK})
 		target_compile_definitions(EndlessSkyLib PUBLIC GL_SILENCE_DEPRECATION)
 	else()
 		# GLEW is only needed on Linux and Windows.
+		find_package(OpenGL REQUIRED)
+        target_link_libraries(ExternalLibraries INTERFACE OpenGL::GL)
 		target_link_libraries(ExternalLibraries INTERFACE GLEW::glew)
 	endif()
 endif()
