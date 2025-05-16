@@ -13,7 +13,6 @@ TesterView::TesterView()
     strncpy(m_dirInput, m_musicDir.c_str(), sizeof(m_dirInput));
     m_dirInput[sizeof(m_dirInput) - 1] = '\0';
     SetMusicDirectory(m_musicDir);
-    LoadMusicFromDirectory();
 }
 
 TesterView::~TesterView()
@@ -35,6 +34,9 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext)
         std::cerr << "Failed to initialize audio system" << std::endl;
         return false;
     }
+
+    // After audio system is initialized, load music
+    LoadMusicFromDirectory();
 
     // Initialize Dear ImGui
     IMGUI_CHECKVERSION();
@@ -121,14 +123,16 @@ void TesterView::LoadMusicFromDirectory()
                 {
                     Track track;
                     track.name = entry.path().filename().string();
+                    // Set looping to true by default for new tracks
+                    track.looping = true;
                     // Restore looping state if it existed before
                     auto it = trackLoopingStates.find(track.name);
                     if (it != trackLoopingStates.end())
                     {
                         track.looping = it->second;
-                        m_audioSystem.setTrackLooping(m_tracks.size(), track.looping);
                     }
                     m_tracks.push_back(track);
+                    m_audioSystem.setTrackLooping(m_tracks.size() - 1, track.looping);
                     std::cout << "Found track: " << track.name << std::endl;
                 }
             }

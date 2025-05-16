@@ -22,6 +22,7 @@ bool AudioSystem::initialize()
     if (m_isInitialized)
         return true;
 
+    std::cout << "Initializing AudioSystem..." << std::endl;
     SoLoud::result result = m_soloud.init();
     if (result != SoLoud::SO_NO_ERROR)
     {
@@ -35,6 +36,35 @@ bool AudioSystem::initialize()
     m_soloud.setVolume(m_busHandle, m_busVolume);
 
     m_isInitialized = true;
+    std::cout << "AudioSystem initialized successfully" << std::endl;
+
+    // Auto-load tracks from the default folder
+    std::filesystem::path defaultFolder = "sound_staging";
+    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
+    std::cout << "Looking for sound_staging in: " << std::filesystem::absolute(defaultFolder) << std::endl;
+    
+    if (std::filesystem::exists(defaultFolder))
+    {
+        std::cout << "Default folder found, contents:" << std::endl;
+        for (const auto& entry : std::filesystem::directory_iterator(defaultFolder))
+        {
+            std::cout << "  " << entry.path().filename() << std::endl;
+        }
+        std::cout << "Loading tracks..." << std::endl;
+        bool loaded = loadDirectory(defaultFolder);
+        std::cout << "Load result: " << (loaded ? "success" : "failed") << std::endl;
+        std::cout << "Number of tracks loaded: " << m_tracks.size() << std::endl;
+    }
+    else
+    {
+        std::cout << "Default folder not found at: " << std::filesystem::absolute(defaultFolder) << std::endl;
+        std::cout << "Directory contents:" << std::endl;
+        for (const auto& entry : std::filesystem::directory_iterator("."))
+        {
+            std::cout << "  " << entry.path().filename() << std::endl;
+        }
+    }
+
     return true;
 }
 
@@ -262,7 +292,12 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
 bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
 {
     if (!m_isInitialized)
+    {
+        std::cout << "Cannot load directory - AudioSystem not initialized" << std::endl;
         return false;
+    }
+
+    std::cout << "Loading directory: " << std::filesystem::absolute(directory) << std::endl;
 
     // Clear existing tracks
     m_tracks.clear();
@@ -278,20 +313,30 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
             std::string ext = entry.path().extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             
+            std::cout << "Found file: " << entry.path().filename() << " (extension: " << ext << ")" << std::endl;
+            
             if (ext == ".wav" || ext == ".flac")
             {
                 auto wav = std::make_unique<SoLoud::Wav>();
                 SoLoud::result result = wav->load(entry.path().string().c_str());
                 if (result == SoLoud::SO_NO_ERROR)
                 {
+                    std::cout << "Successfully loaded: " << entry.path().filename() << std::endl;
                     m_tracks.push_back(std::move(wav));
                     m_trackVolumes.push_back(1.0f);
                     m_trackFilters.push_back(TrackFilters());
+                    // Enable looping by default for the newly loaded track
+                    m_tracks.back()->setLooping(true);
+                }
+                else
+                {
+                    std::cout << "Failed to load: " << entry.path().filename() << " (error: " << result << ")" << std::endl;
                 }
             }
         }
     }
 
+    std::cout << "Finished loading directory. Total tracks: " << m_tracks.size() << std::endl;
     return !m_tracks.empty();
 }
 
