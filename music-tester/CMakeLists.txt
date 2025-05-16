@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 set(MUSIC_TESTER_SOURCES
     src/main.cpp
     src/AudioSystem.cpp
+    src/TesterView.cpp
 )
 
 # Add the executable target
@@ -59,6 +60,16 @@ set(SOLOUD_SOURCES
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_wav.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/stb_vorbis.c
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_impl.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_biquadresonantfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_echofilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_lofifilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_flangerfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_dcremovalfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_fftfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_bassboostfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_waveshaperfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_robotizefilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_freeverbfilter.cpp
 )
 
 target_sources(music-tester PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
@@ -111,12 +122,6 @@ if(DEFINED unofficial-minizip_DIR)
     find_package(unofficial-minizip CONFIG REQUIRED)
     set(MINIZIP_LIBRARIES "unofficial::minizip::minizip")
     message(STATUS "Found minizip from vcpkg")
-else()
-    # Look for it in the system
-    pkg_check_modules(MINIZIP minizip)
-    if(NOT MINIZIP_FOUND)
-        message(FATAL_ERROR "minizip not found. Please install it or provide unofficial-minizip_DIR.")
-    endif()
 endif()
 
 # Handle OpenGL properly based on platform

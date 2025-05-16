@@ -15,6 +15,7 @@ icons/endless-sky.icns
 # Build Directories and toolchain-generated files
 build/
 obj/
+_deps/
 bin/
 lib/
 x64/

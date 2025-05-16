@@ -5,7 +5,13 @@
 #include <filesystem>
 #include <iostream>
 
-TesterView::TesterView() {}
+TesterView::TesterView()
+{
+    // Preload the sound_staging folder as the default music directory
+    m_musicDir = "/Users/arckex/source/endless-sky/music-tester/sound_staging";
+    SetMusicDirectory(m_musicDir);
+    LoadMusicFromDirectory();
+}
 
 TesterView::~TesterView()
 {
@@ -210,43 +216,38 @@ void TesterView::RenderTrackControls()
             m_audioSystem.setTrackVolume(i, currentVolume);
         }
 
-        RenderEffectsControls(track, i);
+        // Call drawFilterControls() for this track
+        drawFilterControls(i);
 
         ImGui::PopID();
         ImGui::Separator();
     }
 }
 
-void TesterView::RenderEffectsControls(Track& track, size_t trackIndex)
+void TesterView::drawFilterControls(size_t trackIndex)
 {
-    if (ImGui::BeginCombo("Effects", "Add Effect..."))
+    for (const auto& filterName : AudioSystem::AVAILABLE_FILTERS)
     {
-        static const char* effects[] = {"Reverb", "Delay", "Distortion", "EQ"};
-        for (int n = 0; n < IM_ARRAYSIZE(effects); n++)
+        bool enabled = m_audioSystem.isFilterEnabled(trackIndex, filterName);
+        if (ImGui::Checkbox(filterName.c_str(), &enabled))
         {
-            bool is_selected = false;
-            if (ImGui::Selectable(effects[n], is_selected))
-            {
-                track.effects.push_back(effects[n]);
-            }
-            if (is_selected)
-            {
-                ImGui::SetItemDefaultFocus();
-            }
+            m_audioSystem.setFilterEnabled(trackIndex, filterName, enabled);
         }
-        ImGui::EndCombo();
-    }
-
-    // List current effects
-    for (size_t j = 0; j < track.effects.size(); j++)
-    {
-        ImGui::Text("- %s", track.effects[j].c_str());
-        ImGui::SameLine();
-
-        std::string buttonId = "X##" + std::to_string(j);
-        if (ImGui::SmallButton(buttonId.c_str()))
+        if (enabled)
         {
-            track.effects.erase(track.effects.begin() + j);
+            const auto& filters = m_audioSystem.getFilters(trackIndex);
+            auto it = filters.find(filterName);
+            if (it != filters.end())
+            {
+                for (const auto& [paramId, param] : it->second.parameters)
+                {
+                    float value = m_audioSystem.getFilterParameter(trackIndex, filterName, paramId);
+                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max))
+                    {
+                        m_audioSystem.setFilterParameter(trackIndex, filterName, paramId, value);
+                    }
+                }
+            }
         }
     }
 }

@@ -31,6 +31,8 @@ class TesterView
     void SetMusicDirectory(const std::string& dir);
     void LoadMusicFromDirectory();
 
+    void drawFilterControls(size_t trackIndex);
+
   private:
     void RenderMainWindow();
     void RenderDirectoryInput();
