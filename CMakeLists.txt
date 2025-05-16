@@ -337,3 +337,9 @@ execute_process(
 	COMMAND ${CMAKE_COMMAND} -E create_symlink
 	${CMAKE_BINARY_DIR}/compile_commands.json
 	${CMAKE_CURRENT_SOURCE_DIR}/build/compile_commands.json)
+
+# Add the music-tester target
+option(ES_BUILD_MUSIC_TESTER "Build the adaptive music tester application" ON)
+if(ES_BUILD_MUSIC_TESTER)
+	add_subdirectory(music-tester)
+endif()

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<oaml>
+  <info>
+    <version>1.0</version>
+    <name>Endless Sky Music Tester</name>
+    <author>Endless Sky Team</author>
+  </info>
+  <options>
+    <samplerate>44100</samplerate>
+    <channels>2</channels>
+    <bytespersample>2</bytespersample>
+  </options>
+  <musictrack>
+    <name>Main</name>
+    <group>Main</group>
+    <subgroup>Default</subgroup>
+    <fadeIn>0</fadeIn>
+    <fadeOut>0</fadeOut>
+    <xfadeIn>0</xfadeIn>
+    <xfadeOut>0</xfadeOut>
+    <volume>1.0</volume>
+    <loop>true</loop>
+  </musictrack>
+</oaml>

@@ -37,7 +37,9 @@
 					"platform": "linux"
 				},
 				"sdl2",
-				"pkgconf"
+				"pkgconf",
+				"libogg",
+				"libvorbis"
 			]
 		},
 		"steam-libs": {
@@ -52,6 +54,13 @@
 			"description": "Dependencies used for unit testing.",
 			"dependencies": [
 				"catch2"
+			]
+		},
+		"music-tester": {
+			"description": "Dependencies for the music-tester application.",
+			"dependencies": [
+				"libogg",
+				"libvorbis"
 			]
 		}
 	}
