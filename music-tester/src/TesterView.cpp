@@ -4,6 +4,7 @@
 #include <SDL_opengl.h>
 #include <filesystem>
 #include <iostream>
+#include <unordered_map>
 
 TesterView::TesterView()
 {
@@ -98,6 +99,13 @@ void TesterView::LoadMusicFromDirectory()
 
     std::cout << "Loading music from: " << m_musicDir << std::endl;
 
+    // Store current track states
+    std::unordered_map<std::string, bool> trackLoopingStates;
+    for (const auto& track : m_tracks)
+    {
+        trackLoopingStates[track.name] = track.looping;
+    }
+
     // Load audio files using AudioSystem
     if (m_audioSystem.loadDirectory(m_musicDir))
     {
@@ -113,6 +121,13 @@ void TesterView::LoadMusicFromDirectory()
                 {
                     Track track;
                     track.name = entry.path().filename().string();
+                    // Restore looping state if it existed before
+                    auto it = trackLoopingStates.find(track.name);
+                    if (it != trackLoopingStates.end())
+                    {
+                        track.looping = it->second;
+                        m_audioSystem.setTrackLooping(m_tracks.size(), track.looping);
+                    }
                     m_tracks.push_back(track);
                     std::cout << "Found track: " << track.name << std::endl;
                 }
@@ -194,7 +209,8 @@ void TesterView::RenderGlobalControls()
 
     // Playback position slider
     float currentPosition = m_audioSystem.getPlaybackPosition();
-    if (ImGui::SliderFloat("Playback Position", &currentPosition, 0.0f, 1.0f))
+    float maxLength = m_audioSystem.getLongestTrackLength();
+    if (ImGui::SliderFloat("Playback Position", &currentPosition, 0.0f, maxLength, "%.2f s"))
     {
         m_audioSystem.setPlaybackPosition(currentPosition);
     }
@@ -212,6 +228,12 @@ void TesterView::RenderTrackControls()
         ImGui::Checkbox("##active", &track.active);
         ImGui::SameLine();
         ImGui::Text("%s", track.name.c_str());
+
+        // Loop toggle
+        if (ImGui::Checkbox("Loop", &track.looping))
+        {
+            m_audioSystem.setTrackLooping(i, track.looping);
+        }
 
         // Volume slider
         float currentVolume = m_audioSystem.getTrackVolume(i);

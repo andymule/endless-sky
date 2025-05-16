@@ -64,21 +64,64 @@ void AudioSystem::initializeFilter(FilterInstance& instance, const std::string& 
     if (instance.filter)
     {
         std::cout << "Filter created successfully" << std::endl;
-        // Initialize parameters with their ranges
-        int paramCount = instance.filter->getParamCount();
-        std::cout << "Filter has " << paramCount << " parameters" << std::endl;
         
-        for (int i = 0; i < paramCount; ++i)
+        // Initialize parameters with their ranges based on filter type
+        if (filterName == "biquad")
         {
-            FilterParameter param;
-            param.name = instance.filter->getParamName(i);
-            param.min = instance.filter->getParamMin(i);
-            param.max = instance.filter->getParamMax(i);
-            param.value = (param.min + param.max) * 0.5f; // Default to middle of range
-            instance.parameters[i] = param;
-            std::cout << "Parameter " << i << ": " << param.name 
-                      << " range [" << param.min << ", " << param.max << "]"
-                      << " default: " << param.value << std::endl;
+            // Type, Frequency, Resonance
+            instance.parameters[1] = {0.0f, 0.0f, 5.0f, "Type", false};  // 0-5 for different filter types
+            instance.parameters[2] = {1000.0f, 20.0f, 20000.0f, "Frequency", false};  // 20Hz-20kHz
+            instance.parameters[3] = {1.0f, 0.1f, 10.0f, "Resonance", false};  // Q factor
+        }
+        else if (filterName == "echo")
+        {
+            // Wet, Delay, Decay, Filter
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[1] = {0.3f, 0.001f, 1.0f, "Delay", false};  // 0.001-1 delay time
+            instance.parameters[2] = {0.7f, 0.001f, 1.0f, "Decay", false};  // 0.001-1 decay amount
+            instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter", false};  // 0-0.999 filter amount
+        }
+        else if (filterName == "lofi")
+        {
+            // Wet, Sample rate
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate", false};  // 0-1 sample rate reduction
+        }
+        else if (filterName == "flanger")
+        {
+            // Wet, Delay
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Delay", false};  // 0-1 delay time
+        }
+        else if (filterName == "dcremoval")
+        {
+            // Only one parameter: Length (in seconds)
+            instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length", false}; // 0.01-10 seconds
+        }
+        else if (filterName == "bassboost")
+        {
+            // Boost
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Boost", false};  // 0-1 boost amount
+        }
+        else if (filterName == "waveshaper")
+        {
+            // Amount
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Amount", false};  // 0-1 distortion amount
+        }
+        else if (filterName == "robotize")
+        {
+            // Wet, Frequency, Waveform
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency", false};  // 0.1-100 Hz
+            instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform", false};  // 0-6 waveform type
+        }
+        else if (filterName == "freeverb")
+        {
+            // Wet, Room size, Damp, Width
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Room Size", false};  // 0-1 room size
+            instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Damp", false};  // 0-1 damping
+            instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Width", false};  // 0-1 stereo width
         }
 
         // Apply initial parameters
@@ -112,12 +155,11 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::BiquadResonantFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Type
-            float p3 = instance.parameters[2].value;  // Frequency
-            float p4 = instance.parameters[3].value;  // Resonance
-            std::cout << "Setting biquad params: type=" << p2 << " freq=" << p3 << " res=" << p4 << std::endl;
-            f->setParams(static_cast<int>(p2), p3, p4);  // Type, Frequency, Resonance
+            float p1 = instance.parameters[1].value;  // Type
+            float p2 = instance.parameters[2].value;  // Frequency
+            float p3 = instance.parameters[3].value;  // Resonance
+            std::cout << "Setting biquad params: type=" << p1 << " freq=" << p2 << " res=" << p3 << std::endl;
+            f->setParams(static_cast<int>(p1), p2, p3);  // Type, Frequency, Resonance
         }
     }
     else if (filterName == "echo")
@@ -125,9 +167,14 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::EchoFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            float p2 = instance.parameters[1].value;
-            f->setParams(p1, p2);
+            float p1 = instance.parameters[0].value;  // Wet
+            float p2 = instance.parameters[1].value;  // Delay
+            float p3 = instance.parameters[2].value;  // Decay
+            float p4 = instance.parameters[3].value;  // Filter
+            float delay = std::max(0.001f, p2); // Minimum 1ms delay
+            float decay = std::max(0.001f, p3); // Minimum 0.1% decay
+            float filter = std::clamp(p4, 0.0f, 0.999f); // Filter between 0 and 0.999
+            f->setParams(delay, decay, filter);
         }
     }
     else if (filterName == "lofi")
@@ -135,9 +182,9 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::LofiFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            float p2 = instance.parameters[1].value;
-            f->setParams(p1, p2);
+            float p1 = instance.parameters[0].value;  // Wet
+            float p2 = instance.parameters[1].value;  // Sample rate
+            f->setParams(p1, p2);  // Wet, Sample rate
         }
     }
     else if (filterName == "flanger")
@@ -145,9 +192,9 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::FlangerFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            float p2 = instance.parameters[1].value;
-            f->setParams(p1, p2);
+            float p1 = instance.parameters[0].value;  // Wet
+            float p2 = instance.parameters[1].value;  // Delay
+            f->setParams(p1, p2);  // Wet, Delay
         }
     }
     else if (filterName == "dcremoval")
@@ -155,7 +202,8 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::DCRemovalFilter*>(instance.filter.get());
         if (f)
         {
-            f->setParams(); // No params
+            float length = instance.parameters[0].value;
+            f->setParams(length);
         }
     }
     else if (filterName == "bassboost")
@@ -163,8 +211,8 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::BassboostFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            f->setParams(p1);
+            float p1 = instance.parameters[1].value;  // Boost
+            f->setParams(p1);  // Only takes boost parameter
         }
     }
     else if (filterName == "waveshaper")
@@ -172,8 +220,8 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::WaveShaperFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            f->setParams(p1);
+            float p1 = instance.parameters[1].value;  // Amount
+            f->setParams(p1);  // Only takes amount parameter
         }
     }
     else if (filterName == "robotize")
@@ -181,9 +229,12 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::RobotizeFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            float p2 = instance.parameters[1].value;
-            f->setParams(p1, p2);
+            float p1 = instance.parameters[0].value;  // Wet
+            float p2 = instance.parameters[1].value;  // Frequency
+            float p3 = instance.parameters[2].value;  // Waveform
+            float freq = std::clamp(p2, 0.1f, 100.0f); // Frequency between 0.1 and 100 Hz
+            int wave = static_cast<int>(std::clamp(p3, 0.0f, 6.0f)); // Waveform between 0 and 6
+            f->setParams(freq, wave);
         }
     }
     else if (filterName == "freeverb")
@@ -191,10 +242,11 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
         auto* f = dynamic_cast<SoLoud::FreeverbFilter*>(instance.filter.get());
         if (f)
         {
-            float p1 = instance.parameters[0].value;
-            float p2 = instance.parameters[1].value;
-            float p3 = instance.parameters[2].value;
-            f->setParams(0.0f, p1, p2, p3);
+            float p1 = instance.parameters[0].value;  // Wet
+            float p2 = instance.parameters[1].value;  // Room size
+            float p3 = instance.parameters[2].value;  // Damp
+            float p4 = instance.parameters[3].value;  // Width
+            f->setParams(p1, p2, p3, p4);  // Wet, Room size, Damp, Width
         }
     }
 
@@ -619,4 +671,36 @@ void AudioSystem::setBusVolume(float volume)
     m_masterBus.setVolume(volume);
     if (m_busHandle)
         m_soloud.setVolume(m_busHandle, volume);
+}
+
+float AudioSystem::getLongestTrackLength() const
+{
+    if (!m_isInitialized || m_tracks.empty())
+        return 0.0f;
+
+    float longestLength = 0.0f;
+    for (const auto& track : m_tracks)
+    {
+        float length = track->getLength();
+        if (length > longestLength)
+            longestLength = length;
+    }
+    return longestLength;
+}
+
+void AudioSystem::setTrackLooping(size_t trackIndex, bool loop)
+{
+    if (!m_isInitialized || trackIndex >= m_tracks.size())
+        return;
+
+    m_tracks[trackIndex]->setLooping(loop);
+}
+
+bool AudioSystem::isTrackLooping(size_t trackIndex) const
+{
+    if (!m_isInitialized || trackIndex >= m_tracks.size())
+        return false;
+
+    // In SoLoud, if getLoopPoint returns 0, it means the track is not looping
+    return m_tracks[trackIndex]->getLoopPoint() != 0;
 }

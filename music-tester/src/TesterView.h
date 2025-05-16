@@ -12,6 +12,7 @@ struct Track
     std::string name;
     float volume = 1.0f;
     bool active = false;
+    bool looping = false;
     std::vector<std::string> effects;
 };
 

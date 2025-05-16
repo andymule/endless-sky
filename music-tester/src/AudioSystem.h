@@ -89,6 +89,10 @@ class AudioSystem
     float getBusVolume() const { return m_busVolume; }
     void setBusVolume(float volume);
 
+    // Track looping control
+    void setTrackLooping(size_t trackIndex, bool loop);
+    bool isTrackLooping(size_t trackIndex) const;
+
     // Bus FX API
     void setBusFilterEnabled(const std::string& filterName, bool enabled);
     bool isBusFilterEnabled(const std::string& filterName) const;
