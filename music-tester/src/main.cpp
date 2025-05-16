@@ -68,7 +68,7 @@ public:
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-        window = SDL_CreateWindow("Endless Sky - Music Tester (UI Only)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+        window = SDL_CreateWindow("Endless Sky - Music Tester", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
         if (!window) {
             std::cerr << "Error creating SDL window: " << SDL_GetError() << std::endl;
             return false;
@@ -170,10 +170,10 @@ public:
             
             // Create main window
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-            ImGui::Begin("Music Tester (UI Only)");
+            ImGui::Begin("Music Tester");
             
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Audio functionality temporarily disabled");
-            ImGui::TextWrapped("The music tester is currently running in UI-only mode while we fix audio playback issues. You can still browse and organize your music files.");
+            ImGui::TextWrapped("The music tester is currently running in UI-only mode while we prepare a new audio engine. You can still browse and organize your music files.");
             ImGui::Separator();
             
             // Directory input

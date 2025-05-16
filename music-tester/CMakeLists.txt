@@ -128,5 +128,4 @@ add_custom_command(TARGET music-tester POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:music-tester>/sound_staging"
 )
 
-# Add compile definition to indicate OAML is disabled
-target_compile_definitions(music-tester PRIVATE OAML_DISABLED=1) 
+# The OAML-related definition has been removed 

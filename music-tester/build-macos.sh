@@ -5,11 +5,9 @@ set -e
 ARCH=$(uname -m)
 echo "Detected architecture: $ARCH"
 
-# Get Homebrew prefix for library paths only if needed
-if [ -z "$BREW_PREFIX" ]; then
-    BREW_PREFIX=$(brew --prefix)
-    echo "Homebrew prefix: $BREW_PREFIX"
-fi
+# Get Homebrew prefix for library paths
+BREW_PREFIX=$(brew --prefix)
+echo "Homebrew prefix: $BREW_PREFIX"
 
 # Set explicit library paths
 export LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${LIBRARY_PATH}"
@@ -65,7 +63,7 @@ LAST_CHECK_DATE=0
 if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$1" == "clean" ]; then
     # Check for required packages
     echo "Checking for required libraries..."
-    REQUIRED_PACKAGES=("libogg" "libvorbis" "vorbis-tools" "pkg-config" "sdl2" "libpng" "jpeg" "openal-soft")
+    REQUIRED_PACKAGES=("pkg-config" "sdl2" "libpng" "jpeg" "openal-soft")
     MISSING_PACKAGES=()
     
     # Check all packages in a single brew call to speed up checks
@@ -87,20 +85,6 @@ if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$1" == "clean" ]; then
     echo "$CURRENT_DATE" > "$PACKAGE_TIMESTAMP"
 else
     echo "Skipping package check (checked today already)"
-fi
-
-# Verify OAML is installed (quick check)
-if [ ! -f "/usr/local/lib/liboaml.dylib" ]; then
-    echo "WARNING: OAML library not found at /usr/local/lib/liboaml.dylib"
-    echo "Please install it manually with:"
-    echo ""
-    echo "git clone https://github.com/oamldev/oaml.git"
-    echo "cd oaml"
-    echo "mkdir build && cd build"
-    echo "cmake .. -DENABLE_SHARED=ON -DENABLE_STATIC=ON"
-    echo "make -j$CPU_CORES"
-    echo "sudo make install"
-    exit 1
 fi
 
 # Check if vcpkg is already set up correctly - if so, skip setup
@@ -176,21 +160,18 @@ cd "$BUILD_DIR"
 # Only reconfigure if needed
 if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$1" == "clean" ]; then
     # Configure the build
+    CMAKE_ARGS=(
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake"
+        -Dunofficial-minizip_DIR="$MINIZIP_DIR"
+        -DCMAKE_PREFIX_PATH="${BREW_PREFIX};/usr/local"
+        -DCMAKE_FIND_FRAMEWORK=LAST
+    )
+    
     if [ "$NINJA_AVAILABLE" = true ]; then
-        cmake .. \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
-            -Dunofficial-minizip_DIR="$MINIZIP_DIR" \
-            -DOAML_LIBRARY="/usr/local/lib/liboaml.dylib" \
-            -DOAML_INCLUDE_DIR="/usr/local/include"
+        cmake .. -G Ninja "${CMAKE_ARGS[@]}"
     else
-        cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
-            -Dunofficial-minizip_DIR="$MINIZIP_DIR" \
-            -DOAML_LIBRARY="/usr/local/lib/liboaml.dylib" \
-            -DOAML_INCLUDE_DIR="/usr/local/include"
+        cmake .. "${CMAKE_ARGS[@]}"
     fi
 else
     echo "CMake configuration already exists, skipping configuration step"

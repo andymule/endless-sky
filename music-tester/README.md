@@ -1,6 +1,6 @@
 # Music Tester for Endless Sky
 
-A standalone testing application for adaptive music in Endless Sky using OAML (Open Adaptive Music Library) and Dear ImGui.
+A standalone testing application for adaptive music in Endless Sky using Dear ImGui.
 
 ## Overview
 
@@ -15,28 +15,7 @@ This utility allows music designers to:
 - macOS (the build script is optimized for macOS)
 - CMake 3.19 or higher
 - C++20 compatible compiler
-- OAML library installed on your system (`/usr/local/lib/liboaml.dylib`)
 - Other dependencies (SDL2, OpenGL, etc.) are handled by the build script
-
-## Installing OAML
-
-The OAML library must be installed on your system. The easiest way is to install from source:
-
-```bash
-git clone https://github.com/oamldev/oaml.git
-cd oaml
-mkdir build && cd build
-cmake .. -DENABLE_SHARED=ON -DENABLE_STATIC=ON
-make
-sudo make install
-```
-
-This will install OAML to `/usr/local/lib/` and `/usr/local/include/`.
-
-Verify the installation with:
-```bash
-ls -la /usr/local/lib/liboaml*
-```
 
 ## Building Music Tester
 
@@ -71,25 +50,16 @@ cd music-tester
 
 By default, it will look for audio files in the `sound_staging/` directory.
 
-## OAML Integration
-
-The music-tester uses a simple XML configuration file (`music-tester.defs`) to set up the OAML audio engine. This file is automatically copied to the build directory when the application is built.
-
 ## Troubleshooting
 
 If you encounter build problems:
 
-1. Verify that OAML is properly installed:
-   ```bash
-   ls -la /usr/local/lib/liboaml*
-   ```
-
-2. Make sure all required packages are installed through Homebrew:
+1. Make sure all required packages are installed through Homebrew:
    ```bash
    brew install libogg libvorbis sdl2 libpng jpeg openal-soft pkg-config
    ```
 
-3. If you're having issues with the build finding dependencies, check that the environment variables are set correctly in `build-macos.sh`.
+2. If you're having issues with the build finding dependencies, check that the environment variables are set correctly in `build-macos.sh`.
 
 ## Contributing
 
