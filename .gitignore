@@ -44,6 +44,7 @@ tests/Makefile
 build.sh
 vcpkg-manifest-install.log
 tests/IntegrationTests_tests.cmake
+sound_staging/
 
 # Test Reports
 test-report.xml
