@@ -79,6 +79,9 @@ public:
     // Get number of loaded stems
     int GetStemCount() const;
     
+    // Get a stem handle by index (for direct manipulation)
+    unsigned int GetStemHandle(int stemIndex) const;
+    
     // Update function to call each frame (if needed)
     void Update();
     
@@ -116,6 +119,9 @@ public:
     void FadeFreeverbMix(unsigned int busHandle, float startMix, float endMix, float durationSeconds);
     void OscillateFreeverbMix(unsigned int busHandle, float minMix, float maxMix, float frequency);
     void OscillateBiquadFilterFrequency(unsigned int busHandle, float minFreq, float maxFreq, float frequency);
+    
+    // Testing method to access the SoLoud engine directly (for debugging)
+    void* GetSoloudEngine() const { return mSoloud; }
     
 private:
     // Clear all current music resources

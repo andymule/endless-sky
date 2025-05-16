@@ -2,14 +2,11 @@
 #include <thread>
 #include <chrono>
 #include "AdaptiveMusicLib.h"
+#include "../extern/soloud/include/soloud.h"
+#include "../extern/soloud/include/soloud_freeverbfilter.h"
 
 // Define SoLoud filter parameter indices based on SoLoud documentation
 namespace FilterParamIndex {
-    // BiquadResonantFilter
-    const unsigned int BIQUAD_TYPE = 0;
-    const unsigned int BIQUAD_FREQUENCY = 1;
-    const unsigned int BIQUAD_RESONANCE = 2;
-    
     // FreeverbFilter
     const unsigned int FREEVERB_WET = 0;
     const unsigned int FREEVERB_ROOM_SIZE = 1;
@@ -19,7 +16,7 @@ namespace FilterParamIndex {
 
 int main()
 {
-    std::cout << "AdaptiveMusicLib Panning + Reverb Test Program" << std::endl;
+    std::cout << "AdaptiveMusicLib Direct Stem Effect Test Program" << std::endl;
     
     // Create audio library instance
     AdaptiveMusicLib audio;
@@ -32,12 +29,11 @@ int main()
         return 1;
     }
     
-    // Play stems directly first (no bus, no filtering)
-    std::cout << "Loading and playing stems directly (without bus)..." << std::endl;
+    // Load stems directly
+    std::cout << "Loading stems directly..." << std::endl;
     if (!audio.PlayStemsFromDirectory("mainmenu", 0.8f))
     {
         std::cerr << "Failed to play stems. Trying alternative path..." << std::endl;
-        // Try with full path as fallback
         if (!audio.PlayStemsFromDirectory("../sounds/music/mainmenu", 0.8f))
         {
             std::cerr << "Failed to play stems with alternative path" << std::endl;
@@ -45,7 +41,34 @@ int main()
         }
     }
     
-    // Let it play for a few seconds
+    // Access SoLoud engine directly
+    SoLoud::Soloud* soloud = (SoLoud::Soloud*)audio.GetSoloudEngine();
+    if (!soloud)
+    {
+        std::cerr << "Failed to get SoLoud engine" << std::endl;
+        return 1;
+    }
+    
+    // Create the filter
+    SoLoud::FreeverbFilter reverb;
+    reverb.setParams(1.0f, 1.0f, 0.0f, 1.0f);
+    
+    // For direct stem panning
+    int numStems = audio.GetStemCount();
+    std::vector<unsigned int> stemHandles;
+    
+    // Get all stems handles
+    for (int i = 0; i < numStems; i++)
+    {
+        // The handle list is private but we know the stem indices 0 to numStems-1
+        unsigned int handle = audio.GetStemHandle(i);
+        if (handle)
+        {
+            stemHandles.push_back(handle);
+        }
+    }
+    
+    // Let it play for a few seconds without effects
     std::cout << "Playing with no effects for 5 seconds..." << std::endl;
     auto startTime = std::chrono::steady_clock::now();
     while (std::chrono::duration_cast<std::chrono::seconds>(
@@ -54,25 +77,31 @@ int main()
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
     
-    // Now create a bus and route the stems through it
-    std::cout << "Creating stem bus and routing stems through it..." << std::endl;
-    unsigned int busHandle = audio.CreateStemBus(1.0f); // Set to full volume
-    if (!busHandle)
+    // Apply pan to all stems directly (not using a bus)
+    std::cout << "Panning all stems to the right..." << std::endl;
+    for (unsigned int handle : stemHandles)
     {
-        std::cerr << "Failed to create stem bus" << std::endl;
-        return 1;
+        if (soloud->isValidVoiceHandle(handle))
+        {
+            soloud->setPan(handle, 1.0f); // 1.0 = full right
+        }
     }
     
-    // Hard pan the bus to the right
-    std::cout << "Hard panning bus to the right side..." << std::endl;
-    audio.SetStemBusPan(busHandle, 1.0f); // 1.0 = full right
+    // Let it play with panning for a few seconds
+    std::cout << "Playing with pan right for 5 seconds..." << std::endl;
+    startTime = std::chrono::steady_clock::now();
+    while (std::chrono::duration_cast<std::chrono::seconds>(
+           std::chrono::steady_clock::now() - startTime).count() < 5)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
     
-    // Add heavy reverb to the bus
-    std::cout << "Adding maximum reverb effect..." << std::endl;
-    audio.AddFreeverbFilter(busHandle, 1.0f, 1.0f, 0.5f, 1.0f);
+    // Apply global reverb filter
+    std::cout << "Adding reverb as global filter..." << std::endl;
+    soloud->setGlobalFilter(0, &reverb);
     
-    // Let it play for a while with the hard panning and reverb
-    std::cout << "Playing with right pan + reverb for 10 seconds..." << std::endl;
+    // Let it play with panning and reverb
+    std::cout << "Playing with pan right + reverb for 10 seconds..." << std::endl;
     startTime = std::chrono::steady_clock::now();
     while (std::chrono::duration_cast<std::chrono::seconds>(
            std::chrono::steady_clock::now() - startTime).count() < 10)
@@ -81,10 +110,18 @@ int main()
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
     
-    // Now switch to the left side but keep reverb
-    std::cout << "Switching to left pan + reverb for 10 seconds..." << std::endl;
-    audio.SetStemBusPan(busHandle, -1.0f); // -1.0 = full left
+    // Apply pan to the other side
+    std::cout << "Panning all stems to the left..." << std::endl;
+    for (unsigned int handle : stemHandles)
+    {
+        if (soloud->isValidVoiceHandle(handle))
+        {
+            soloud->setPan(handle, -1.0f); // -1.0 = full left
+        }
+    }
     
+    // Let it play with opposite panning and reverb
+    std::cout << "Playing with pan left + reverb for 10 seconds..." << std::endl;
     startTime = std::chrono::steady_clock::now();
     while (std::chrono::duration_cast<std::chrono::seconds>(
            std::chrono::steady_clock::now() - startTime).count() < 10)

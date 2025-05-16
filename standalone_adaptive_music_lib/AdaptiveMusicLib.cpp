@@ -704,11 +704,21 @@ void AdaptiveMusicLib::AddFreeverbFilter(unsigned int busHandle, float mix, floa
     if(!mFreeverbFilter)
         return;
     
-    // Set parameters
+    // Set parameters with very explicit values
     mFreeverbFilter->setParams(mix, roomSize, damp, width);
     
     // Apply the filter to the bus
     mStemBus->setFilter(9, mFreeverbFilter);
+    
+    // Also try setting the filter directly through SoLoud
+    mSoloud->setFilterParameter(busHandle, 9, 0, mix);         // wet (mix)
+    mSoloud->setFilterParameter(busHandle, 9, 1, roomSize);    // room size
+    mSoloud->setFilterParameter(busHandle, 9, 2, damp);        // damp
+    mSoloud->setFilterParameter(busHandle, 9, 3, width);       // width
+    
+    std::cout << "Freeverb filter applied with parameters: mix=" << mix 
+              << ", roomSize=" << roomSize << ", damp=" << damp 
+              << ", width=" << width << std::endl;
 }
 
 void AdaptiveMusicLib::SetFreeverbMix(unsigned int busHandle, float mix)
@@ -851,4 +861,12 @@ void AdaptiveMusicLib::OscillateFilterParameter(unsigned int busHandle, int filt
     
     // Use SoLoud's oscillate filter parameter function directly
     mSoloud->oscillateFilterParameter(busHandle, filterIndex, parameterIndex, minValue, maxValue, frequency);
+}
+
+unsigned int AdaptiveMusicLib::GetStemHandle(int stemIndex) const
+{
+    if(!mInitialized || !mSoloud || stemIndex < 0 || stemIndex >= static_cast<int>(mStemHandles.size()))
+        return 0;
+    
+    return mStemHandles[stemIndex];
 } 
