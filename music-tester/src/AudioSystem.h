@@ -31,6 +31,7 @@ struct FilterInstance {
     std::unordered_map<int, FilterParameter> parameters;
     bool enabled = false;
     bool needsUpdate = false;
+    int slot = -1;  // Track which slot this filter is assigned to
 };
 
 struct TrackFilters {
