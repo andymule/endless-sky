@@ -364,27 +364,40 @@ void AudioSystem::playAll()
     // Play all tracks through the bus
     for (size_t i = 0; i < m_tracks.size(); ++i)
     {
-        // Apply any enabled filters before playing
-        for (auto& [name, instance] : m_trackFilters[i].filters)
-        {
-            if (instance.enabled && instance.filter)
-            {
-                updateFilterInstance(instance, name);
-            }
-        }
-
-        unsigned int handle = m_masterBus.playClocked(startTime, *m_tracks[i], m_trackVolumes[i]);
-        m_voiceHandles[i] = handle;
-
-        // Apply filters after getting the voice handle
+        // Apply filters to the audio source before playing
         int filterSlot = 0;
         for (auto& [name, instance] : m_trackFilters[i].filters)
         {
             if (instance.enabled && instance.filter)
             {
                 m_tracks[i]->setFilter(filterSlot, instance.filter.get());
-                instance.slot = filterSlot;  // Store the slot number
+                instance.slot = filterSlot;
                 filterSlot++;
+            }
+        }
+
+        // Clear any remaining filter slots
+        for (int slot = filterSlot; slot < 8; ++slot)
+        {
+            m_tracks[i]->setFilter(slot, nullptr);
+        }
+
+        // Play the track through the bus
+        unsigned int handle = m_masterBus.playClocked(startTime, *m_tracks[i], m_trackVolumes[i]);
+        m_voiceHandles[i] = handle;
+
+        // Fade parameters for all enabled filters
+        for (auto& [name, instance] : m_trackFilters[i].filters)
+        {
+            if (instance.enabled && instance.filter && instance.slot >= 0)
+            {
+                for (const auto& [paramId, param] : instance.parameters)
+                {
+                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot), 
+                                               static_cast<unsigned int>(paramId), 
+                                               param.value, 
+                                               FILTER_PARAM_TRANSITION_TIME);
+                }
             }
         }
     }
@@ -505,8 +518,8 @@ void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filte
             {
                 SoLoud::handle voiceHandle = voiceIt->second;
                 
-                // Use SoLoud's built-in parameter fading on the bus's voice handle
-                m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(instance.slot), 
+                // Use SoLoud's built-in parameter fading on the track's voice handle
+                m_soloud.fadeFilterParameter(voiceHandle, static_cast<unsigned int>(instance.slot), 
                                           static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
             }
             
@@ -552,7 +565,6 @@ void AudioSystem::setFilterEnabled(size_t trackIndex, const std::string& filterN
     auto it = trackFilters.filters.find(filterName);
     if (it == trackFilters.filters.end())
     {
-        // Initialize the filter if it doesn't exist
         FilterInstance instance;
         initializeFilter(instance, filterName);
         if (instance.filter)
@@ -597,12 +609,22 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
 
     std::cout << "Updating filter params for track " << trackIndex << std::endl;
 
-    // Get current voice handle
+    // Save current playback position if playing
+    float position = 0.0f;
     auto it = m_voiceHandles.find(trackIndex);
-    if (it == m_voiceHandles.end())
+    if (it != m_voiceHandles.end())
     {
-        std::cout << "No voice handle found for track " << trackIndex << std::endl;
-        return;
+        position = m_soloud.getStreamPosition(it->second);
+        // Stop the current voice
+        m_soloud.stop(it->second);
+        m_voiceHandles.erase(it);
+    }
+
+    // Remove all filters from the track
+    for (int slot = 0; slot < 8; ++slot)
+    {
+        m_tracks[trackIndex]->setFilter(slot, nullptr);
+        std::cout << "Cleared track filter slot " << slot << std::endl;
     }
 
     // Apply enabled filters
@@ -612,20 +634,17 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
         if (instance.enabled && instance.filter)
         {
             std::cout << "Applying filter " << name << " to slot " << filterSlot << std::endl;
-            updateFilterInstance(instance, name);
-            
-            // Apply filter to both the audio source and the bus
             m_tracks[trackIndex]->setFilter(filterSlot, instance.filter.get());
-            m_masterBus.setFilter(filterSlot, instance.filter.get());
-            instance.slot = filterSlot;  // Store the slot number
+            instance.slot = filterSlot;
             filterSlot++;
         }
-        else if (!instance.enabled && instance.slot >= 0)
+        else if (!instance.enabled)
         {
-            // Remove filter if it was previously enabled
-            m_tracks[trackIndex]->setFilter(instance.slot, nullptr);
-            m_masterBus.setFilter(instance.slot, nullptr);
-            instance.slot = -1;
+            if (instance.slot >= 0)
+            {
+                m_tracks[trackIndex]->setFilter(instance.slot, nullptr);
+                instance.slot = -1;
+            }
         }
     }
 
@@ -633,7 +652,28 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
     for (int slot = filterSlot; slot < 8; ++slot)
     {
         m_tracks[trackIndex]->setFilter(slot, nullptr);
-        m_masterBus.setFilter(slot, nullptr);
+    }
+
+    // Restart the track at the previous position if it was playing
+    if (m_isInitialized && m_masterBus.getActiveVoiceCount() > 0)
+    {
+        unsigned int handle = m_masterBus.playClocked(m_soloud.getStreamPosition(0), *m_tracks[trackIndex], m_trackVolumes[trackIndex]);
+        m_voiceHandles[trackIndex] = handle;
+        m_soloud.seek(handle, position);
+        // Fade parameters for all enabled filters
+        for (auto& [name, instance] : m_trackFilters[trackIndex].filters)
+        {
+            if (instance.enabled && instance.filter && instance.slot >= 0)
+            {
+                for (const auto& [paramId, param] : instance.parameters)
+                {
+                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot), 
+                                               static_cast<unsigned int>(paramId), 
+                                               param.value, 
+                                               FILTER_PARAM_TRANSITION_TIME);
+                }
+            }
+        }
     }
 }
 
@@ -754,9 +794,16 @@ void AudioSystem::updateBusFilterParams()
     {
         if (instance.enabled && instance.filter)
         {
-            std::cout << "Applying bus filter " << name << " to slot " << filterSlot << std::endl;
-            updateFilterInstance(instance, name);
+            // Only set the filter on the bus
             m_masterBus.setFilter(filterSlot, instance.filter.get());
+            // Fade each parameter to its value
+            if (m_busHandle)
+            {
+                for (const auto& [paramId, param] : instance.parameters)
+                {
+                    m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(filterSlot), static_cast<unsigned int>(paramId), param.value, FILTER_PARAM_TRANSITION_TIME);
+                }
+            }
             instance.slot = filterSlot;  // Store the slot number
             filterSlot++;
         }

@@ -79,15 +79,7 @@ void TesterView::SetMusicDirectory(const std::string& dir)
     m_musicDir = dir;
     if (!std::filesystem::exists(m_musicDir))
     {
-        try
-        {
-            std::filesystem::create_directories(m_musicDir);
-            std::cout << "Created music directory: " << m_musicDir << std::endl;
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Error creating music directory: " << e.what() << std::endl;
-        }
+        std::cout << "Directory does not exist: " << m_musicDir << std::endl;
     }
 }
 
@@ -95,7 +87,7 @@ void TesterView::LoadMusicFromDirectory()
 {
     if (!std::filesystem::exists(m_musicDir))
     {
-        std::cerr << "Music directory doesn't exist: " << m_musicDir << std::endl;
+        std::cout << "Directory does not exist: " << m_musicDir << std::endl;
         return;
     }
 
