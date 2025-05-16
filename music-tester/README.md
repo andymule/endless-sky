@@ -1,6 +1,6 @@
 # Music Tester for Endless Sky
 
-A testing application for adaptive music in Endless Sky using OAML (Open Adaptive Music Library) and Dear ImGui.
+A standalone testing application for adaptive music in Endless Sky using OAML (Open Adaptive Music Library) and Dear ImGui.
 
 ## Overview
 
@@ -12,57 +12,84 @@ This utility allows music designers to:
 
 ## System Requirements
 
+- macOS (the build script is optimized for macOS)
+- CMake 3.19 or higher
+- C++20 compatible compiler
 - OAML library installed on your system (`/usr/local/lib/liboaml.dylib`)
-- SDL2, OpenGL, and other dependencies (handled by the build scripts)
+- Other dependencies (SDL2, OpenGL, etc.) are handled by the build script
 
-## Quick Start
+## Installing OAML
 
-### Using Build Scripts (Recommended)
+The OAML library must be installed on your system. The easiest way is to install from source:
 
-For macOS:
 ```bash
-./music-tester/build-macos.sh
+git clone https://github.com/oamldev/oaml.git
+cd oaml
+mkdir build && cd build
+cmake .. -DENABLE_SHARED=ON -DENABLE_STATIC=ON
+make
+sudo make install
 ```
 
-This script automatically handles dependency issues and builds the application.
+This will install OAML to `/usr/local/lib/` and `/usr/local/include/`.
 
-### Manual Build
+Verify the installation with:
+```bash
+ls -la /usr/local/lib/liboaml*
+```
 
-1. Ensure OAML is installed on your system:
-   ```
-   ls -la /usr/local/lib/liboaml*
-   ```
+## Building Music Tester
 
-2. Build the `music-tester` target from the Endless Sky project:
-   ```
-   cmake -B build -DES_BUILD_MUSIC_TESTER=ON
-   cmake --build build --target music-tester
-   ```
+The music-tester is a standalone application that does not require building the full Endless Sky game.
 
-3. Run the application:
-   ```
-   ./build/music-tester [optional_music_directory_path]
-   ```
+### Using the Build Script (Recommended)
 
-   If no directory is specified, it will try to use `sound_staging/` by default.
+```bash
+cd music-tester
+./build-macos.sh
+```
 
-### Build Issues?
+This script will:
+1. Check for required system libraries (libogg, libvorbis, pkg-config, sdl2, etc.)
+2. Install any missing dependencies via Homebrew
+3. Use the parent project's vcpkg to install minizip if available, or set up its own
+4. Configure and build the music-tester application within the `music-tester/build` directory
 
-If you encounter build problems, see the detailed instructions in:
-- [BUILD-INSTRUCTIONS.md](BUILD-INSTRUCTIONS.md) for general build guidance
-- [README-SYSTEM-OAML.md](README-SYSTEM-OAML.md) for OAML-specific setup
+If you need to clean and rebuild:
+```bash
+cd music-tester
+./build-macos.sh clean
+```
 
-## Usage
+## Running the Application
 
-In the application:
-- Enter a directory path in the text field and press Enter or click "Load" to load audio files
-- Use the checkboxes to enable or disable tracks
-- Adjust volume sliders to control the mix
-- Add effects using the dropdown and customize their parameters
+After building, run the application with:
+```bash
+cd music-tester
+./run-music-tester.sh [optional_music_directory]
+```
+
+By default, it will look for audio files in the `sound_staging/` directory.
 
 ## OAML Integration
 
-The music-tester uses the Open Adaptive Music Library (OAML) to handle audio playback and adaptive music features. The configuration is stored in `music-tester.defs` which can be edited to define adaptive track behaviors.
+The music-tester uses a simple XML configuration file (`music-tester.defs`) to set up the OAML audio engine. This file is automatically copied to the build directory when the application is built.
+
+## Troubleshooting
+
+If you encounter build problems:
+
+1. Verify that OAML is properly installed:
+   ```bash
+   ls -la /usr/local/lib/liboaml*
+   ```
+
+2. Make sure all required packages are installed through Homebrew:
+   ```bash
+   brew install libogg libvorbis sdl2 libpng jpeg openal-soft pkg-config
+   ```
+
+3. If you're having issues with the build finding dependencies, check that the environment variables are set correctly in `build-macos.sh`.
 
 ## Contributing
 

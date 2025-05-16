@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
+project(music-tester VERSION 0.1.0)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+set(CMAKE_CXX_EXTENSIONS NO)
 
 # Set up sources for music-tester
 set(MUSIC_TESTER_SOURCES
@@ -39,81 +45,51 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# Find required libraries with pkg-config for Vorbis and Ogg
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(VORBIS REQUIRED vorbis)
-pkg_check_modules(VORBISFILE REQUIRED vorbisfile)
-pkg_check_modules(OGG REQUIRED ogg)
-
-# For OAML, use direct find_library instead of pkg-config
-if(DEFINED OAML_LIBRARY AND DEFINED OAML_INCLUDE_DIR)
-    # Use the provided paths
-    message(STATUS "Using provided OAML library: ${OAML_LIBRARY}")
-    message(STATUS "Using provided OAML include: ${OAML_INCLUDE_DIR}")
-else()
-    # Try to find it manually
-    find_library(OAML_LIBRARY 
-        NAMES oaml
-        PATHS "/usr/local/lib"
-        REQUIRED
-    )
-    find_path(OAML_INCLUDE_DIR 
-        NAMES oaml.h
-        PATHS "/usr/local/include"
-        REQUIRED
-    )
-    message(STATUS "Found OAML library: ${OAML_LIBRARY}")
-    message(STATUS "Found OAML include: ${OAML_INCLUDE_DIR}")
+# Find SDL2
+find_package(SDL2 REQUIRED)
+if(NOT SDL2_FOUND)
+    message(FATAL_ERROR "SDL2 not found.")
 endif()
 
-# Specify full paths to libraries - this resolves link issues
-find_library(OGG_LIBRARY 
-    NAMES ogg
-    PATHS "${BREW_PREFIX}/lib" "${BREW_PREFIX}/Cellar/libogg/1.3.5/lib"
-    REQUIRED
-)
+# Find PNG
+find_package(PNG REQUIRED)
+if(NOT PNG_FOUND)
+    message(FATAL_ERROR "PNG not found.")
+endif()
 
-find_library(VORBIS_LIBRARY 
-    NAMES vorbis
-    PATHS "${BREW_PREFIX}/lib" "${BREW_PREFIX}/Cellar/libvorbis/1.3.7/lib"
-    REQUIRED
-)
+# Find JPEG
+find_package(JPEG REQUIRED)
+if(NOT JPEG_FOUND)
+    message(FATAL_ERROR "JPEG not found.")
+endif()
 
-find_library(VORBISFILE_LIBRARY 
-    NAMES vorbisfile
-    PATHS "${BREW_PREFIX}/lib" "${BREW_PREFIX}/Cellar/libvorbis/1.3.7/lib"
-    REQUIRED
-)
-
-message(STATUS "Found OGG_LIBRARY: ${OGG_LIBRARY}")
-message(STATUS "Found VORBIS_LIBRARY: ${VORBIS_LIBRARY}")
-message(STATUS "Found VORBISFILE_LIBRARY: ${VORBISFILE_LIBRARY}")
+# Find OpenAL
+find_package(OpenAL REQUIRED)
+if(NOT OPENAL_FOUND)
+    message(FATAL_ERROR "OpenAL not found.")
+endif()
 
 # Include directories
 target_include_directories(music-tester PRIVATE
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
-    ${OAML_INCLUDE_DIR}
-    ${VORBIS_INCLUDE_DIRS}
-    ${VORBISFILE_INCLUDE_DIRS}
-    ${OGG_INCLUDE_DIRS}
+    ${SDL2_INCLUDE_DIRS}
+    ${PNG_INCLUDE_DIRS}
+    ${JPEG_INCLUDE_DIRS}
+    ${OPENAL_INCLUDE_DIR}
 )
 
-# Handle minizip - simplified approach
-if(ES_USE_VCPKG)
-    # Use the find_package command directly
-    # The path will be set by -Dunofficial-minizip_DIR in the build script
+# Handle minizip using vcpkg
+if(DEFINED unofficial-minizip_DIR)
+    # Use the provided path
     find_package(unofficial-minizip CONFIG REQUIRED)
     set(MINIZIP_LIBRARIES "unofficial::minizip::minizip")
     message(STATUS "Found minizip from vcpkg")
 else()
-    # For non-vcpkg builds, try pkg-config
-    if(CMAKE_VERSION VERSION_LESS 3.31)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(MINIZIP REQUIRED minizip)
-    else()
-        cmake_pkg_config(EXTRACT minizip REQUIRED)
-        set(MINIZIP_LIBRARIES "minizip")
+    # Look for it in the system
+    pkg_check_modules(MINIZIP minizip)
+    if(NOT MINIZIP_FOUND)
+        message(FATAL_ERROR "minizip not found. Please install it or provide unofficial-minizip_DIR.")
     endif()
 endif()
 
@@ -126,17 +102,13 @@ else()
     find_package(OpenGL REQUIRED)
 endif()
 
-# Link with SDL2, OpenGL, OAML and other required libraries
+# Link with SDL2, OpenGL, and other required libraries
 target_link_libraries(music-tester PRIVATE
-    SDL2::SDL2
-    PNG::PNG
-    JPEG::JPEG
-    OpenAL::OpenAL
-    ${OAML_LIBRARY}
-    ${VORBIS_LIBRARY}
-    ${VORBISFILE_LIBRARY}
-    ${OGG_LIBRARY}
     ${MINIZIP_LIBRARIES}
+    ${SDL2_LIBRARIES}
+    ${PNG_LIBRARIES}
+    ${JPEG_LIBRARIES}
+    ${OPENAL_LIBRARY}
 )
 
 # Link with OpenGL library based on platform
@@ -151,23 +123,10 @@ else()
     endif()
 endif()
 
-# Copy the music-tester.defs file if it exists
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music-tester.defs")
-    add_custom_command(TARGET music-tester POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_CURRENT_SOURCE_DIR}/music-tester.defs"
-        "$<TARGET_FILE_DIR:music-tester>/music-tester.defs"
-    )
-endif()
-
 # Create sound_staging directory if it doesn't exist
 add_custom_command(TARGET music-tester POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:music-tester>/sound_staging"
 )
 
-# Set C++ standard (matches main project)
-set_target_properties(music-tester PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-) 
+# Add compile definition to indicate OAML is disabled
+target_compile_definitions(music-tester PRIVATE OAML_DISABLED=1) 
