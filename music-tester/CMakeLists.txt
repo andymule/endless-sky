@@ -1,3 +1,5 @@
+add_definitions(-DWITH_SDL2_STATIC)
+
 cmake_minimum_required(VERSION 3.19)
 project(music-tester VERSION 0.1.0)
 
@@ -9,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 # Set up sources for music-tester
 set(MUSIC_TESTER_SOURCES
     src/main.cpp
+    src/AudioSystem.cpp
 )
 
 # Add the executable target
@@ -25,6 +28,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+# Fetch SoLoud
+FetchContent_Declare(
+    soloud
+    GIT_REPOSITORY https://github.com/jarikomppa/soloud.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(soloud)
+
 # Add ImGui sources
 set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -36,7 +47,21 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-target_sources(music-tester PRIVATE ${IMGUI_SOURCES})
+# Add SoLoud sources (core, backend/sdl2, audiosource/wav, audiosource/wavstream)
+file(GLOB SOLOUD_CORE_SOURCES ${soloud_SOURCE_DIR}/src/core/*.cpp)
+set(SOLOUD_SOURCES
+    ${SOLOUD_CORE_SOURCES}
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wav.cpp
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wavstream.cpp
+    ${soloud_SOURCE_DIR}/src/backend/sdl2_static/soloud_sdl2_static.cpp
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_flac.h
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_mp3.h
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_wav.h
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/stb_vorbis.c
+    ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_impl.cpp
+)
+
+target_sources(music-tester PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
 
 # Get Homebrew prefix for library paths
 execute_process(
@@ -73,6 +98,7 @@ endif()
 target_include_directories(music-tester PRIVATE
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
+    ${soloud_SOURCE_DIR}/include
     ${SDL2_INCLUDE_DIRS}
     ${PNG_INCLUDE_DIRS}
     ${JPEG_INCLUDE_DIRS}
