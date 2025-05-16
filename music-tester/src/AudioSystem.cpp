@@ -44,6 +44,7 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
 
     // Clear existing tracks
     m_tracks.clear();
+    m_trackVolumes.clear(); // Clear track volumes
 
     // Load all audio files from the directory
     for (const auto& entry : std::filesystem::directory_iterator(directory))
@@ -51,23 +52,14 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
         if (entry.is_regular_file())
         {
             auto extension = entry.path().extension().string();
-            // Convert to lowercase for comparison
-            std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-
-            if (extension == ".wav" || extension == ".flac" || extension == ".ogg" ||
-                extension == ".mp3")
+            if (extension == ".wav" || extension == ".ogg" || extension == ".mp3" ||
+                extension == ".flac")
             {
                 auto track = std::make_unique<SoLoud::Wav>();
-                SoLoud::result result = track->load(entry.path().string().c_str());
-                if (result == SoLoud::SO_NO_ERROR)
+                if (track->load(entry.path().string().c_str()) == SoLoud::SO_NO_ERROR)
                 {
                     m_tracks.push_back(std::move(track));
-                    std::cout << "Loaded: " << entry.path().filename() << std::endl;
-                }
-                else
-                {
-                    std::cerr << "Failed to load: " << entry.path().filename()
-                              << " (Error: " << result << ")" << std::endl;
+                    m_trackVolumes.push_back(1.0f); // Initialize volume to 1.0
                 }
             }
         }
@@ -83,10 +75,14 @@ void AudioSystem::playAll()
         return;
     }
 
-    // Play all tracks
-    for (const auto& track : m_tracks)
+    // Clear existing voice handles
+    m_voiceHandles.clear();
+
+    // Play all tracks and store their voice handles
+    for (size_t i = 0; i < m_tracks.size(); ++i)
     {
-        m_soloud.play(*track);
+        unsigned int handle = m_soloud.play(*m_tracks[i]);
+        m_voiceHandles[i] = handle;
     }
 }
 
@@ -98,6 +94,7 @@ void AudioSystem::stopAll()
     }
 
     m_soloud.stopAll();
+    m_voiceHandles.clear();
 }
 
 void AudioSystem::pauseAll()
@@ -143,4 +140,38 @@ void AudioSystem::setPlaybackPosition(float position)
     {
         m_soloud.seek(m_soloud.getActiveVoiceCount() - 1 - i, position);
     }
+}
+
+void AudioSystem::setTrackVolume(size_t trackIndex, float volume)
+{
+    if (!m_isInitialized || trackIndex >= m_tracks.size())
+    {
+        return;
+    }
+
+    // Clamp volume between 0 and 1
+    volume = std::max(0.0f, std::min(1.0f, volume));
+    m_trackVolumes[trackIndex] = volume;
+
+    // Set volume on the Wav object for future playback
+    if (m_tracks[trackIndex])
+    {
+        m_tracks[trackIndex]->setVolume(volume);
+    }
+
+    // Set volume on the currently playing instance if it exists
+    auto it = m_voiceHandles.find(trackIndex);
+    if (it != m_voiceHandles.end())
+    {
+        m_soloud.setVolume(it->second, volume);
+    }
+}
+
+float AudioSystem::getTrackVolume(size_t trackIndex) const
+{
+    if (!m_isInitialized || trackIndex >= m_trackVolumes.size())
+    {
+        return 0.0f;
+    }
+    return m_trackVolumes[trackIndex];
 }

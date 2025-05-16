@@ -264,7 +264,11 @@ class MusicTester
                 ImGui::Text("%s", track.name.c_str());
 
                 // Volume slider
-                ImGui::SliderFloat("Volume", &track.volume, 0.0f, 1.0f);
+                float currentVolume = audioSystem.getTrackVolume(i);
+                if (ImGui::SliderFloat("Volume", &currentVolume, 0.0f, 1.0f))
+                {
+                    audioSystem.setTrackVolume(i, currentVolume);
+                }
 
                 // Effects dropdown
                 if (ImGui::BeginCombo("Effects", "Add Effect..."))
