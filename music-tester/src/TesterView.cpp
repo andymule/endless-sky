@@ -9,6 +9,8 @@ TesterView::TesterView()
 {
     // Preload the sound_staging folder as the default music directory
     m_musicDir = "/Users/arckex/source/endless-sky/music-tester/sound_staging";
+    strncpy(m_dirInput, m_musicDir.c_str(), sizeof(m_dirInput));
+    m_dirInput[sizeof(m_dirInput) - 1] = '\0';
     SetMusicDirectory(m_musicDir);
     LoadMusicFromDirectory();
 }
@@ -147,6 +149,8 @@ void TesterView::RenderMainWindow()
     RenderGlobalControls();
     ImGui::Separator();
     RenderTrackControls();
+    ImGui::Separator();
+    RenderBusControls();
 
     ImGui::End();
 }
@@ -250,4 +254,41 @@ void TesterView::drawFilterControls(size_t trackIndex)
             }
         }
     }
+}
+
+void TesterView::RenderBusControls()
+{
+    ImGui::Begin("Bus Controls");
+    float busVolume = m_audioSystem.getBusVolume();
+    if (ImGui::SliderFloat("Bus Volume", &busVolume, 0.0f, 1.0f))
+    {
+        m_audioSystem.setBusVolume(busVolume);
+    }
+    ImGui::Separator();
+    ImGui::Text("Bus FX");
+    for (const auto& filterName : AudioSystem::AVAILABLE_FILTERS)
+    {
+        bool enabled = m_audioSystem.isBusFilterEnabled(filterName);
+        if (ImGui::Checkbox(filterName.c_str(), &enabled))
+        {
+            m_audioSystem.setBusFilterEnabled(filterName, enabled);
+        }
+        if (enabled)
+        {
+            const auto& filters = m_audioSystem.getBusFilters();
+            auto it = filters.find(filterName);
+            if (it != filters.end())
+            {
+                for (const auto& [paramId, param] : it->second.parameters)
+                {
+                    float value = m_audioSystem.getBusFilterParameter(filterName, paramId);
+                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max))
+                    {
+                        m_audioSystem.setBusFilterParameter(filterName, paramId, value);
+                    }
+                }
+            }
+        }
+    }
+    ImGui::End();
 }

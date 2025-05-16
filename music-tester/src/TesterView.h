@@ -38,6 +38,7 @@ class TesterView
     void RenderDirectoryInput();
     void RenderGlobalControls();
     void RenderTrackControls();
+    void RenderBusControls();
     void RenderEffectsControls(Track& track, size_t trackIndex);
 
     // UI State

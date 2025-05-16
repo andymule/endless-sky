@@ -82,6 +82,20 @@ class AudioSystem
     const std::unordered_map<std::string, FilterInstance>& getFilters(size_t trackIndex) const;
     size_t getTrackCount() const { return m_tracks.size(); }
 
+    float getLongestTrackLength() const;
+    void setLoopAll(bool loop);
+    bool isLoopAll() const { return m_loopAll; }
+
+    float getBusVolume() const { return m_busVolume; }
+    void setBusVolume(float volume);
+
+    // Bus FX API
+    void setBusFilterEnabled(const std::string& filterName, bool enabled);
+    bool isBusFilterEnabled(const std::string& filterName) const;
+    void setBusFilterParameter(const std::string& filterName, int paramId, float value);
+    float getBusFilterParameter(const std::string& filterName, int paramId) const;
+    const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
+
     static const std::vector<std::string> AVAILABLE_FILTERS;
 
   private:
@@ -92,6 +106,13 @@ class AudioSystem
     std::vector<TrackFilters> m_trackFilters;
     std::unordered_map<size_t, unsigned int> m_voiceHandles;
     bool m_isInitialized;
+    bool m_loopAll = true;
+    float m_busVolume = 1.0f;
+    unsigned int m_busHandle = 0;
+
+    // Bus FX
+    std::unordered_map<std::string, FilterInstance> m_busFilters;
+    void updateBusFilterParams();
 
     void initializeFilter(FilterInstance& instance, const std::string& filterName);
     void updateFilterInstance(FilterInstance& instance, const std::string& filterName);
