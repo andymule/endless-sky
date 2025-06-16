@@ -11,10 +11,34 @@
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "new"
+                "panel": "new",
+                "clear": true,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": [
-                "$gcc"
+                "$gcc",
+                "$cmake"
+            ],
+            "options": {
+                "env": {
+                    "CMAKE_BUILD_PARALLEL_LEVEL": "$(sysctl -n hw.ncpu)"
+                }
+            }
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "rm -rf build && ./build.sh",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc",
+                "$cmake"
             ]
         },
         {
@@ -24,7 +48,8 @@
             "group": "test",
             "presentation": {
                 "reveal": "always",
-                "panel": "new"
+                "panel": "new",
+                "clear": true
             },
             "dependsOn": [
                 "Build Endless Sky"

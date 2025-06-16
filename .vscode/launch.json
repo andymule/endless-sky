@@ -9,7 +9,49 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build Endless Sky",
-            "terminal": "integrated"
+            "terminal": "integrated",
+            "env": {
+                "SDL_VIDEODRIVER": "cocoa"
+            },
+            "sourceMap": {
+                "/build": "${workspaceFolder}"
+            },
+            "stopOnEntry": false,
+            "MIMode": "lldb",
+            "lldbPath": "/Applications/Xcode250Luck.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/LLDB",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug Endless Sky (Clean Build)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/endless-sky",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Clean Build",
+            "terminal": "integrated",
+            "env": {
+                "SDL_VIDEODRIVER": "cocoa"
+            },
+            "sourceMap": {
+                "/build": "${workspaceFolder}"
+            },
+            "stopOnEntry": false,
+            "MIMode": "lldb",
+            "lldbPath": "/Applications/Xcode250Luck.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/LLDB",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
         }
     ]
 } 

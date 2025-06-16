@@ -89,7 +89,7 @@ set(SOLOUD_SRCS
     ${SOLOUD_DIR}/src/core/soloud_thread.cpp
     
     # Using SDL2 static backend
-    ${SOLOUD_DIR}/src/backend/sdl2_static/soloud_sdl2_static.cpp
+    ${SOLOUD_DIR}/src/backend/sdl/soloud_sdl2.cpp
     
     # Add fallback for robustness
     ${SOLOUD_DIR}/src/backend/nosound/soloud_nosound.cpp
