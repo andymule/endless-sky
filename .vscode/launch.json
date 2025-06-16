@@ -2,55 +2,86 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run Music Tester",
+            "name": "Launch music-tester (Debug)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/music-tester/build/music-tester",
-            "args": ["${workspaceFolder}/music-tester/sound_staging"],
+            "program": "${workspaceFolder}/build/music-tester/music-tester",
+            "args": ["${workspaceFolder}/build/music-tester/sound_staging"],
             "stopOnEntry": false,
-            "cwd": "${workspaceFolder}/music-tester",
+            "cwd": "${workspaceFolder}",
             "env": {
                 "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
             },
             "console": "integratedTerminal",
-            "preLaunchTask": "Build Music Tester",
+            "preLaunchTask": "Full Build Debug",
             "sourceMap": {
-                "": ""
+                "${workspaceFolder}/music-tester": "${workspaceFolder}/music-tester",
+                "${workspaceFolder}/source": "${workspaceFolder}/source"
             }
         },
         {
-            "name": "Debug Music Tester",
+            "name": "Launch music-tester (Release)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/music-tester/build/music-tester",
-            "args": ["${workspaceFolder}/music-tester/sound_staging"],
+            "program": "${workspaceFolder}/build/music-tester/music-tester",
+            "args": ["${workspaceFolder}/build/music-tester/sound_staging"],
             "stopOnEntry": false,
-            "cwd": "${workspaceFolder}/music-tester",
+            "cwd": "${workspaceFolder}",
             "env": {
                 "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
             },
             "console": "integratedTerminal",
-            "preLaunchTask": "Make Music Tester (Debug)",
+            "preLaunchTask": "Full Build Release",
             "sourceMap": {
                 "${workspaceFolder}/music-tester": "${workspaceFolder}/music-tester"
             }
         },
         {
-            "name": "Run Music Tester (Shell Script)",
-            "type": "node",
+            "name": "Launch Endless Sky (Debug)",
+            "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/music-tester/run-music-tester.sh",
+            "program": "${workspaceFolder}/build/endless-sky",
+            "args": [],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
+            },
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/music-tester",
-            "preLaunchTask": "Build Music Tester",
-            "runtimeExecutable": "/bin/bash",
-            "runtimeArgs": []
+            "preLaunchTask": "Full Build Debug",
+            "sourceMap": {
+                "${workspaceFolder}/source": "${workspaceFolder}/source"
+            }
         },
         {
-            "name": "Attach to Music Tester",
+            "name": "Launch Endless Sky (Release)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/endless-sky",
+            "args": [],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "Full Build Release",
+            "sourceMap": {
+                "${workspaceFolder}/source": "${workspaceFolder}/source"
+            }
+        },
+        {
+            "name": "Attach to music-tester",
             "type": "lldb",
             "request": "attach",
-            "program": "${workspaceFolder}/music-tester/build/music-tester",
+            "program": "${workspaceFolder}/build/music-tester/music-tester",
+            "pid": "${command:pickProcess}"
+        },
+        {
+            "name": "Attach to Endless Sky",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/endless-sky",
             "pid": "${command:pickProcess}"
         }
     ]

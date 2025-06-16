@@ -2,13 +2,40 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build Music Tester",
+            "label": "Configure Debug",
             "type": "shell",
-            "command": "${workspaceFolder}/music-tester/build-macos.sh",
+            "command": "mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip -DLIBMAD_INCLUDE_DIR=$(pwd)/vcpkg/packages/libmad_arm64-osx/include -DLIBMAD_LIB_RELEASE=$(pwd)/vcpkg/packages/libmad_arm64-osx/lib/libmad.a -DLIBMAD_LIB_DEBUG=$(pwd)/vcpkg/packages/libmad_arm64-osx/debug/lib/libmad.a",
             "group": "build",
-            "options": {
-                "cwd": "${workspaceFolder}/music-tester"
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
             },
+            "problemMatcher": []
+        },
+        {
+            "label": "Configure Release",
+            "type": "shell",
+            "command": "mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip -DLIBMAD_INCLUDE_DIR=$(pwd)/vcpkg/packages/libmad_arm64-osx/include -DLIBMAD_LIB_RELEASE=$(pwd)/vcpkg/packages/libmad_arm64-osx/lib/libmad.a -DLIBMAD_LIB_DEBUG=$(pwd)/vcpkg/packages/libmad_arm64-osx/debug/lib/libmad.a",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "cmake --build build -j$(sysctl -n hw.ncpu)",
+            "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -22,14 +49,10 @@
             ]
         },
         {
-            "label": "Clean and Build Music Tester",
+            "label": "Clean",
             "type": "shell",
-            "command": "${workspaceFolder}/music-tester/build-macos.sh",
-            "args": ["clean"],
+            "command": "rm -rf build",
             "group": "build",
-            "options": {
-                "cwd": "${workspaceFolder}/music-tester"
-            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -38,24 +61,38 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "problemMatcher": []
         },
         {
-            "label": "Build Music Tester (Debug)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "..",
-                "-G", "Ninja",
-                "-DCMAKE_BUILD_TYPE=Debug",
-                "-DCMAKE_TOOLCHAIN_FILE=${workspaceFolder}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "label": "Full Build Debug",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Clean",
+                "Configure Debug",
+                "Build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "Full Build Release",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Clean",
+                "Configure Release",
+                "Build"
             ],
             "group": "build",
-            "options": {
-                "cwd": "${workspaceFolder}/music-tester/build"
-            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -63,20 +100,16 @@
                 "panel": "shared",
                 "showReuseMessage": true,
                 "clear": false
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            }
         },
         {
-            "label": "Make Music Tester (Debug)",
-            "type": "shell",
-            "command": "ninja",
+            "label": "Quick Build Debug",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Configure Debug",
+                "Build"
+            ],
             "group": "build",
-            "options": {
-                "cwd": "${workspaceFolder}/music-tester/build"
-            },
-            "dependsOn": "Build Music Tester (Debug)",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -84,10 +117,24 @@
                 "panel": "shared",
                 "showReuseMessage": true,
                 "clear": false
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            }
+        },
+        {
+            "label": "Quick Build Release",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Configure Release",
+                "Build"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
         }
     ]
 } 

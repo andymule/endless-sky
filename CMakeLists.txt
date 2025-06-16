@@ -1,5 +1,23 @@
 cmake_minimum_required(VERSION 3.19...4.0)
 
+# Enable parallel builds by default
+include(ProcessorCount)
+ProcessorCount(N)
+if(NOT N EQUAL 0)
+	set(CMAKE_BUILD_PARALLEL_LEVEL ${N} CACHE STRING "Number of parallel build jobs")
+endif()
+
+# Enable ccache if available
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+	set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+	message(STATUS "Using ccache for faster rebuilds")
+endif()
+
+# Optimize CXX compile features detection
+set(CMAKE_CXX_COMPILE_FEATURES_DETECTION_QUIET TRUE)
+set(CMAKE_CXX_COMPILE_FEATURES_DETECTION_FAST TRUE)
+
 include(CMakeDependentOption)
 if(UNIX AND NOT APPLE AND NOT ES_STEAM)
 	option(ES_USE_VCPKG "Use vcpkg to get dependencies." OFF)
@@ -18,11 +36,25 @@ set(CMAKE_CONFIGURATION_TYPES "Debug" "Release" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Optimize build settings
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+
+# Optimize dependency detection
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
+set(CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH FALSE)
+set(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH TRUE)
+set(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH TRUE)
+
 # We don't use modules, so avoid using unrecognised compiler-specific commands that cmake produces when they are enabled.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 # Use LTO for Release builds only.
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+
 # On Linux use relative RPATH.
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 
@@ -95,6 +127,18 @@ find_package(ZLIB REQUIRED)
 if(ES_USE_VCPKG)
 	find_package(unofficial-minizip CONFIG REQUIRED)
 	set(MINIZIP_LIBRARIES "unofficial::minizip::minizip")
+	# Explicitly add minizip include directory for macOS ARM64
+	if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+		if(DEFINED unofficial-minizip_DIR)
+			# Calculate path: share/unofficial-minizip -> minizip_arm64-osx -> include
+			get_filename_component(MINIZIP_VCPKG_DIR "${unofficial-minizip_DIR}" DIRECTORY)
+			get_filename_component(MINIZIP_VCPKG_DIR "${MINIZIP_VCPKG_DIR}" DIRECTORY)
+			set(MINIZIP_INCLUDE_DIR "${MINIZIP_VCPKG_DIR}/include")
+			if(EXISTS "${MINIZIP_INCLUDE_DIR}/minizip/unzip.h")
+				message(STATUS "Found minizip headers at: ${MINIZIP_INCLUDE_DIR}")
+			endif()
+		endif()
+	endif()
 else()
 	if(CMAKE_VERSION VERSION_LESS 3.31)
 		find_package(PkgConfig REQUIRED PkgConfig PkgConf)
@@ -150,6 +194,11 @@ endif()
 # Link with the general libraries.
 target_link_libraries(ExternalLibraries INTERFACE SDL2::SDL2 PNG::PNG JPEG::JPEG OpenAL::OpenAL ${MINIZIP_LIBRARIES}
 	"$<IF:$<CONFIG:Debug>,${LIBMAD_LIB_DEBUG},${LIBMAD_LIB_RELEASE}>")
+
+# Add minizip include directory if explicitly set (for vcpkg on macOS ARM64)
+if(DEFINED MINIZIP_INCLUDE_DIR)
+	target_include_directories(ExternalLibraries INTERFACE "${MINIZIP_INCLUDE_DIR}")
+endif()
 
 # Link the needed OS-specific dependencies, if any.
 if(WIN32)

@@ -1,0 +1,31 @@
+I think i got it... not sure how they're building the game currently. I had two problems: bad linking to minizip, bad linking to openGL. 
+
+opengl i fixed like this in CMakeLists
+
+ 
+-    find_package(OpenGL REQUIRED)
+-    target_link_libraries(ExternalLibraries INTERFACE OpenGL::GL)
+-
+     if(APPLE)
++        # On macOS, explicitly use the native framework to avoid X11 GL libraries
++        find_library(OPENGL_FRAMEWORK OpenGL)
++        target_link_libraries(ExternalLibraries INTERFACE ${OPENGL_FRAMEWORK})
+         # Apple deprecated OpenGL in MacOS 10.14, but we don't care.
+         target_compile_definitions(EndlessSkyLib PUBLIC GL_SILENCE_DEPRECATION)
+     else()
++        find_package(OpenGL REQUIRED)
++        target_link_libraries(ExternalLibraries INTERFACE OpenGL::GL)
++        
+         # GLEW is only needed on Linux and Windows.
+         target_link_libraries(ExternalLibraries INTERFACE GLEW::glew)
+     endif()
+
+
+minizip i manually point like this
+mkdir build
+then
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake \
+   -Dunofficial-minizip_DIR=$(pwd)/vcpkg/packages/minizip_arm64-osx/share/unofficial-minizip
+
+
+after that i'm finally able to cmake --build build -j$(sysctl -n hw.ncpu)
