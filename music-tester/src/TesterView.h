@@ -12,9 +12,7 @@ struct Track
 {
     std::string name;
     float volume = 1.0f;
-    bool active = false;
-    bool looping = false;
-    std::vector<std::string> effects;
+    bool enabled = true;
 };
 
 class TesterView
@@ -23,25 +21,27 @@ class TesterView
     TesterView();
     ~TesterView();
 
-    bool Initialize(SDL_Window* window, SDL_GLContext glContext);
-    void Render();
-    void ProcessEvents(const SDL_Event& event);
-    bool IsRunning() const { return m_isRunning; }
-    void SetRunning(bool running) { m_isRunning = running; }
+    bool initialize(SDL_Window* window, SDL_GLContext glContext);
+    void render();
+    void processEvents(const SDL_Event& event);
+    bool isRunning() const { return m_isRunning; }
+    void setRunning(bool running) { m_isRunning = running; }
 
     // Directory management
-    void SetMusicDirectory(const std::string& dir);
-    void LoadMusicFromDirectory();
+    void setMusicDirectory(const std::string& dir);
+    void loadMusicFromDirectory();
 
     void drawFilterControls(size_t trackIndex);
 
   private:
-    void RenderMainWindow();
-    void RenderDirectoryInput();
-    void RenderGlobalControls();
-    void RenderTrackControls();
-    void RenderBusControls();
-    void RenderEffectsControls(Track& track, size_t trackIndex);
+    void renderMainWindow();
+    void renderDirectoryInput();
+    void renderGlobalControls();
+    void renderTrackControls();
+    void renderBusControls();
+    void renderEffectsControls(Track& track, size_t trackIndex);
+    void renderMasterControls();
+    void renderFilterControls();
 
     // UI State
     bool m_isRunning = true;
@@ -57,4 +57,7 @@ class TesterView
     // SDL/OpenGL
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_glContext = nullptr;
+
+    bool m_masterEnabled = false;  // Master toggle state
+    float m_masterVolume = 1.0f;   // Master volume control
 };

@@ -52,23 +52,25 @@ int main(int argc, char* argv[])
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
     TesterView view;
-    if (!view.Initialize(window, glContext))
+    if (!view.initialize(window, glContext))
     {
-        std::cerr << "Failed to initialize TesterView" << std::endl;
+        std::cerr << "Failed to initialize view" << std::endl;
         return 1;
     }
 
     // Main loop
-    while (view.IsRunning())
+    while (view.isRunning())
     {
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            view.ProcessEvents(event);
+            view.processEvents(event);
             if (event.type == SDL_QUIT)
-                view.SetRunning(false);
+            {
+                view.setRunning(false);
+            }
         }
-        view.Render();
+        view.render();
     }
 
     SDL_GL_DeleteContext(glContext);

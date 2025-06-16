@@ -17,6 +17,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
 
 struct FilterParameter {
     float value;
@@ -91,8 +92,8 @@ class AudioSystem
     void setBusVolume(float volume);
 
     // Track looping control
-    void setTrackLooping(size_t trackIndex, bool loop);
-    bool isTrackLooping(size_t trackIndex) const;
+    // void setTrackLooping(size_t trackIndex, bool loop);
+    // bool isTrackLooping(size_t trackIndex) const;
 
     // Bus FX API
     void setBusFilterEnabled(const std::string& filterName, bool enabled);
@@ -102,6 +103,17 @@ class AudioSystem
     const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
     static const std::vector<std::string> AVAILABLE_FILTERS;
+
+    // New methods for time-based sync
+    void startTimeBasedSync();
+    void stopTimeBasedSync();
+    bool isTimeBasedSyncEnabled() const { return m_timeBasedSync; }
+    float getShortestTrackLength() const;
+    void resyncTracks();
+
+    // Add master toggle state
+    void setMasterEnabled(bool enabled);
+    bool isMasterEnabled() const { return m_masterEnabled; }
 
   private:
     SoLoud::Soloud m_soloud;
@@ -121,4 +133,19 @@ class AudioSystem
 
     void initializeFilter(FilterInstance& instance, const std::string& filterName);
     void updateFilterInstance(FilterInstance& instance, const std::string& filterName);
+
+    // New members for time-based sync
+    bool m_timeBasedSync = false;
+    std::chrono::steady_clock::time_point m_syncStartTime;
+    float m_syncOffset = 0.0f;
+    mutable size_t m_shortestTrackIndex = 0;  // Made mutable to allow modification in const functions
+    static constexpr float SYNC_THRESHOLD = 0.1f; // Threshold in seconds for resyncing
+    static constexpr float KEYFRAME_INTERVAL = 0.1f; // Approximate keyframe interval in seconds
+
+    void updateTimeBasedSync();
+    float getNearestKeyframe(float position) const;
+    void fastForwardToPosition(size_t trackIndex, float targetPosition);
+
+    // Add master toggle state
+    bool m_masterEnabled = false;
 };

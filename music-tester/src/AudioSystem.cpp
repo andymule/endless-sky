@@ -1,5 +1,6 @@
 #include "AudioSystem.h"
 #include <iostream>
+#include <chrono>
 
 const std::vector<std::string> AudioSystem::AVAILABLE_FILTERS = {
     "biquad", "echo", "lofi", "flanger", "dcremoval", "bassboost", "waveshaper", "robotize", "freeverb"
@@ -349,62 +350,60 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
     return !m_tracks.empty();
 }
 
-void AudioSystem::playAll()
+void AudioSystem::setMasterEnabled(bool enabled)
 {
-    if (!m_isInitialized)
+    if (m_masterEnabled == enabled)
         return;
 
-    stopAll();
-
-    // Ensure the bus is playing
-    if (m_busHandle == 0)
+    m_masterEnabled = enabled;
+    if (enabled)
     {
-        m_busHandle = m_soloud.play(m_masterBus);
-        m_masterBus.setVolume(m_busVolume);
-        m_soloud.setVolume(m_busHandle, m_busVolume);
+        playAll();
     }
-
-    // Calculate the start time for synchronized playback
-    double startTime = m_soloud.getStreamPosition(0) + 0.1; // Start 100ms from now
-
-    // Play all tracks through the bus
-    for (size_t i = 0; i < m_tracks.size(); ++i)
+    else
     {
-        // Apply filters to the audio source before playing
-        int filterSlot = 0;
-        for (auto& [name, instance] : m_trackFilters[i].filters)
+        stopAll();
+    }
+}
+
+void AudioSystem::playAll()
+{
+    if (!m_isInitialized || m_tracks.empty() || !m_masterEnabled)
+        return;
+
+    if (m_timeBasedSync)
+    {
+        startTimeBasedSync();
+    }
+    else
+    {
+        // Play all tracks through the bus
+        for (size_t i = 0; i < m_tracks.size(); ++i)
         {
-            if (instance.enabled && instance.filter)
+            // Apply all filters to the audio source before playing
+            int filterSlot = 0;
+            for (auto& [name, instance] : m_trackFilters[i].filters)
             {
-                m_tracks[i]->setFilter(filterSlot, instance.filter.get());
-                instance.slot = filterSlot;
-                filterSlot++;
-            }
-        }
-
-        // Clear any remaining filter slots
-        for (int slot = filterSlot; slot < 8; ++slot)
-        {
-            m_tracks[i]->setFilter(slot, nullptr);
-        }
-
-        // Play the track through the bus
-        unsigned int handle = m_masterBus.playClocked(startTime, *m_tracks[i], m_trackVolumes[i]);
-        m_voiceHandles[i] = handle;
-
-        // Fade parameters for all enabled filters
-        for (auto& [name, instance] : m_trackFilters[i].filters)
-        {
-            if (instance.enabled && instance.filter && instance.slot >= 0)
-            {
-                for (const auto& [paramId, param] : instance.parameters)
+                if (instance.filter)
                 {
-                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot), 
-                                               static_cast<unsigned int>(paramId), 
-                                               param.value, 
-                                               FILTER_PARAM_TRANSITION_TIME);
+                    m_tracks[i]->setFilter(filterSlot, instance.filter.get());
+                    instance.slot = filterSlot;
+                    filterSlot++;
                 }
             }
+
+            // Clear any remaining filter slots
+            for (int slot = filterSlot; slot < 8; ++slot)
+            {
+                m_tracks[i]->setFilter(slot, nullptr);
+            }
+
+            // Play the track
+            m_voiceHandles[i] = m_soloud.play(*m_tracks[i]);
+            m_soloud.setVolume(m_voiceHandles[i], m_trackVolumes[i]);
+            
+            // Set looping for all tracks
+            m_tracks[i]->setLooping(true);
         }
     }
 }
@@ -446,12 +445,22 @@ float AudioSystem::getPlaybackPosition()
 
 void AudioSystem::setPlaybackPosition(float position)
 {
-    if (!m_isInitialized)
+    if (!m_isInitialized || m_tracks.empty())
         return;
 
-    for (const auto& handlePair : m_voiceHandles)
+    if (m_timeBasedSync)
     {
-        m_soloud.seek(handlePair.second, position);
+        m_syncOffset = position;
+        m_syncStartTime = std::chrono::steady_clock::now();
+        resyncTracks();
+    }
+    else
+    {
+        // Original position setting logic
+        for (size_t i = 0; i < m_tracks.size(); ++i)
+        {
+            m_soloud.seek(m_voiceHandles[i], position);
+        }
     }
 }
 
@@ -477,71 +486,45 @@ float AudioSystem::getTrackVolume(size_t trackIndex) const
 
 void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId, float value)
 {
-    if (!m_isInitialized || trackIndex >= m_trackFilters.size())
-    {
-        std::cout << "Set filter parameter failed - invalid track or not initialized" << std::endl;
+    if (trackIndex >= m_trackFilters.size())
         return;
-    }
 
-    std::cout << "Setting filter parameter - track: " << trackIndex 
-              << " filter: " << filterName 
-              << " param: " << paramId 
-              << " value: " << value << std::endl;
-
-    auto& trackFilters = m_trackFilters[trackIndex];
-    auto it = trackFilters.filters.find(filterName);
-    if (it == trackFilters.filters.end())
+    auto& trackFilter = m_trackFilters[trackIndex];
+    auto it = trackFilter.filters.find(filterName);
+    if (it != trackFilter.filters.end())
     {
-        // Initialize the filter if it doesn't exist
-        std::cout << "Initializing new filter: " << filterName << std::endl;
-        FilterInstance instance;
-        initializeFilter(instance, filterName);
-        if (instance.filter)
+        auto& instance = it->second;
+        auto paramIt = instance.parameters.find(paramId);
+        if (paramIt != instance.parameters.end())
         {
-            instance.enabled = true;  // Enable the filter by default
-            trackFilters.filters[filterName] = std::move(instance);
-            it = trackFilters.filters.find(filterName);
-        }
-        else
-        {
-            std::cout << "Failed to initialize filter: " << filterName << std::endl;
-            return;
-        }
-    }
-
-    auto& instance = it->second;
-    auto paramIt = instance.parameters.find(paramId);
-    if (paramIt != instance.parameters.end())
-    {
-        auto& param = paramIt->second;
-        if (param.value != value)
-        {
-            std::cout << "Parameter value changed from " << param.value << " to " << value << std::endl;
-            
-            // Get the voice handle for this track
-            auto voiceIt = m_voiceHandles.find(trackIndex);
-            if (voiceIt != m_voiceHandles.end() && instance.slot >= 0)
-            {
-                SoLoud::handle voiceHandle = voiceIt->second;
-                
-                // Use SoLoud's built-in parameter fading on the track's voice handle
-                m_soloud.fadeFilterParameter(voiceHandle, static_cast<unsigned int>(instance.slot), 
-                                          static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
-            }
-            
-            // Store the new value
-            param.value = value;
-            param.changed = true;
+            float oldValue = paramIt->second.value;
+            paramIt->second.value = std::clamp(value, paramIt->second.min, paramIt->second.max);
+            paramIt->second.changed = true;
             instance.needsUpdate = true;
-            instance.enabled = true;  // Ensure filter is enabled when parameters change
-            
-            // Update the filter instance parameters
-            updateFilterInstance(instance, filterName);
+
+            std::cout << "Setting filter parameter - track: " << trackIndex 
+                      << " filter: " << filterName 
+                      << " param: " << paramId 
+                      << " value: " << value << std::endl;
+
+            if (oldValue != paramIt->second.value)
+            {
+                std::cout << "Parameter value changed from " << oldValue << " to " << paramIt->second.value << std::endl;
+                
+                // Get the current voice handle for this track
+                auto voiceIt = m_voiceHandles.find(trackIndex);
+                if (voiceIt != m_voiceHandles.end() && instance.slot >= 0)
+                {
+                    unsigned int voiceHandle = voiceIt->second;
+                    m_soloud.setFilterParameter(voiceHandle, instance.slot, paramId + 1, paramIt->second.value);
+                    std::cout << "Updated filter parameter" << std::endl;
+                }
+            }
+            else
+            {
+                std::cout << "Parameter value unchanged" << std::endl;
+            }
         }
-    }
-    else
-    {
-        std::cout << "Parameter " << paramId << " not found in filter " << filterName << std::endl;
     }
 }
 
@@ -564,26 +547,55 @@ float AudioSystem::getFilterParameter(size_t trackIndex, const std::string& filt
 
 void AudioSystem::setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled)
 {
-    if (!m_isInitialized || trackIndex >= m_trackFilters.size())
+    if (trackIndex >= m_trackFilters.size())
         return;
 
-    auto& trackFilters = m_trackFilters[trackIndex];
-    auto it = trackFilters.filters.find(filterName);
-    if (it == trackFilters.filters.end())
+    auto& trackFilter = m_trackFilters[trackIndex];
+    auto it = trackFilter.filters.find(filterName);
+    if (it == trackFilter.filters.end())
     {
-        FilterInstance instance;
-        initializeFilter(instance, filterName);
-        if (instance.filter)
-        {
-            instance.enabled = enabled;
-            trackFilters.filters[filterName] = std::move(instance);
-            updateFilterParams(trackIndex);
-        }
+        // Initialize the filter if it doesn't exist
+        initializeFilter(trackFilter.filters[filterName], filterName);
+        it = trackFilter.filters.find(filterName);
     }
-    else if (it->second.enabled != enabled)
+
+    if (it != trackFilter.filters.end())
     {
-        it->second.enabled = enabled;
-        updateFilterParams(trackIndex);
+        auto& instance = it->second;
+        instance.enabled = enabled;
+        instance.needsUpdate = true;
+
+        // Get the current voice handle for this track
+        auto voiceIt = m_voiceHandles.find(trackIndex);
+        if (voiceIt != m_voiceHandles.end())
+        {
+            unsigned int voiceHandle = voiceIt->second;
+            
+            if (enabled)
+            {
+                // Find an available filter slot
+                int slot = 0;
+                while (slot < 8 && m_soloud.getFilterParameter(voiceHandle, slot, 0) != 0)
+                    slot++;
+
+                if (slot < 8)
+                {
+                    instance.slot = slot;
+                    m_soloud.setFilterParameter(voiceHandle, slot, 0, 1.0f); // Enable the filter
+                    std::cout << "Applied filter " << filterName << " to track " << trackIndex << " in slot " << slot << std::endl;
+                }
+            }
+            else
+            {
+                // Remove the filter from its slot
+                if (instance.slot >= 0)
+                {
+                    m_soloud.setFilterParameter(voiceHandle, instance.slot, 0, 0.0f); // Disable the filter
+                    instance.slot = -1;
+                    std::cout << "Removed filter " << filterName << " from track " << trackIndex << std::endl;
+                }
+            }
+        }
     }
 }
 
@@ -862,19 +874,107 @@ float AudioSystem::getLongestTrackLength() const
     return longestLength;
 }
 
-void AudioSystem::setTrackLooping(size_t trackIndex, bool loop)
+float AudioSystem::getShortestTrackLength() const
 {
-    if (!m_isInitialized || trackIndex >= m_tracks.size())
-        return;
+    if (m_tracks.empty())
+        return 0.0f;
 
-    m_tracks[trackIndex]->setLooping(loop);
+    float shortestLength = std::numeric_limits<float>::max();
+    for (size_t i = 0; i < m_tracks.size(); ++i)
+    {
+        float length = m_tracks[i]->getLength();
+        if (length < shortestLength)
+        {
+            shortestLength = length;
+            m_shortestTrackIndex = i;
+        }
+    }
+    return shortestLength;
 }
 
-bool AudioSystem::isTrackLooping(size_t trackIndex) const
+void AudioSystem::startTimeBasedSync()
 {
-    if (!m_isInitialized || trackIndex >= m_tracks.size())
-        return false;
+    if (m_timeBasedSync)
+        return;
 
-    // In SoLoud, if getLoopPoint returns 0, it means the track is not looping
-    return m_tracks[trackIndex]->getLoopPoint() != 0;
+    m_timeBasedSync = true;
+    m_syncStartTime = std::chrono::steady_clock::now();
+    m_syncOffset = 0.0f;
+
+    // Find the shortest track to use as reference
+    getShortestTrackLength();
+
+    // Start all tracks
+    playAll();
+}
+
+void AudioSystem::stopTimeBasedSync()
+{
+    m_timeBasedSync = false;
+}
+
+void AudioSystem::updateTimeBasedSync()
+{
+    if (!m_timeBasedSync || m_tracks.empty())
+        return;
+
+    auto currentTime = std::chrono::steady_clock::now();
+    float elapsedTime = std::chrono::duration<float>(currentTime - m_syncStartTime).count() + m_syncOffset;
+
+    // Get the reference position from the shortest track
+    float referencePosition = m_soloud.getStreamPosition(m_voiceHandles[m_shortestTrackIndex]);
+    float targetPosition = elapsedTime;
+
+    // Check if we need to resync
+    if (std::abs(referencePosition - targetPosition) > SYNC_THRESHOLD)
+    {
+        resyncTracks();
+    }
+}
+
+float AudioSystem::getNearestKeyframe(float position) const
+{
+    // Round to nearest keyframe interval
+    return std::round(position / KEYFRAME_INTERVAL) * KEYFRAME_INTERVAL;
+}
+
+void AudioSystem::fastForwardToPosition(size_t trackIndex, float targetPosition)
+{
+    if (trackIndex >= m_tracks.size())
+        return;
+
+    // Get the nearest keyframe to avoid audio glitches
+    float keyframePosition = getNearestKeyframe(targetPosition);
+    
+    // Stop the current playback
+    m_soloud.stop(m_voiceHandles[trackIndex]);
+    
+    // Set the new position using seek
+    m_soloud.seek(m_voiceHandles[trackIndex], keyframePosition);
+    
+    // Restart playback
+    m_voiceHandles[trackIndex] = m_soloud.play(*m_tracks[trackIndex]);
+    m_soloud.setVolume(m_voiceHandles[trackIndex], m_trackVolumes[trackIndex]);
+}
+
+void AudioSystem::resyncTracks()
+{
+    if (!m_timeBasedSync || m_tracks.empty())
+        return;
+
+    auto currentTime = std::chrono::steady_clock::now();
+    float elapsedTime = std::chrono::duration<float>(currentTime - m_syncStartTime).count() + m_syncOffset;
+    float targetPosition = getNearestKeyframe(elapsedTime);
+
+    // Update all tracks to the target position
+    for (size_t i = 0; i < m_tracks.size(); ++i)
+    {
+        if (i != m_shortestTrackIndex) // Skip the reference track
+        {
+            fastForwardToPosition(i, targetPosition);
+        }
+    }
+
+    // Update the sync offset to account for any drift
+    m_syncOffset = targetPosition - elapsedTime;
 }
