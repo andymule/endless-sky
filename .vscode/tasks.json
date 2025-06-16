@@ -1,0 +1,93 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Music Tester",
+            "type": "shell",
+            "command": "${workspaceFolder}/music-tester/build-macos.sh",
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/music-tester"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean and Build Music Tester",
+            "type": "shell",
+            "command": "${workspaceFolder}/music-tester/build-macos.sh",
+            "args": ["clean"],
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/music-tester"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build Music Tester (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "..",
+                "-G", "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_TOOLCHAIN_FILE=${workspaceFolder}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            ],
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/music-tester/build"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Make Music Tester (Debug)",
+            "type": "shell",
+            "command": "ninja",
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/music-tester/build"
+            },
+            "dependsOn": "Build Music Tester (Debug)",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+} 

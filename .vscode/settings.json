@@ -1,0 +1,23 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.intelliSenseMode": "macos-clang-arm64",
+    "cmake.buildDirectory": "${workspaceFolder}/music-tester/build",
+    "cmake.sourceDirectory": "${workspaceFolder}/music-tester",
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "*.h": "cpp",
+        "*.hpp": "cpp",
+        "*.cpp": "cpp",
+        "*.cc": "cpp"
+    },
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/music-tester/src",
+        "/opt/homebrew/include",
+        "/usr/local/include"
+    ],
+    "terminal.integrated.env.osx": {
+        "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}",
+        "PKG_CONFIG_PATH": "/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libvorbis/lib/pkgconfig:/opt/homebrew/opt/libogg/lib/pkgconfig:/opt/homebrew/opt/libpng/lib/pkgconfig:/usr/local/lib/pkgconfig:${env:PKG_CONFIG_PATH}"
+    }
+} 

@@ -1,0 +1,57 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Music Tester",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/music-tester/build/music-tester",
+            "args": ["${workspaceFolder}/music-tester/sound_staging"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}/music-tester",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Music Tester",
+            "sourceMap": {
+                "": ""
+            }
+        },
+        {
+            "name": "Debug Music Tester",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/music-tester/build/music-tester",
+            "args": ["${workspaceFolder}/music-tester/sound_staging"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}/music-tester",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:/usr/local/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "Make Music Tester (Debug)",
+            "sourceMap": {
+                "${workspaceFolder}/music-tester": "${workspaceFolder}/music-tester"
+            }
+        },
+        {
+            "name": "Run Music Tester (Shell Script)",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/music-tester/run-music-tester.sh",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/music-tester",
+            "preLaunchTask": "Build Music Tester",
+            "runtimeExecutable": "/bin/bash",
+            "runtimeArgs": []
+        },
+        {
+            "name": "Attach to Music Tester",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/music-tester/build/music-tester",
+            "pid": "${command:pickProcess}"
+        }
+    ]
+} 

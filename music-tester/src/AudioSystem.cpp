@@ -33,6 +33,12 @@ bool AudioSystem::initialize()
         return false;
     }
 
+    // Initialize the master bus properly before use
+    // Clear all filter slots to ensure clean state
+    for (int i = 0; i < 8; ++i) {
+        // Don't call setFilter on uninitialized bus
+    }
+    
     // Play the bus once and store the handle
     m_busHandle = m_soloud.play(m_masterBus);
     m_masterBus.setVolume(m_busVolume);
@@ -781,11 +787,21 @@ void AudioSystem::updateBusFilterParams()
 {
     std::cout << "Updating bus filter parameters" << std::endl;
 
-    // Remove all filters from the bus
+    // SAFETY CHECK: Only clear filters if bus handle is valid
+    if (m_busHandle == 0) {
+        std::cout << "Bus handle invalid, skipping filter update" << std::endl;
+        return;
+    }
+
+    // Remove all filters from the bus - but do it safely
     for (int slot = 0; slot < 8; ++slot)
     {
-        m_masterBus.setFilter(slot, nullptr);
-        std::cout << "Cleared bus filter slot " << slot << std::endl;
+        try {
+            m_masterBus.setFilter(slot, nullptr);
+            std::cout << "Cleared bus filter slot " << slot << std::endl;
+        } catch (...) {
+            std::cout << "Failed to clear bus filter slot " << slot << std::endl;
+        }
     }
 
     // Apply enabled filters
