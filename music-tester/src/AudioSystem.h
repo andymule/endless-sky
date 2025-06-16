@@ -77,8 +77,8 @@ class AudioSystem
 
     // Filter management
     void updateFilterParams(size_t trackIndex);
-    void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId, float value);
-    float getFilterParameter(size_t trackIndex, const std::string& filterName, int paramId) const;
+    void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramIndex, float value);
+    float getFilterParameter(size_t trackIndex, const std::string& filterName, int paramIndex);
     void setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled);
     bool isFilterEnabled(size_t trackIndex, const std::string& filterName) const;
     const std::unordered_map<std::string, FilterInstance>& getFilters(size_t trackIndex) const;
@@ -99,7 +99,7 @@ class AudioSystem
     void setBusFilterEnabled(const std::string& filterName, bool enabled);
     bool isBusFilterEnabled(const std::string& filterName) const;
     void setBusFilterParameter(const std::string& filterName, int paramId, float value);
-    float getBusFilterParameter(const std::string& filterName, int paramId) const;
+    float getBusFilterParameter(const std::string& filterName, int paramId);
     const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
     static const std::vector<std::string> AVAILABLE_FILTERS;
