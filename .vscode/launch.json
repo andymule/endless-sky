@@ -83,6 +83,24 @@
             "request": "attach",
             "program": "${workspaceFolder}/build/endless-sky",
             "pid": "${command:pickProcess}"
+        },
+        {
+            "name": "Launch music-tester (Fast)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/music-tester/build/music-tester",
+            "args": ["${workspaceFolder}/music-tester/sound_staging"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}/music-tester",
+            "env": {
+                "DYLD_LIBRARY_PATH": "${env:HOMEBREW_PREFIX}/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build music-tester only",
+            "sourceMap": {
+                "${workspaceFolder}/music-tester": "${workspaceFolder}/music-tester",
+                "${workspaceFolder}/source": "${workspaceFolder}/source"
+            }
         }
     ]
 } 

@@ -135,6 +135,20 @@
                 "showReuseMessage": true,
                 "clear": false
             }
+        },
+        {
+            "label": "Build music-tester only",
+            "type": "shell",
+            "command": "cd music-tester && ./build-macos.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
         }
     ]
 } 
