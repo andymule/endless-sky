@@ -9,7 +9,7 @@
 TesterView::TesterView()
 {
     // Preload the sound_staging folder as the default music directory
-    m_musicDir = "/Users/arckex/source/endless-sky/music-tester/sound_staging";
+    m_musicDir = "sound_staging";
     strncpy(m_dirInput, m_musicDir.c_str(), sizeof(m_dirInput));
     m_dirInput[sizeof(m_dirInput) - 1] = '\0';
     SetMusicDirectory(m_musicDir);

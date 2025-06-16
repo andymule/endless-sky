@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 // Structure to hold a track and its properties
 struct Track
