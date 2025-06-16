@@ -12,14 +12,17 @@ SCRIPT_DIR="$(dirname "$0")"
 cd "$SCRIPT_DIR"
 MUSIC_TESTER_DIR=$(pwd)
 BUILD_DIR="${MUSIC_TESTER_DIR}/build"
-SOUND_DIR="${MUSIC_TESTER_DIR}/sound_staging"
 
-# Create sound_staging directory if it doesn't exist
-mkdir -p "$SOUND_DIR"
+# If a directory is provided as an argument, use it, otherwise use current directory
+if [ $# -gt 0 ]; then
+    SOUND_DIR="$1"
+    shift
+else
+    SOUND_DIR="."
+fi
 
 echo "Running music-tester"
 echo "Music directory: $SOUND_DIR"
 
-# Pass any command line arguments to the music-tester
-# Add the sound directory as the first argument
+# Pass any remaining command line arguments to the music-tester
 "$BUILD_DIR/music-tester" "$SOUND_DIR" "$@" 

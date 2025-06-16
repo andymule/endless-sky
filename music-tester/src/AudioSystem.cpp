@@ -324,7 +324,7 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
             
             std::cout << "Found file: " << entry.path().filename() << " (extension: " << ext << ")" << std::endl;
             
-            if (ext == ".wav" || ext == ".flac")
+            if (ext == ".wav" || ext == ".ogg")
             {
                 auto wav = std::make_unique<SoLoud::Wav>();
                 SoLoud::result result = wav->load(entry.path().string().c_str());

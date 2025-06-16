@@ -143,9 +143,6 @@ if [ -z "$MINIZIP_DIR" ]; then
 fi
 echo "Found minizip at: $MINIZIP_DIR"
 
-# Create sound_staging directory if it doesn't exist
-mkdir -p "$MUSIC_TESTER_DIR/sound_staging"
-
 # Use Ninja generator if available to speed up builds
 NINJA_AVAILABLE=false
 if command -v ninja &> /dev/null; then

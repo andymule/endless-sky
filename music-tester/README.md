@@ -5,7 +5,7 @@ A standalone testing application for adaptive music in Endless Sky using Dear Im
 ## Overview
 
 This utility allows music designers to:
-- Load audio files (ogg, wav, aif) from a directory
+- Load audio files (ogg, wav) from a directory
 - Control volume for individual tracks
 - Add effects to tracks
 - Test how different stems work together in an adaptive music context
