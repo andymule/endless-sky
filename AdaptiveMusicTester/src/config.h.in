@@ -1,0 +1,4 @@
+#pragma once
+
+// Configuration settings
+#cmakedefine USE_SDL2_SUBDIR 
