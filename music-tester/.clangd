@@ -1,0 +1,31 @@
+CompileFlags:
+  Add: 
+    - "-DWITH_SDL2_STATIC"
+    - "-DSOLOUD_STATIC"
+    - "-DSOLOUD_SDL2_STATIC"
+    - "-DSOLOUD_WITH_SDL2_STATIC"
+    - "-DSOLOUD_WITH_WAV"
+    - "-DSOLOUD_WITH_WAVSTREAM"
+    - "-DSOLOUD_WITH_OGG"
+    - "-DSOLOUD_WITH_VORBIS"
+    - "-std=c++20"
+  Remove: []
+  Compiler: clang++
+
+Index:
+  Background: Build
+  StandardLibrary: Yes
+
+Diagnostics:
+  ClangTidy:
+    Add: 
+      - performance-*
+      - modernize-*
+      - bugprone-*
+      - cppcoreguidelines-*
+    Remove: []
+    CheckOptions:
+      - key: readability-identifier-length.MinimumVariableNameLength
+        value: '2'
+      - key: readability-identifier-length.MinimumParameterNameLength
+        value: '2' 

@@ -110,10 +110,28 @@ target_include_directories(music-tester PRIVATE
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${soloud_SOURCE_DIR}/include
+    ${soloud_SOURCE_DIR}/src
+    ${soloud_SOURCE_DIR}/src/audiosource
+    ${soloud_SOURCE_DIR}/src/audiosource/wav
+    ${soloud_SOURCE_DIR}/src/audiosource/ogg
+    ${soloud_SOURCE_DIR}/src/filter
+    ${soloud_SOURCE_DIR}/src/core
     ${SDL2_INCLUDE_DIRS}
     ${PNG_INCLUDE_DIRS}
     ${JPEG_INCLUDE_DIRS}
     ${OPENAL_INCLUDE_DIR}
+)
+
+# Add compile definitions
+target_compile_definitions(music-tester PRIVATE
+    WITH_SDL2_STATIC
+    SOLOUD_STATIC
+    SOLOUD_SDL2_STATIC
+    SOLOUD_WITH_SDL2_STATIC
+    SOLOUD_WITH_WAV
+    SOLOUD_WITH_WAVSTREAM
+    SOLOUD_WITH_OGG
+    SOLOUD_WITH_VORBIS
 )
 
 # Handle minizip using vcpkg
@@ -153,16 +171,5 @@ else()
         target_link_libraries(music-tester PRIVATE GLEW::glew)
     endif()
 endif()
-
-# Create sound_staging directory and copy contents
-add_custom_command(TARGET music-tester POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Source directory: ${CMAKE_SOURCE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Target directory: $<TARGET_FILE_DIR:music-tester>"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:music-tester>/sound_staging"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "$<TARGET_FILE_DIR:music-tester>/sound_staging"
-    COMMAND ${CMAKE_COMMAND} -E echo "Contents of target sound_staging:"
-    COMMAND ls "$<TARGET_FILE_DIR:music-tester>/sound_staging"
-    COMMENT "Copying sound_staging directory to build directory"
-)
 
 # The OAML-related definition has been removed 
