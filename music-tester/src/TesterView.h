@@ -33,6 +33,7 @@ public:
     void drawFilterControls(size_t trackIndex);
 
 private:
+    void cleanup();
     void RenderMainWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
@@ -49,7 +50,7 @@ private:
     char m_dirInput[256] = "";
 
     // Audio System
-    AudioSystem m_audioSystem;
+    AudioTester::AudioSystem m_audioSystem;
 
     // SDL/OpenGL
     SDL_Window* m_window = nullptr;

@@ -39,6 +39,8 @@ set(MUSIC_TESTER_SOURCES
     src/AudioSystem.cpp
     src/TesterView.cpp
     src/ResourceManager.cpp
+    src/ErrorHandling.h
+    src/ResourceManager.h
 )
 
 # Add the executable target
@@ -51,7 +53,7 @@ include(FetchContent)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.89.6
+    GIT_TAG v1.90.1
 )
 FetchContent_MakeAvailable(imgui)
 
@@ -133,6 +135,7 @@ endif()
 
 # Include directories
 target_include_directories(music-tester PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${soloud_SOURCE_DIR}/include
