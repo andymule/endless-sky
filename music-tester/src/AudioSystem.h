@@ -268,6 +268,8 @@ namespace AudioTester {
         std::vector<std::unique_ptr<SoLoud::Wav>> m_tracks;
         std::vector<FilterInstance> m_trackFilters;
         std::vector<FilterInstance> m_busFilters;
+        std::unordered_map<size_t, unsigned int>
+            m_trackHandles; // Track index to voice handle mapping
         float m_busVolume = 1.0f;
         bool m_isInitialized = false;
         unsigned int m_busHandle = 0;

@@ -33,6 +33,12 @@ namespace AudioTester {
         if (!m_isInitialized)
             return;
 
+        // Stop all tracks
+        for (const auto& [index, handle] : m_trackHandles) {
+            m_engine->get().stop(handle);
+        }
+        m_trackHandles.clear();
+
         if (m_busHandle != 0) {
             m_engine->get().stop(m_busHandle);
             m_busHandle = 0;
@@ -63,21 +69,34 @@ namespace AudioTester {
             m_engine->get().setVolume(m_busHandle, m_busVolume);
         }
 
-        m_engine->get().play(*m_tracks[index]);
+        // Play the track and store its handle
+        unsigned int handle = m_engine->get().play(*m_tracks[index]);
+        m_trackHandles[index] = handle;
     }
 
     void AudioSystem::stopTrack(size_t index) {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
-        m_engine->get().stopAudioSource(*m_tracks[index]);
+        auto it = m_trackHandles.find(index);
+        if (it != m_trackHandles.end()) {
+            m_engine->get().stop(it->second);
+            m_trackHandles.erase(it);
+        }
     }
 
     void AudioSystem::setTrackVolume(size_t index, float volume) {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
+        // Set the volume directly on the track
         m_tracks[index]->setVolume(volume);
+
+        // If the track has a handle, update its volume immediately
+        auto it = m_trackHandles.find(index);
+        if (it != m_trackHandles.end()) {
+            m_engine->get().setVolume(it->second, volume);
+        }
     }
 
     void AudioSystem::setTrackLooping(size_t index, bool looping) {
@@ -132,16 +151,36 @@ namespace AudioTester {
                 instance.parameters[paramId].value = value;
                 instance.parameters[paramId].changed = true;
                 instance.needsUpdate = true;
+
+                // Apply the parameter change immediately
+                if (auto* bassboost =
+                        dynamic_cast<SoLoud::BassboostFilter*>(instance.filter.get())) {
+                    bassboost->setParams(value);
+                } else if (auto* biquad =
+                               dynamic_cast<SoLoud::BiquadResonantFilter*>(instance.filter.get())) {
+                    biquad->setParams(value, value, value);
+                } else if (auto* echo = dynamic_cast<SoLoud::EchoFilter*>(instance.filter.get())) {
+                    echo->setParams(value, 0.7f, 0.0f);
+                } else if (auto* flanger =
+                               dynamic_cast<SoLoud::FlangerFilter*>(instance.filter.get())) {
+                    flanger->setParams(value, value);
+                } else if (auto* freeverb =
+                               dynamic_cast<SoLoud::FreeverbFilter*>(instance.filter.get())) {
+                    freeverb->setParams(value, 0.5f, 0.5f, 0.5f);
+                } else if (auto* lofi = dynamic_cast<SoLoud::LofiFilter*>(instance.filter.get())) {
+                    lofi->setParams(value, value);
+                } else if (auto* robotize =
+                               dynamic_cast<SoLoud::RobotizeFilter*>(instance.filter.get())) {
+                    robotize->setParams(value, value);
+                } else if (auto* waveshaper =
+                               dynamic_cast<SoLoud::WaveShaperFilter*>(instance.filter.get())) {
+                    waveshaper->setParams(value);
+                }
                 break;
             }
         }
     }
 
-    bool AudioSystem::isSupportedFileExtension(const std::string& ext) {
-        static const std::vector<std::string> supportedExtensions = {".wav", ".ogg", ".mp3",
-                                                                     ".flac"};
-        return std::find(supportedExtensions.begin(), supportedExtensions.end(), ext) !=
-               supportedExtensions.end();
-    }
+    bool AudioSystem::isSupportedFileExtension(const std::string& ext) { return ext == ".ogg"; }
 
 } // namespace AudioTester

@@ -6,7 +6,13 @@
 #include <iostream>
 #include <unordered_map>
 
-TesterView::TesterView() = default;
+TesterView::TesterView() {
+    // Preload the sound_staging folder as the default music directory
+    m_musicDir = "sound_staging";
+    strncpy(m_dirInput, m_musicDir.c_str(), sizeof(m_dirInput));
+    m_dirInput[sizeof(m_dirInput) - 1] = '\0';
+    SetMusicDirectory(m_musicDir);
+}
 
 TesterView::~TesterView() { cleanup(); }
 
@@ -76,8 +82,11 @@ void TesterView::LoadMusicFromDirectory() {
             if (AudioTester::AudioSystem::isSupportedFileExtension(ext)) {
                 Track track;
                 track.name = path.filename().string();
+                track.active = true; // Set all tracks to enabled by default
                 m_tracks.push_back(track);
                 m_audioSystem.loadAudioFile(path.string());
+                // Set looping to true for all tracks
+                m_audioSystem.setTrackLooping(m_tracks.size() - 1, true);
             }
         }
     }
@@ -130,10 +139,9 @@ void TesterView::RenderGlobalControls() {
     if (ImGui::Button(m_isPlaying ? "Stop" : "Play")) {
         m_isPlaying = !m_isPlaying;
         if (m_isPlaying) {
+            // Play all tracks regardless of enabled state
             for (size_t i = 0; i < m_tracks.size(); ++i) {
-                if (m_tracks[i].active) {
-                    m_audioSystem.playTrack(i);
-                }
+                m_audioSystem.playTrack(i);
             }
         } else {
             for (size_t i = 0; i < m_tracks.size(); ++i) {
@@ -149,16 +157,18 @@ void TesterView::RenderTrackControls() {
         auto& track = m_tracks[i];
         ImGui::PushID(static_cast<int>(i));
 
+        bool wasActive = track.active;
         ImGui::Checkbox("##active", &track.active);
+        if (wasActive != track.active) {
+            // Update volume immediately when enabled state changes
+            m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
+        }
         ImGui::SameLine();
         ImGui::Text("%s", track.name.c_str());
         ImGui::SameLine();
         if (ImGui::SliderFloat("##volume", &track.volume, 0.0f, 1.0f)) {
-            m_audioSystem.setTrackVolume(i, track.volume);
-        }
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Loop", &track.looping)) {
-            m_audioSystem.setTrackLooping(i, track.looping);
+            // Update volume immediately when slider changes
+            m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
         }
 
         RenderEffectsControls(track, i);
@@ -192,7 +202,7 @@ void TesterView::RenderBusControls() {
         m_audioSystem.setBusVolume(busVolume);
     }
     ImGui::Separator();
-    ImGui::Text("Bus FX");
+
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
         bool enabled = false;
         if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
