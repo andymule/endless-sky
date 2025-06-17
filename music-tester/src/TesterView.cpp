@@ -165,34 +165,54 @@ void TesterView::RenderTrackControls() {
         }
         ImGui::SameLine();
         ImGui::Text("%s", track.name.c_str());
-        ImGui::SameLine();
-        if (ImGui::SliderFloat("##volume", &track.volume, 0.0f, 1.0f)) {
+
+        // Loop toggle
+        if (ImGui::Checkbox("Loop", &track.looping)) {
+            m_audioSystem.setTrackLooping(i, track.looping);
+        }
+
+        // Volume slider
+        if (ImGui::SliderFloat("Volume", &track.volume, 0.0f, 1.0f)) {
             // Update volume immediately when slider changes
             m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
         }
 
-        RenderEffectsControls(track, i);
+        // Call drawFilterControls() for this track
+        drawFilterControls(i);
 
         ImGui::PopID();
         ImGui::Separator();
     }
 }
 
-void TesterView::RenderEffectsControls(Track& track, size_t trackIndex) {
-    ImGui::Separator();
-    ImGui::Text("Effects");
-    ImGui::Separator();
-
+void TesterView::drawFilterControls(size_t trackIndex) {
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = false;
+        bool enabled = m_audioSystem.isFilterEnabled(trackIndex, filterName);
         if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            if (enabled) {
-                m_audioSystem.addFilterToTrack(trackIndex, filterName);
-            } else {
-                m_audioSystem.removeFilterFromTrack(trackIndex, filterName);
+            m_audioSystem.setFilterEnabled(trackIndex, filterName, enabled);
+        }
+        if (enabled) {
+            // Get track filters directly as vector
+            const auto& filters = m_audioSystem.getTrackFilters(trackIndex);
+            for (const auto& instance : filters) {
+                if (instance.filterName == filterName && instance.enabled) {
+                    for (const auto& [paramId, param] : instance.parameters) {
+                        float value =
+                            m_audioSystem.getFilterParameter(trackIndex, filterName, paramId);
+                        if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
+                            m_audioSystem.setFilterParameter(trackIndex, filterName, paramId,
+                                                             value);
+                        }
+                    }
+                    break;
+                }
             }
         }
     }
+}
+
+void TesterView::RenderEffectsControls(Track& track, size_t trackIndex) {
+    // This method is no longer used - replaced by drawFilterControls
 }
 
 void TesterView::RenderBusControls() {
@@ -202,14 +222,22 @@ void TesterView::RenderBusControls() {
         m_audioSystem.setBusVolume(busVolume);
     }
     ImGui::Separator();
-
+    ImGui::Text("Bus FX");
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = false;
+        bool enabled = m_audioSystem.isBusFilterEnabled(filterName);
         if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            if (enabled) {
-                m_audioSystem.addFilterToTrack(0, filterName);
-            } else {
-                m_audioSystem.removeFilterFromTrack(0, filterName);
+            m_audioSystem.setBusFilterEnabled(filterName, enabled);
+        }
+        if (enabled) {
+            const auto& filters = m_audioSystem.getBusFilters();
+            auto it = filters.find(filterName);
+            if (it != filters.end()) {
+                for (const auto& [paramId, param] : it->second.parameters) {
+                    float value = m_audioSystem.getBusFilterParameter(filterName, paramId);
+                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
+                        m_audioSystem.setBusFilterParameter(filterName, paramId, value);
+                    }
+                }
             }
         }
     }

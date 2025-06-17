@@ -146,22 +146,38 @@ namespace AudioTester {
         void initialize(const std::string& filterName) {
             if (filterName == "BassBoost") {
                 filter = std::make_unique<SoLoud::BassboostFilter>();
+                // Initialize with a default parameter
+                parameters[0] = {0.5f, 0.0f, 1.0f, "Boost", false};
             } else if (filterName == "BiquadResonant") {
                 filter = std::make_unique<SoLoud::BiquadResonantFilter>();
+                parameters[0] = {1000.0f, 20.0f, 20000.0f, "Frequency", false};
+                parameters[1] = {1.0f, 0.1f, 10.0f, "Resonance", false};
             } else if (filterName == "DCRemoval") {
                 filter = std::make_unique<SoLoud::DCRemovalFilter>();
+                parameters[0] = {0.1f, 0.01f, 1.0f, "Length", false};
             } else if (filterName == "Echo") {
                 filter = std::make_unique<SoLoud::EchoFilter>();
+                parameters[0] = {0.3f, 0.001f, 1.0f, "Delay", false};
+                parameters[1] = {0.7f, 0.001f, 1.0f, "Decay", false};
+                parameters[2] = {0.0f, 0.0f, 0.999f, "Filter", false};
             } else if (filterName == "Flanger") {
                 filter = std::make_unique<SoLoud::FlangerFilter>();
+                parameters[0] = {0.5f, 0.0f, 1.0f, "Delay", false};
+                parameters[1] = {0.5f, 0.0f, 1.0f, "Frequency", false};
             } else if (filterName == "Freeverb") {
                 filter = std::make_unique<SoLoud::FreeverbFilter>();
+                parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
             } else if (filterName == "Lofi") {
                 filter = std::make_unique<SoLoud::LofiFilter>();
+                parameters[0] = {0.5f, 0.0f, 1.0f, "Sample Rate", false};
+                parameters[1] = {0.5f, 0.0f, 1.0f, "Bit Depth", false};
             } else if (filterName == "Robotize") {
                 filter = std::make_unique<SoLoud::RobotizeFilter>();
+                parameters[0] = {30.0f, 0.1f, 100.0f, "Frequency", false};
+                parameters[1] = {0.0f, 0.0f, 6.0f, "Waveform", false};
             } else if (filterName == "WaveShaper") {
                 filter = std::make_unique<SoLoud::WaveShaperFilter>();
+                parameters[0] = {0.5f, 0.0f, 1.0f, "Amount", false};
             }
             enabled = false;
             needsUpdate = false;
@@ -204,6 +220,7 @@ namespace AudioTester {
 
         std::unique_ptr<SoLoud::Filter> filter;
         std::unordered_map<int, FilterParameter> parameters;
+        std::string filterName;
         bool enabled = false;
         bool needsUpdate = false;
         int slot = -1;
@@ -255,17 +272,34 @@ namespace AudioTester {
         void removeFilterFromTrack(size_t trackIndex, const std::string& filterName);
         void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId,
                                 float value);
+        void setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled);
+        bool isFilterEnabled(size_t trackIndex, const std::string& filterName) const;
+        float getFilterParameter(size_t trackIndex, const std::string& filterName,
+                                 int paramId) const;
+        const std::vector<FilterInstance>& getTrackFilters(size_t trackIndex) const;
+        const std::unordered_map<std::string, FilterInstance>& getFilters(size_t trackIndex) const;
+
+        // Bus filter management
+        void setBusFilterEnabled(const std::string& filterName, bool enabled);
+        bool isBusFilterEnabled(const std::string& filterName) const;
+        void setBusFilterParameter(const std::string& filterName, int paramId, float value);
+        float getBusFilterParameter(const std::string& filterName, int paramId) const;
+        const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
         // Static members
         static const std::vector<std::string> AVAILABLE_FILTERS;
         static bool isSupportedFileExtension(const std::string& ext);
 
     private:
+        void applyFiltersToTrack(size_t trackIndex);
+        void updateFilterParameters(FilterInstance& instance);
+        void updateBusFilterParams();
+
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
         std::vector<std::unique_ptr<SoLoud::Wav>> m_tracks;
-        std::vector<FilterInstance> m_trackFilters;
-        std::vector<FilterInstance> m_busFilters;
+        std::vector<std::vector<FilterInstance>> m_trackFilters;
+        std::unordered_map<std::string, FilterInstance> m_busFilters;
         std::unordered_map<size_t, unsigned int>
             m_trackHandles; // Track index to voice handle mapping
         float m_busVolume = 1.0f;
