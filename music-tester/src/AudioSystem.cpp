@@ -292,6 +292,13 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
     instance.needsUpdate = false;
 }
 
+bool AudioSystem::isSupportedFileExtension(const std::string& extension)
+{
+    std::string ext = extension;
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    return ext == ".ogg";
+}
+
 bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
 {
     if (!m_isInitialized)
@@ -314,11 +321,9 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
         if (entry.is_regular_file())
         {
             std::string ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            
             std::cout << "Found file: " << entry.path().filename() << " (extension: " << ext << ")" << std::endl;
             
-            if (ext == ".wav" || ext == ".flac")
+            if (isSupportedFileExtension(ext))
             {
                 auto wav = std::make_unique<SoLoud::Wav>();
                 SoLoud::result result = wav->load(entry.path().string().c_str());

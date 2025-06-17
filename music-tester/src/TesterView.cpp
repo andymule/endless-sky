@@ -111,7 +111,7 @@ void TesterView::LoadMusicFromDirectory()
             {
                 std::string ext = entry.path().extension().string();
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                if (ext == ".ogg" || ext == ".wav" || ext == ".flac" || ext == ".mp3")
+                if (AudioSystem::isSupportedFileExtension(ext))
                 {
                     Track track;
                     track.name = entry.path().filename().string();

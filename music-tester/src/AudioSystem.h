@@ -102,6 +102,7 @@ class AudioSystem
     const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
     static const std::vector<std::string> AVAILABLE_FILTERS;
+    static bool isSupportedFileExtension(const std::string& extension);
 
   private:
     SoLoud::Soloud m_soloud;
