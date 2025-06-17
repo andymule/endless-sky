@@ -13,10 +13,10 @@
 ## Phase 1: Core Architecture Improvements
 
 ### 3. State Management
-- [ ] Create `AudioState` class to centralize state
-- [ ] Implement state change notifications
-- [ ] Remove state duplication between `TesterView` and `AudioSystem`
-- [ ] Add state persistence capabilities
+- [x] Create `AudioState` class to centralize state
+- [x] Implement state change notifications
+- [x] Remove state duplication between `TesterView` and `AudioSystem`
+- [x] Add state persistence capabilities
 
 ## Phase 2: UI and Configuration
 

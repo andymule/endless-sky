@@ -37,6 +37,7 @@ add_definitions(
 set(MUSIC_TESTER_SOURCES
     src/main.cpp
     src/AudioSystem.cpp
+    src/AudioController.cpp
     src/TesterView.cpp
 )
 
@@ -44,6 +45,7 @@ set(MUSIC_TESTER_SOURCES
 set(MUSIC_TESTER_HEADERS
     src/AudioSystem.h
     src/AudioState.h
+    src/AudioController.h
     src/TesterView.h
     src/ErrorHandling.h
 )

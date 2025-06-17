@@ -7,6 +7,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
+#include "AudioController.h"
 #include "TesterView.h"
 
 int main() {
@@ -43,7 +44,19 @@ int main() {
     SDL_GL_MakeCurrent(window, glContext);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
+    // Create MVC components
+    AudioTester::AudioController controller;
     TesterView view;
+
+    // Wire up the MVC architecture
+    view.SetController(&controller);
+
+    // Initialize components
+    if (!controller.initialize()) {
+        std::cerr << "Failed to initialize AudioController" << std::endl;
+        return 1;
+    }
+
     if (!view.Initialize(window, glContext)) {
         std::cerr << "Failed to initialize TesterView" << std::endl;
         return 1;
@@ -59,6 +72,9 @@ int main() {
         }
         view.Render();
     }
+
+    // Cleanup
+    controller.cleanup();
 
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);

@@ -1,19 +1,14 @@
 #include "TesterView.h"
-#include "AudioSystem.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
-#include <algorithm>
 #include <cstring>
-#include <filesystem>
 #include <iostream>
 
 TesterView::TesterView() {
-    // Preload the sound_staging folder as the default music directory
-    m_musicDir = "sound_staging";
-    strncpy(m_dirInput, m_musicDir.c_str(), DIR_INPUT_SIZE);
+    // Initialize UI with default directory
+    strncpy(m_dirInput, "sound_staging", DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
-    SetMusicDirectory(m_musicDir);
 }
 
 TesterView::~TesterView() { cleanup(); }
@@ -21,15 +16,6 @@ TesterView::~TesterView() { cleanup(); }
 bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     m_window = window;
     m_glContext = glContext;
-
-    // Initialize audio system
-    if (!m_audioSystem.initialize()) {
-        std::cerr << "Failed to initialize audio system" << std::endl;
-        return false;
-    }
-
-    // After audio system is initialized, load music
-    LoadMusicFromDirectory();
 
     // Initialize Dear ImGui
     IMGUI_CHECKVERSION();
@@ -65,34 +51,12 @@ void TesterView::ProcessEvents(const SDL_Event& event) {
         m_isRunning = false;
 }
 
-void TesterView::SetMusicDirectory(const std::string& dir) {
-    m_musicDir = dir;
-    LoadMusicFromDirectory();
-}
-
-void TesterView::LoadMusicFromDirectory() {
-    if (m_musicDir.empty())
-        return;
-
-    m_audioState.clearTracks();
-    for (const auto& entry : std::filesystem::directory_iterator(m_musicDir)) {
-        if (entry.is_regular_file()) {
-            const auto& path = entry.path();
-            std::string ext = path.extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-            if (AudioTester::AudioSystem::isSupportedFileExtension(ext)) {
-                // Add to centralized state
-                m_audioState.addTrack(path.filename().string(), path.string());
-                // Load into audio system
-                m_audioSystem.loadAudioFile(path.string());
-                // Looping is already set to true by default in AudioSystem::loadAudioFile
-            }
-        }
-    }
-}
-
 void TesterView::Render() {
+    // Guard against missing controller
+    if (!m_controller) {
+        return;
+    }
+
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame();
@@ -128,61 +92,51 @@ void TesterView::RenderDirectoryInput() {
     ImGui::Text("Music Directory:");
     if (ImGui::InputText("##dir", m_dirInput, DIR_INPUT_SIZE,
                          ImGuiInputTextFlags_EnterReturnsTrue)) {
-        SetMusicDirectory(m_dirInput);
+        m_controller->setMusicDirectory(m_dirInput);
     }
     ImGui::SameLine();
     if (ImGui::Button("Load")) {
-        SetMusicDirectory(m_dirInput);
+        m_controller->setMusicDirectory(m_dirInput);
     }
 }
 
 void TesterView::RenderGlobalControls() {
-    if (ImGui::Button(m_audioState.globalPlaying ? "Stop" : "Play")) {
-        bool newPlayingState = !m_audioState.globalPlaying;
-        m_audioState.setGlobalPlaying(newPlayingState);
+    const auto& state = m_controller->getState();
 
-        if (newPlayingState) {
-            // Play all tracks regardless of enabled state
-            for (size_t i = 0; i < m_audioState.getTrackCount(); ++i) {
-                m_audioSystem.playTrack(i);
-            }
-        } else {
-            for (size_t i = 0; i < m_audioState.getTrackCount(); ++i) {
-                m_audioSystem.stopTrack(i);
-            }
-        }
+    if (ImGui::Button(state.globalPlaying ? "Stop" : "Play")) {
+        m_controller->toggleGlobalPlayback();
     }
 }
 
 void TesterView::RenderTrackControls() {
-    ImGui::Text("Tracks (%d):", static_cast<int>(m_audioState.getTrackCount()));
-    for (size_t i = 0; i < m_audioState.getTrackCount(); i++) {
-        auto& track = m_audioState.getTrack(i);
+    const auto& state = m_controller->getState();
+
+    ImGui::Text("Tracks (%d):", static_cast<int>(state.getTrackCount()));
+    for (size_t i = 0; i < state.getTrackCount(); i++) {
+        const auto& track = state.getTrack(i);
         ImGui::PushID(static_cast<int>(i));
 
-        bool wasActive = track.active;
-        if (ImGui::Checkbox("##active", &track.active)) {
-            m_audioState.setTrackActive(i, track.active);
-            // Update volume immediately when enabled state changes
-            m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
+        // Active checkbox
+        bool active = track.active;
+        if (ImGui::Checkbox("##active", &active)) {
+            m_controller->setTrackActive(i, active);
         }
         ImGui::SameLine();
         ImGui::Text("%s", track.name.c_str());
 
         // Loop toggle
-        if (ImGui::Checkbox("Loop", &track.looping)) {
-            m_audioState.setTrackLooping(i, track.looping);
-            m_audioSystem.setTrackLooping(i, track.looping);
+        bool looping = track.looping;
+        if (ImGui::Checkbox("Loop", &looping)) {
+            m_controller->setTrackLooping(i, looping);
         }
 
         // Volume slider
-        if (ImGui::SliderFloat("Volume", &track.volume, 0.0f, 1.0f)) {
-            m_audioState.setTrackVolume(i, track.volume);
-            // Update volume immediately when slider changes
-            m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
+        float volume = track.volume;
+        if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
+            m_controller->setTrackVolume(i, volume);
         }
 
-        // Call drawFilterControls() for this track
+        // Filter controls
         drawFilterControls(i);
 
         ImGui::PopID();
@@ -191,21 +145,22 @@ void TesterView::RenderTrackControls() {
 }
 
 void TesterView::drawFilterControls(size_t trackIndex) {
-    const auto& filters = m_audioSystem.getFilters(trackIndex);
+    const auto& audioSystem = m_controller->getAudioSystem();
+    const auto& filters = audioSystem.getFilters(trackIndex);
 
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = m_audioSystem.isFilterEnabled(trackIndex, filterName);
+        bool enabled = audioSystem.isFilterEnabled(trackIndex, filterName);
         if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            m_audioSystem.setFilterEnabled(trackIndex, filterName, enabled);
+            m_controller->setTrackFilterEnabled(trackIndex, filterName, enabled);
         }
         if (enabled) {
             auto it = filters.find(filterName);
             if (it != filters.end()) {
                 for (const auto& [paramId, param] : it->second.parameters) {
-                    // Use cached parameter value instead of additional lookup
                     float value = param.value;
                     if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
-                        m_audioSystem.setFilterParameter(trackIndex, filterName, paramId, value);
+                        m_controller->setTrackFilterParameter(trackIndex, filterName, paramId,
+                                                              value);
                     }
                 }
             }
@@ -214,34 +169,39 @@ void TesterView::drawFilterControls(size_t trackIndex) {
 }
 
 void TesterView::RenderBusControls() {
+    const auto& state = m_controller->getState();
+    const auto& audioSystem = m_controller->getAudioSystem();
+
     ImGui::Begin("Bus Controls");
-    float busVolume = m_audioState.busVolume;
+
+    // Bus volume
+    float busVolume = state.busVolume;
     if (ImGui::SliderFloat("Bus Volume", &busVolume, 0.0f, 1.0f)) {
-        m_audioState.setBusVolume(busVolume);
-        m_audioSystem.setBusVolume(busVolume);
+        m_controller->setBusVolume(busVolume);
     }
+
     ImGui::Separator();
     ImGui::Text("Bus FX");
-    const auto& busFilters = m_audioSystem.getBusFilters();
+    const auto& busFilters = audioSystem.getBusFilters();
 
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = m_audioSystem.isBusFilterEnabled(filterName);
+        bool enabled = audioSystem.isBusFilterEnabled(filterName);
         if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            m_audioSystem.setBusFilterEnabled(filterName, enabled);
+            m_controller->setBusFilterEnabled(filterName, enabled);
         }
         if (enabled) {
             auto it = busFilters.find(filterName);
             if (it != busFilters.end()) {
                 for (const auto& [paramId, param] : it->second.parameters) {
-                    // Use cached parameter value instead of additional lookup
                     float value = param.value;
                     if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
-                        m_audioSystem.setBusFilterParameter(filterName, paramId, value);
+                        m_controller->setBusFilterParameter(filterName, paramId, value);
                     }
                 }
             }
         }
     }
+
     ImGui::End();
 }
 
