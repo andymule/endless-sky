@@ -187,8 +187,6 @@ namespace AudioTester {
 
                 // Store the new value
                 param.value = value;
-                param.changed = true;
-                instance.needsUpdate = true;
                 instance.enabled = true; // Ensure filter is enabled when parameters change
 
                 // DON'T call updateFilterInstance for realtime changes - this causes conflicts
@@ -223,43 +221,43 @@ namespace AudioTester {
             // Initialize parameters with their ranges based on filter type
             if (filterName == "biquad") {
                 // Type, Frequency, Resonance
-                instance.parameters[1] = {0.0f, 0.0f, 5.0f, "Type", false};
-                instance.parameters[2] = {1000.0f, 20.0f, 20000.0f, "Frequency", false};
-                instance.parameters[3] = {1.0f, 0.1f, 10.0f, "Resonance", false};
+                instance.parameters[1] = {0.0f, 0.0f, 5.0f, "Type"};
+                instance.parameters[2] = {1000.0f, 20.0f, 20000.0f, "Frequency"};
+                instance.parameters[3] = {1.0f, 0.1f, 10.0f, "Resonance"};
             } else if (filterName == "echo") {
                 // Wet, Delay, Decay, Filter
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
-                instance.parameters[1] = {0.3f, 0.001f, 1.0f, "Delay", false};
-                instance.parameters[2] = {0.7f, 0.001f, 1.0f, "Decay", false};
-                instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter", false};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
+                instance.parameters[1] = {0.3f, 0.001f, 1.0f, "Delay"};
+                instance.parameters[2] = {0.7f, 0.001f, 1.0f, "Decay"};
+                instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter"};
             } else if (filterName == "lofi") {
                 // Wet, Sample rate
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate", false};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
+                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate"};
             } else if (filterName == "flanger") {
                 // Wet, Delay
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Delay", false};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
+                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Delay"};
             } else if (filterName == "dcremoval") {
                 // Only one parameter: Length (in seconds)
-                instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length", false};
+                instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length"};
             } else if (filterName == "bassboost") {
                 // Boost
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Boost", false};
+                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Boost"};
             } else if (filterName == "waveshaper") {
                 // Amount
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Amount", false};
+                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Amount"};
             } else if (filterName == "robotize") {
                 // Wet, Frequency, Waveform
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
-                instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency", false};
-                instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform", false};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
+                instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency"};
+                instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform"};
             } else if (filterName == "freeverb") {
                 // Wet, Room size, Damp, Width
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Room Size", false};
-                instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Damp", false};
-                instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Width", false};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
+                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Room Size"};
+                instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Damp"};
+                instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Width"};
             }
 
             // Apply initial parameters
@@ -346,12 +344,6 @@ namespace AudioTester {
                 f->setParams(p1, p2, p3, p4);
             }
         }
-
-        // Mark all parameters as not changed
-        for (auto& [paramId, param] : instance.parameters) {
-            param.changed = false;
-        }
-        instance.needsUpdate = false;
     }
 
     void AudioSystem::applyFiltersToTrack(size_t trackIndex) {
@@ -450,7 +442,6 @@ namespace AudioTester {
                 // Create new filter instance
                 FilterInstance instance;
                 initializeFilter(instance, filterName);
-                instance.filterName = filterName;
                 instance.enabled = true;
                 trackFilters.filters[filterName] = std::move(instance);
                 applyFiltersToTrack(trackIndex);
@@ -476,7 +467,6 @@ namespace AudioTester {
             if (enabled) {
                 FilterInstance instance;
                 initializeFilter(instance, filterName);
-                instance.filterName = filterName;
                 instance.enabled = true;
                 m_busFilters[filterName] = std::move(instance);
                 updateBusFilterParams();
@@ -499,7 +489,6 @@ namespace AudioTester {
             // Create filter if it doesn't exist
             FilterInstance instance;
             initializeFilter(instance, filterName);
-            instance.filterName = filterName;
             instance.enabled = true;
             m_busFilters[filterName] = std::move(instance);
             it = m_busFilters.find(filterName);
@@ -509,8 +498,6 @@ namespace AudioTester {
         auto paramIt = instance.parameters.find(paramId);
         if (paramIt != instance.parameters.end()) {
             paramIt->second.value = value;
-            paramIt->second.changed = true;
-            instance.needsUpdate = true;
             instance.enabled = true;
 
             // Apply the parameter change immediately for realtime effect

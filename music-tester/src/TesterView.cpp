@@ -2,9 +2,10 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
+#include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <unordered_map>
 
 TesterView::TesterView() {
     // Preload the sound_staging folder as the default music directory

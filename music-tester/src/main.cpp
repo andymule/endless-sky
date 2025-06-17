@@ -1,11 +1,6 @@
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <string>
-#include <vector>
 
 // Dear ImGui includes
-#include "AudioSystem.h"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
@@ -14,7 +9,7 @@
 
 #include "TesterView.h"
 
-int main(int argc, char* argv[]) {
+int main() {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;

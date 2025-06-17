@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ErrorHandling.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
@@ -70,15 +69,12 @@ namespace AudioTester {
         float min;
         float max;
         std::string name;
-        bool changed = false;
     };
 
     struct FilterInstance {
         std::unique_ptr<SoLoud::Filter> filter;
         std::unordered_map<int, FilterParameter> parameters;
-        std::string filterName;
         bool enabled = false;
-        bool needsUpdate = false;
         int slot = -1;
     };
 
@@ -142,9 +138,6 @@ namespace AudioTester {
         float m_busVolume = 1.0f;
         bool m_isInitialized = false;
         unsigned int m_busHandle = 0;
-
-        // Static constants
-        static constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
     };
 
 } // namespace AudioTester
