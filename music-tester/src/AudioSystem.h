@@ -12,7 +12,6 @@
 #include "soloud_robotizefilter.h"
 #include "soloud_wav.h"
 #include "soloud_waveshaperfilter.h"
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>

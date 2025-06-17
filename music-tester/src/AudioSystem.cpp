@@ -1,12 +1,18 @@
 #include "AudioSystem.h"
-#include "ErrorHandling.h"
-#include <filesystem>
 #include <iostream>
 
 namespace AudioTester {
 
     // Time in seconds for smooth parameter transitions
     constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
+
+    // Filter parameter constants
+    constexpr float MIN_DELAY = 0.001f;           // Minimum 1ms delay
+    constexpr float MIN_DECAY = 0.001f;           // Minimum 0.1% decay
+    constexpr float MAX_FILTER_VALUE = 0.999f;    // Maximum filter value
+    constexpr float MIN_FREQUENCY = 0.1f;         // Minimum frequency in Hz
+    constexpr float MAX_FREQUENCY = 100.0f;       // Maximum frequency in Hz
+    constexpr float BUS_PARAM_FADE_TIME = 0.001f; // Fast fade for bus parameters
 
     const std::vector<std::string> AudioSystem::AVAILABLE_FILTERS = {
         "biquad",    "echo",       "lofi",     "flanger", "dcremoval",
@@ -36,7 +42,6 @@ namespace AudioTester {
 
         // Play the bus once and store the handle
         m_busHandle = m_engine->get().play(m_masterBus->get());
-        m_masterBus->setVolume(m_busVolume);
         m_engine->get().setVolume(m_busHandle, m_busVolume);
 
         m_isInitialized = true;
@@ -110,7 +115,6 @@ namespace AudioTester {
 
     void AudioSystem::setBusVolume(float volume) {
         m_busVolume = volume;
-        m_masterBus->setVolume(volume);
         if (m_busHandle)
             m_engine->get().setVolume(m_busHandle, volume);
     }
@@ -227,9 +231,9 @@ namespace AudioTester {
             } else if (filterName == "echo") {
                 // Wet, Delay, Decay, Filter
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
-                instance.parameters[1] = {0.3f, 0.001f, 1.0f, "Delay"};
-                instance.parameters[2] = {0.7f, 0.001f, 1.0f, "Decay"};
-                instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter"};
+                instance.parameters[1] = {0.3f, MIN_DELAY, 1.0f, "Delay"};
+                instance.parameters[2] = {0.7f, MIN_DECAY, 1.0f, "Decay"};
+                instance.parameters[3] = {0.0f, 0.0f, MAX_FILTER_VALUE, "Filter"};
             } else if (filterName == "lofi") {
                 // Wet, Sample rate
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
@@ -250,7 +254,7 @@ namespace AudioTester {
             } else if (filterName == "robotize") {
                 // Wet, Frequency, Waveform
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet"};
-                instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency"};
+                instance.parameters[1] = {30.0f, MIN_FREQUENCY, MAX_FREQUENCY, "Frequency"};
                 instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform"};
             } else if (filterName == "freeverb") {
                 // Wet, Room size, Damp, Width
@@ -283,13 +287,13 @@ namespace AudioTester {
         } else if (filterName == "echo") {
             auto* f = dynamic_cast<SoLoud::EchoFilter*>(instance.filter.get());
             if (f) {
-                float p1 = instance.parameters[0].value;     // Wet
-                float p2 = instance.parameters[1].value;     // Delay
-                float p3 = instance.parameters[2].value;     // Decay
-                float p4 = instance.parameters[3].value;     // Filter
-                float delay = std::max(0.001f, p2);          // Minimum 1ms delay
-                float decay = std::max(0.001f, p3);          // Minimum 0.1% decay
-                float filter = std::clamp(p4, 0.0f, 0.999f); // Filter between 0 and 0.999
+                float p1 = instance.parameters[0].value;               // Wet
+                float p2 = instance.parameters[1].value;               // Delay
+                float p3 = instance.parameters[2].value;               // Decay
+                float p4 = instance.parameters[3].value;               // Filter
+                float delay = std::max(MIN_DELAY, p2);                 // Minimum 1ms delay
+                float decay = std::max(MIN_DECAY, p3);                 // Minimum 0.1% decay
+                float filter = std::clamp(p4, 0.0f, MAX_FILTER_VALUE); // Filter between 0 and 0.999
                 f->setParams(delay, decay, filter);
             }
         } else if (filterName == "lofi") {
@@ -327,10 +331,11 @@ namespace AudioTester {
         } else if (filterName == "robotize") {
             auto* f = dynamic_cast<SoLoud::RobotizeFilter*>(instance.filter.get());
             if (f) {
-                float p1 = instance.parameters[0].value;   // Wet
-                float p2 = instance.parameters[1].value;   // Frequency
-                float p3 = instance.parameters[2].value;   // Waveform
-                float freq = std::clamp(p2, 0.1f, 100.0f); // Frequency between 0.1 and 100 Hz
+                float p1 = instance.parameters[0].value; // Wet
+                float p2 = instance.parameters[1].value; // Frequency
+                float p3 = instance.parameters[2].value; // Waveform
+                float freq = std::clamp(p2, MIN_FREQUENCY,
+                                        MAX_FREQUENCY); // Frequency between 0.1 and 100 Hz
                 int wave = static_cast<int>(std::clamp(p3, 0.0f, 6.0f)); // Waveform between 0 and 6
                 f->setParams(freq, wave);
             }
@@ -507,7 +512,7 @@ namespace AudioTester {
             if (m_busHandle) {
                 // Use SoLoud's fadeFilterParameter for smooth realtime updates
                 m_engine->get().fadeFilterParameter(m_busHandle, instance.slot, paramId, value,
-                                                    0.05f);
+                                                    FILTER_PARAM_TRANSITION_TIME);
             }
         }
     }
@@ -555,7 +560,7 @@ namespace AudioTester {
                 // Apply parameters to the bus voice with a small delay to ensure bus is ready
                 for (const auto& [paramId, param] : instance.parameters) {
                     m_engine->get().fadeFilterParameter(m_busHandle, filterSlot, paramId,
-                                                        param.value, 0.001f);
+                                                        param.value, BUS_PARAM_FADE_TIME);
                 }
 
                 filterSlot++;

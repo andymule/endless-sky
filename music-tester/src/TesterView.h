@@ -11,7 +11,7 @@ struct Track {
     std::string name;
     float volume = 1.0f;
     bool active = false;
-    bool looping = false;
+    bool looping = true;
 };
 
 class TesterView {
@@ -39,12 +39,15 @@ private:
     void RenderTrackControls();
     void RenderBusControls();
 
+    // Constants
+    static constexpr size_t DIR_INPUT_SIZE = 256;
+
     // UI State
     bool m_isRunning = true;
     std::string m_musicDir;
     std::vector<Track> m_tracks;
     bool m_isPlaying = false;
-    char m_dirInput[256] = "";
+    char m_dirInput[DIR_INPUT_SIZE] = "";
 
     // Audio System
     AudioTester::AudioSystem m_audioSystem;
