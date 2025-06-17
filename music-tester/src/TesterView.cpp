@@ -192,19 +192,15 @@ void TesterView::drawFilterControls(size_t trackIndex) {
             m_audioSystem.setFilterEnabled(trackIndex, filterName, enabled);
         }
         if (enabled) {
-            // Get track filters directly as vector
-            const auto& filters = m_audioSystem.getTrackFilters(trackIndex);
-            for (const auto& instance : filters) {
-                if (instance.filterName == filterName && instance.enabled) {
-                    for (const auto& [paramId, param] : instance.parameters) {
-                        float value =
-                            m_audioSystem.getFilterParameter(trackIndex, filterName, paramId);
-                        if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
-                            m_audioSystem.setFilterParameter(trackIndex, filterName, paramId,
-                                                             value);
-                        }
+            // Get track filters as map (same as bus filters)
+            const auto& filters = m_audioSystem.getFilters(trackIndex);
+            auto it = filters.find(filterName);
+            if (it != filters.end()) {
+                for (const auto& [paramId, param] : it->second.parameters) {
+                    float value = m_audioSystem.getFilterParameter(trackIndex, filterName, paramId);
+                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
+                        m_audioSystem.setFilterParameter(trackIndex, filterName, paramId, value);
                     }
-                    break;
                 }
             }
         }

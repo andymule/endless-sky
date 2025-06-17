@@ -298,12 +298,19 @@ namespace AudioTester {
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
         std::vector<std::unique_ptr<SoLoud::Wav>> m_tracks;
-        std::vector<std::vector<FilterInstance>> m_trackFilters;
+        std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;
         std::unordered_map<size_t, unsigned int>
             m_trackHandles; // Track index to voice handle mapping
         float m_busVolume = 1.0f;
         bool m_isInitialized = false;
         unsigned int m_busHandle = 0;
+
+        // Additional private methods needed
+        void initializeFilter(FilterInstance& instance, const std::string& filterName);
+        void updateFilterInstance(FilterInstance& instance, const std::string& filterName);
+
+        // Static constants
+        static constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
     };
 } // namespace AudioTester
