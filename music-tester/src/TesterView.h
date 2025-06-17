@@ -2,13 +2,12 @@
 
 #include "AudioSystem.h"
 #include "imgui.h"
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <string>
 #include <vector>
 
 // Structure to hold a track and its properties
-struct Track
-{
+struct Track {
     std::string name;
     float volume = 1.0f;
     bool active = false;
@@ -16,9 +15,8 @@ struct Track
     std::vector<std::string> effects;
 };
 
-class TesterView
-{
-  public:
+class TesterView {
+public:
     TesterView();
     ~TesterView();
 
@@ -34,7 +32,7 @@ class TesterView
 
     void drawFilterControls(size_t trackIndex);
 
-  private:
+private:
     void RenderMainWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
