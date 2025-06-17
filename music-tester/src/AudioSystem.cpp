@@ -449,100 +449,6 @@ namespace AudioTester {
         // No need for additional parameter setting - filters are already properly initialized
     }
 
-    void AudioSystem::updateFilterParameters(FilterInstance& instance) {
-        if (!instance.filter || !instance.enabled)
-            return;
-
-        std::cout << "Setting up filter (NON-realtime): " << instance.filterName << std::endl;
-
-        // This method should ONLY be used for initial filter setup, NOT realtime changes
-        // Realtime changes should use SoLoud's voice-level setFilterParameter API
-
-        // Update filter parameters based on filter type
-        if (auto* bassboost = dynamic_cast<SoLoud::BassboostFilter*>(instance.filter.get())) {
-            auto it = instance.parameters.find(0);
-            if (it != instance.parameters.end()) {
-                std::cout << "  BassBoost param[0] = " << it->second.value << std::endl;
-                bassboost->setParams(it->second.value);
-            }
-        } else if (auto* biquad =
-                       dynamic_cast<SoLoud::BiquadResonantFilter*>(instance.filter.get())) {
-            auto freq = instance.parameters.find(0);
-            auto res = instance.parameters.find(1);
-            if (freq != instance.parameters.end() && res != instance.parameters.end()) {
-                std::cout << "  Biquad freq=" << freq->second.value << " res=" << res->second.value
-                          << std::endl;
-                biquad->setParams(0, freq->second.value, res->second.value); // Type 0 = lowpass
-            }
-        } else if (auto* echo = dynamic_cast<SoLoud::EchoFilter*>(instance.filter.get())) {
-            auto delay = instance.parameters.find(0);
-            auto decay = instance.parameters.find(1);
-            auto filter = instance.parameters.find(2);
-            if (delay != instance.parameters.end()) {
-                float delayVal = delay != instance.parameters.end() ? delay->second.value : 0.3f;
-                float decayVal = decay != instance.parameters.end() ? decay->second.value : 0.7f;
-                float filterVal = filter != instance.parameters.end() ? filter->second.value : 0.0f;
-                std::cout << "  Echo delay=" << delayVal << " decay=" << decayVal
-                          << " filter=" << filterVal << std::endl;
-                echo->setParams(delayVal, decayVal, filterVal);
-            }
-        } else if (auto* flanger = dynamic_cast<SoLoud::FlangerFilter*>(instance.filter.get())) {
-            auto delay = instance.parameters.find(0);
-            auto freq = instance.parameters.find(1);
-            if (delay != instance.parameters.end()) {
-                float delayVal = delay->second.value;
-                float freqVal = freq != instance.parameters.end() ? freq->second.value : delayVal;
-                std::cout << "  Flanger delay=" << delayVal << " freq=" << freqVal << std::endl;
-                flanger->setParams(delayVal, freqVal);
-            }
-        } else if (auto* freeverb = dynamic_cast<SoLoud::FreeverbFilter*>(instance.filter.get())) {
-            auto wet = instance.parameters.find(0);
-            if (wet != instance.parameters.end()) {
-                std::cout << "  Freeverb wet=" << wet->second.value << std::endl;
-                freeverb->setParams(wet->second.value, 0.5f, 0.5f, 0.5f);
-            }
-        } else if (auto* lofi = dynamic_cast<SoLoud::LofiFilter*>(instance.filter.get())) {
-            auto samplerate = instance.parameters.find(0);
-            auto bitdepth = instance.parameters.find(1);
-            if (samplerate != instance.parameters.end()) {
-                float srVal = samplerate->second.value;
-                float bdVal =
-                    bitdepth != instance.parameters.end() ? bitdepth->second.value : srVal;
-                std::cout << "  Lofi samplerate=" << srVal << " bitdepth=" << bdVal << std::endl;
-                lofi->setParams(srVal, bdVal);
-            }
-        } else if (auto* robotize = dynamic_cast<SoLoud::RobotizeFilter*>(instance.filter.get())) {
-            auto freq = instance.parameters.find(0);
-            auto wave = instance.parameters.find(1);
-            if (freq != instance.parameters.end()) {
-                float freqVal = freq->second.value;
-                float waveVal = wave != instance.parameters.end() ? wave->second.value : 0.0f;
-                std::cout << "  Robotize freq=" << freqVal << " wave=" << waveVal << std::endl;
-                robotize->setParams(freqVal, static_cast<int>(waveVal));
-            }
-        } else if (auto* waveshaper =
-                       dynamic_cast<SoLoud::WaveShaperFilter*>(instance.filter.get())) {
-            auto amount = instance.parameters.find(0);
-            if (amount != instance.parameters.end()) {
-                std::cout << "  WaveShaper amount=" << amount->second.value
-                          << " [filter_ptr=" << instance.filter.get() << "]" << std::endl;
-                waveshaper->setParams(amount->second.value);
-            } else {
-                std::cout << "  WaveShaper: parameter[0] not found!" << std::endl;
-                for (const auto& [id, param] : instance.parameters) {
-                    std::cout << "    Available param[" << id << "] = " << param.value << " ("
-                              << param.name << ")" << std::endl;
-                }
-            }
-        }
-
-        // Mark parameters as applied
-        for (auto& [id, param] : instance.parameters) {
-            param.changed = false;
-        }
-        instance.needsUpdate = false;
-    }
-
     bool AudioSystem::isFilterEnabled(size_t trackIndex, const std::string& filterName) const {
         if (!m_isInitialized || trackIndex >= m_trackFilters.size())
             return false;
@@ -564,15 +470,6 @@ namespace AudioTester {
             }
         }
         return 0.0f;
-    }
-
-    const std::vector<FilterInstance>& AudioSystem::getTrackFilters(size_t trackIndex) const {
-        static const std::vector<FilterInstance> empty;
-        if (!m_isInitialized || trackIndex >= m_trackFilters.size())
-            return empty;
-        // This method should return the filters as a vector, but our new structure uses a map
-        // For now, return empty - this method may need to be redesigned or removed
-        return empty;
     }
 
     void AudioSystem::setFilterEnabled(size_t trackIndex, const std::string& filterName,
@@ -612,7 +509,7 @@ namespace AudioTester {
         if (it == m_busFilters.end()) {
             if (enabled) {
                 FilterInstance instance;
-                instance.initialize(filterName);
+                initializeFilter(instance, filterName);
                 instance.filterName = filterName;
                 instance.enabled = true;
                 m_busFilters[filterName] = std::move(instance);
@@ -635,7 +532,7 @@ namespace AudioTester {
         if (it == m_busFilters.end()) {
             // Create filter if it doesn't exist
             FilterInstance instance;
-            instance.initialize(filterName);
+            initializeFilter(instance, filterName);
             instance.filterName = filterName;
             instance.enabled = true;
             m_busFilters[filterName] = std::move(instance);
