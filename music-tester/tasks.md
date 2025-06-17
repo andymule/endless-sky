@@ -12,25 +12,6 @@
 
 ## Phase 1: Core Architecture Improvements
 
-### 1. Resource Management and Error Handling
-- [x] Create a `ResourceManager` class for audio file management
-- [x] Implement RAII patterns consistently across the codebase
-- [x] Replace raw pointers with smart pointers where appropriate
-- [x] Implement consistent error handling strategy
-  - [x] Define error types and categories
-  - [x] Create error handling utilities
-  - [x] Add proper error logging system
-
-### 2. Audio System Refactoring
-- [ ] Split `AudioSystem` into focused components:
-  - [ ] Create `AudioEngine` class for core playback
-  - [ ] Create `FilterManager` class for filter handling
-  - [ ] Create `BusManager` class for bus routing
-  - [ ] Create `TrackManager` class for track state
-- [ ] Define clear interfaces between components
-- [ ] Implement dependency injection pattern
-- [ ] Add unit tests for each component
-
 ### 3. State Management
 - [ ] Create `AudioState` class to centralize state
 - [ ] Implement state change notifications

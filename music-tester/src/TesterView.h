@@ -1,18 +1,10 @@
 #pragma once
 
+#include "AudioState.h"
 #include "AudioSystem.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <string>
-#include <vector>
-
-// Structure to hold a track and its properties
-struct Track {
-    std::string name;
-    float volume = 1.0f;
-    bool active = false;
-    bool looping = true;
-};
 
 class TesterView {
 public:
@@ -45,9 +37,10 @@ private:
     // UI State
     bool m_isRunning = true;
     std::string m_musicDir;
-    std::vector<Track> m_tracks;
-    bool m_isPlaying = false;
     char m_dirInput[DIR_INPUT_SIZE] = "";
+
+    // Centralized state
+    AudioTester::AudioState m_audioState;
 
     // Audio System
     AudioTester::AudioSystem m_audioSystem;

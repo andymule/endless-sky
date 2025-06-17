@@ -40,6 +40,14 @@ set(MUSIC_TESTER_SOURCES
     src/TesterView.cpp
 )
 
+# Set up headers for music-tester
+set(MUSIC_TESTER_HEADERS
+    src/AudioSystem.h
+    src/AudioState.h
+    src/TesterView.h
+    src/ErrorHandling.h
+)
+
 # Add the executable target
 add_executable(music-tester ${MUSIC_TESTER_SOURCES})
 

@@ -1,4 +1,5 @@
 #include "TesterView.h"
+#include "AudioSystem.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
@@ -73,7 +74,7 @@ void TesterView::LoadMusicFromDirectory() {
     if (m_musicDir.empty())
         return;
 
-    m_tracks.clear();
+    m_audioState.clearTracks();
     for (const auto& entry : std::filesystem::directory_iterator(m_musicDir)) {
         if (entry.is_regular_file()) {
             const auto& path = entry.path();
@@ -81,10 +82,9 @@ void TesterView::LoadMusicFromDirectory() {
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
             if (AudioTester::AudioSystem::isSupportedFileExtension(ext)) {
-                Track track;
-                track.name = path.filename().string();
-                track.active = true; // Set all tracks to enabled by default
-                m_tracks.push_back(track);
+                // Add to centralized state
+                m_audioState.addTrack(path.filename().string(), path.string());
+                // Load into audio system
                 m_audioSystem.loadAudioFile(path.string());
                 // Looping is already set to true by default in AudioSystem::loadAudioFile
             }
@@ -137,15 +137,17 @@ void TesterView::RenderDirectoryInput() {
 }
 
 void TesterView::RenderGlobalControls() {
-    if (ImGui::Button(m_isPlaying ? "Stop" : "Play")) {
-        m_isPlaying = !m_isPlaying;
-        if (m_isPlaying) {
+    if (ImGui::Button(m_audioState.globalPlaying ? "Stop" : "Play")) {
+        bool newPlayingState = !m_audioState.globalPlaying;
+        m_audioState.setGlobalPlaying(newPlayingState);
+
+        if (newPlayingState) {
             // Play all tracks regardless of enabled state
-            for (size_t i = 0; i < m_tracks.size(); ++i) {
+            for (size_t i = 0; i < m_audioState.getTrackCount(); ++i) {
                 m_audioSystem.playTrack(i);
             }
         } else {
-            for (size_t i = 0; i < m_tracks.size(); ++i) {
+            for (size_t i = 0; i < m_audioState.getTrackCount(); ++i) {
                 m_audioSystem.stopTrack(i);
             }
         }
@@ -153,14 +155,14 @@ void TesterView::RenderGlobalControls() {
 }
 
 void TesterView::RenderTrackControls() {
-    ImGui::Text("Tracks (%d):", static_cast<int>(m_tracks.size()));
-    for (size_t i = 0; i < m_tracks.size(); i++) {
-        auto& track = m_tracks[i];
+    ImGui::Text("Tracks (%d):", static_cast<int>(m_audioState.getTrackCount()));
+    for (size_t i = 0; i < m_audioState.getTrackCount(); i++) {
+        auto& track = m_audioState.getTrack(i);
         ImGui::PushID(static_cast<int>(i));
 
         bool wasActive = track.active;
-        ImGui::Checkbox("##active", &track.active);
-        if (wasActive != track.active) {
+        if (ImGui::Checkbox("##active", &track.active)) {
+            m_audioState.setTrackActive(i, track.active);
             // Update volume immediately when enabled state changes
             m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
         }
@@ -169,11 +171,13 @@ void TesterView::RenderTrackControls() {
 
         // Loop toggle
         if (ImGui::Checkbox("Loop", &track.looping)) {
+            m_audioState.setTrackLooping(i, track.looping);
             m_audioSystem.setTrackLooping(i, track.looping);
         }
 
         // Volume slider
         if (ImGui::SliderFloat("Volume", &track.volume, 0.0f, 1.0f)) {
+            m_audioState.setTrackVolume(i, track.volume);
             // Update volume immediately when slider changes
             m_audioSystem.setTrackVolume(i, track.active ? track.volume : 0.0f);
         }
@@ -211,8 +215,9 @@ void TesterView::drawFilterControls(size_t trackIndex) {
 
 void TesterView::RenderBusControls() {
     ImGui::Begin("Bus Controls");
-    float busVolume = m_audioSystem.getBusVolume();
+    float busVolume = m_audioState.busVolume;
     if (ImGui::SliderFloat("Bus Volume", &busVolume, 0.0f, 1.0f)) {
+        m_audioState.setBusVolume(busVolume);
         m_audioSystem.setBusVolume(busVolume);
     }
     ImGui::Separator();
