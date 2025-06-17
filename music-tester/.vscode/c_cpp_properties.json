@@ -7,15 +7,18 @@
 				"${workspaceFolder}/build/_deps/imgui-src",
 				"${workspaceFolder}/build/_deps/imgui-src/backends",
 				"${workspaceFolder}/build/_deps/soloud-src/include",
-				"/opt/homebrew/Cellar/sdl2/2.32.8/include",
 				"/opt/homebrew/include",
 				"/opt/homebrew/Cellar/sdl2/2.32.8/include/SDL2",
+				"/opt/homebrew/Cellar/sdl2/2.32.8/include",
 				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include",
 				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include/minizip"
 			],
 			"defines": [
 				"GL_SILENCE_DEPRECATION",
-				"WITH_SDL2_STATIC"
+				"WITH_SDL2_STATIC",
+				"SDL_MAIN_HANDLED",
+				"IMGUI_IMPL_OPENGL_LOADER_GL3W",
+				"IMGUI_IMPL_OPENGL_USE_DESKTOP_GL"
 			],
 			"macFrameworkPath": [
 				"/Applications/Xcode250Luck.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX16.0.sdk/System/Library/Frameworks"
@@ -24,7 +27,23 @@
 			"cStandard": "c17",
 			"cppStandard": "c++20",
 			"intelliSenseMode": "macos-clang-arm64",
-			"compileCommands": "${workspaceFolder}/build/compile_commands.json"
+			"compileCommands": "${workspaceFolder}/build/compile_commands.json",
+			"browse": {
+				"path": [
+					"${workspaceFolder}",
+					"/opt/homebrew/include",
+					"/opt/homebrew/Cellar/sdl2/2.32.8/include/SDL2",
+					"/opt/homebrew/Cellar/sdl2/2.32.8/include",
+					"${workspaceFolder}/build/_deps/imgui-src",
+					"${workspaceFolder}/build/_deps/imgui-src/backends",
+					"${workspaceFolder}/build/_deps/soloud-src/include"
+				],
+				"limitSymbolsToIncludedHeaders": true
+			},
+			"forcedInclude": [
+				"${workspaceFolder}/build/_deps/imgui-src/imgui.h",
+				"${workspaceFolder}/build/_deps/soloud-src/include/soloud.h"
+			]
 		}
 	],
 	"version": 4

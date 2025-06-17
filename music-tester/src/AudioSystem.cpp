@@ -2,33 +2,27 @@
 #include <iostream>
 
 const std::vector<std::string> AudioSystem::AVAILABLE_FILTERS = {
-    "biquad", "echo", "lofi", "flanger", "dcremoval", "bassboost", "waveshaper", "robotize", "freeverb"
-};
+    "biquad",    "echo",       "lofi",     "flanger", "dcremoval",
+    "bassboost", "waveshaper", "robotize", "freeverb"};
 
 // Time in seconds for smooth parameter transitions
 constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
 
-AudioSystem::AudioSystem() : m_isInitialized(false)
-{
-}
+AudioSystem::AudioSystem() : m_isInitialized(false) {}
 
-AudioSystem::~AudioSystem()
-{
-    if (m_isInitialized)
-    {
+AudioSystem::~AudioSystem() {
+    if (m_isInitialized) {
         m_soloud.deinit();
     }
 }
 
-bool AudioSystem::initialize()
-{
+bool AudioSystem::initialize() {
     if (m_isInitialized)
         return true;
 
     std::cout << "Initializing AudioSystem..." << std::endl;
     SoLoud::result result = m_soloud.init();
-    if (result != SoLoud::SO_NO_ERROR)
-    {
+    if (result != SoLoud::SO_NO_ERROR) {
         std::cerr << "Failed to initialize SoLoud: " << result << std::endl;
         return false;
     }
@@ -44,26 +38,23 @@ bool AudioSystem::initialize()
     // Auto-load tracks from the default folder
     std::filesystem::path defaultFolder = "sound_staging";
     std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
-    std::cout << "Looking for sound_staging in: " << std::filesystem::absolute(defaultFolder) << std::endl;
-    
-    if (std::filesystem::exists(defaultFolder))
-    {
+    std::cout << "Looking for sound_staging in: " << std::filesystem::absolute(defaultFolder)
+              << std::endl;
+
+    if (std::filesystem::exists(defaultFolder)) {
         std::cout << "Default folder found, contents:" << std::endl;
-        for (const auto& entry : std::filesystem::directory_iterator(defaultFolder))
-        {
+        for (const auto& entry : std::filesystem::directory_iterator(defaultFolder)) {
             std::cout << "  " << entry.path().filename() << std::endl;
         }
         std::cout << "Loading tracks..." << std::endl;
         bool loaded = loadDirectory(defaultFolder);
         std::cout << "Load result: " << (loaded ? "success" : "failed") << std::endl;
         std::cout << "Number of tracks loaded: " << m_tracks.size() << std::endl;
-    }
-    else
-    {
-        std::cout << "Default folder not found at: " << std::filesystem::absolute(defaultFolder) << std::endl;
+    } else {
+        std::cout << "Default folder not found at: " << std::filesystem::absolute(defaultFolder)
+                  << std::endl;
         std::cout << "Directory contents:" << std::endl;
-        for (const auto& entry : std::filesystem::directory_iterator("."))
-        {
+        for (const auto& entry : std::filesystem::directory_iterator(".")) {
             std::cout << "  " << entry.path().filename() << std::endl;
         }
     }
@@ -71,8 +62,7 @@ bool AudioSystem::initialize()
     return true;
 }
 
-void AudioSystem::initializeFilter(FilterInstance& instance, const std::string& filterName)
-{
+void AudioSystem::initializeFilter(FilterInstance& instance, const std::string& filterName) {
     std::cout << "Initializing filter: " << filterName << std::endl;
 
     if (filterName == "biquad")
@@ -94,88 +84,67 @@ void AudioSystem::initializeFilter(FilterInstance& instance, const std::string& 
     else if (filterName == "freeverb")
         instance.filter = std::make_unique<SoLoud::FreeverbFilter>();
 
-    if (instance.filter)
-    {
+    if (instance.filter) {
         std::cout << "Filter created successfully" << std::endl;
-        
+
         // Initialize parameters with their ranges based on filter type
-        if (filterName == "biquad")
-        {
+        if (filterName == "biquad") {
             // Type, Frequency, Resonance
-            instance.parameters[1] = {0.0f, 0.0f, 5.0f, "Type", false};  // 0-5 for different filter types
-            instance.parameters[2] = {1000.0f, 20.0f, 20000.0f, "Frequency", false};  // 20Hz-20kHz
-            instance.parameters[3] = {1.0f, 0.1f, 10.0f, "Resonance", false};  // Q factor
-        }
-        else if (filterName == "echo")
-        {
+            instance.parameters[1] = {0.0f, 0.0f, 5.0f, "Type",
+                                      false}; // 0-5 for different filter types
+            instance.parameters[2] = {1000.0f, 20.0f, 20000.0f, "Frequency", false}; // 20Hz-20kHz
+            instance.parameters[3] = {1.0f, 0.1f, 10.0f, "Resonance", false};        // Q factor
+        } else if (filterName == "echo") {
             // Wet, Delay, Decay, Filter
-            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};      // 0-1 wet/dry mix
             instance.parameters[1] = {0.3f, 0.001f, 1.0f, "Delay", false};  // 0.001-1 delay time
             instance.parameters[2] = {0.7f, 0.001f, 1.0f, "Decay", false};  // 0.001-1 decay amount
-            instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter", false};  // 0-0.999 filter amount
-        }
-        else if (filterName == "lofi")
-        {
+            instance.parameters[3] = {0.0f, 0.0f, 0.999f, "Filter", false}; // 0-0.999 filter amount
+        } else if (filterName == "lofi") {
             // Wet, Sample rate
-            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
-            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate", false};  // 0-1 sample rate reduction
-        }
-        else if (filterName == "flanger")
-        {
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false}; // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate",
+                                      false}; // 0-1 sample rate reduction
+        } else if (filterName == "flanger") {
             // Wet, Delay
-            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
-            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Delay", false};  // 0-1 delay time
-        }
-        else if (filterName == "dcremoval")
-        {
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};   // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Delay", false}; // 0-1 delay time
+        } else if (filterName == "dcremoval") {
             // Only one parameter: Length (in seconds)
             instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length", false}; // 0.01-10 seconds
-        }
-        else if (filterName == "bassboost")
-        {
+        } else if (filterName == "bassboost") {
             // Boost
-            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Boost", false};  // 0-1 boost amount
-        }
-        else if (filterName == "waveshaper")
-        {
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Boost", false}; // 0-1 boost amount
+        } else if (filterName == "waveshaper") {
             // Amount
-            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Amount", false};  // 0-1 distortion amount
-        }
-        else if (filterName == "robotize")
-        {
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Amount", false}; // 0-1 distortion amount
+        } else if (filterName == "robotize") {
             // Wet, Frequency, Waveform
-            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
-            instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency", false};  // 0.1-100 Hz
-            instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform", false};  // 0-6 waveform type
-        }
-        else if (filterName == "freeverb")
-        {
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};          // 0-1 wet/dry mix
+            instance.parameters[1] = {30.0f, 0.1f, 100.0f, "Frequency", false}; // 0.1-100 Hz
+            instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform", false};     // 0-6 waveform type
+        } else if (filterName == "freeverb") {
             // Wet, Room size, Damp, Width
-            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};  // 0-1 wet/dry mix
-            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Room Size", false};  // 0-1 room size
-            instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Damp", false};  // 0-1 damping
-            instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Width", false};  // 0-1 stereo width
+            instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet", false};       // 0-1 wet/dry mix
+            instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Room Size", false}; // 0-1 room size
+            instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Damp", false};      // 0-1 damping
+            instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Width", false};     // 0-1 stereo width
         }
 
         // Apply initial parameters
         updateFilterInstance(instance, filterName);
-    }
-    else
-    {
+    } else {
         std::cout << "Failed to create filter: " << filterName << std::endl;
     }
 }
 
-void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::string& filterName)
-{
-    if (!instance.filter)
-    {
+void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::string& filterName) {
+    if (!instance.filter) {
         std::cout << "Filter update skipped - no filter instance" << std::endl;
         return;
     }
 
-    if (!instance.enabled)
-    {
+    if (!instance.enabled) {
         std::cout << "Filter update skipped - filter disabled" << std::endl;
         return;
     }
@@ -183,126 +152,97 @@ void AudioSystem::updateFilterInstance(FilterInstance& instance, const std::stri
     std::cout << "Updating filter: " << filterName << std::endl;
 
     // Update all changed parameters for the correct filter type
-    if (filterName == "biquad")
-    {
+    if (filterName == "biquad") {
         auto* f = dynamic_cast<SoLoud::BiquadResonantFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[1].value;  // Type
-            float p2 = instance.parameters[2].value;  // Frequency
-            float p3 = instance.parameters[3].value;  // Resonance
-            std::cout << "Setting biquad params: type=" << p1 << " freq=" << p2 << " res=" << p3 << std::endl;
-            f->setParams(static_cast<int>(p1), p2, p3);  // Type, Frequency, Resonance
+        if (f) {
+            float p1 = instance.parameters[1].value; // Type
+            float p2 = instance.parameters[2].value; // Frequency
+            float p3 = instance.parameters[3].value; // Resonance
+            std::cout << "Setting biquad params: type=" << p1 << " freq=" << p2 << " res=" << p3
+                      << std::endl;
+            f->setParams(static_cast<int>(p1), p2, p3); // Type, Frequency, Resonance
         }
-    }
-    else if (filterName == "echo")
-    {
+    } else if (filterName == "echo") {
         auto* f = dynamic_cast<SoLoud::EchoFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Delay
-            float p3 = instance.parameters[2].value;  // Decay
-            float p4 = instance.parameters[3].value;  // Filter
-            float delay = std::max(0.001f, p2); // Minimum 1ms delay
-            float decay = std::max(0.001f, p3); // Minimum 0.1% decay
+        if (f) {
+            float p1 = instance.parameters[0].value;     // Wet
+            float p2 = instance.parameters[1].value;     // Delay
+            float p3 = instance.parameters[2].value;     // Decay
+            float p4 = instance.parameters[3].value;     // Filter
+            float delay = std::max(0.001f, p2);          // Minimum 1ms delay
+            float decay = std::max(0.001f, p3);          // Minimum 0.1% decay
             float filter = std::clamp(p4, 0.0f, 0.999f); // Filter between 0 and 0.999
             f->setParams(delay, decay, filter);
         }
-    }
-    else if (filterName == "lofi")
-    {
+    } else if (filterName == "lofi") {
         auto* f = dynamic_cast<SoLoud::LofiFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Sample rate
-            f->setParams(p1, p2);  // Wet, Sample rate
+        if (f) {
+            float p1 = instance.parameters[0].value; // Wet
+            float p2 = instance.parameters[1].value; // Sample rate
+            f->setParams(p1, p2);                    // Wet, Sample rate
         }
-    }
-    else if (filterName == "flanger")
-    {
+    } else if (filterName == "flanger") {
         auto* f = dynamic_cast<SoLoud::FlangerFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Delay
-            f->setParams(p1, p2);  // Wet, Delay
+        if (f) {
+            float p1 = instance.parameters[0].value; // Wet
+            float p2 = instance.parameters[1].value; // Delay
+            f->setParams(p1, p2);                    // Wet, Delay
         }
-    }
-    else if (filterName == "dcremoval")
-    {
+    } else if (filterName == "dcremoval") {
         auto* f = dynamic_cast<SoLoud::DCRemovalFilter*>(instance.filter.get());
-        if (f)
-        {
+        if (f) {
             float length = instance.parameters[0].value;
             f->setParams(length);
         }
-    }
-    else if (filterName == "bassboost")
-    {
+    } else if (filterName == "bassboost") {
         auto* f = dynamic_cast<SoLoud::BassboostFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[1].value;  // Boost
-            f->setParams(p1);  // Only takes boost parameter
+        if (f) {
+            float p1 = instance.parameters[1].value; // Boost
+            f->setParams(p1);                        // Only takes boost parameter
         }
-    }
-    else if (filterName == "waveshaper")
-    {
+    } else if (filterName == "waveshaper") {
         auto* f = dynamic_cast<SoLoud::WaveShaperFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[1].value;  // Amount
-            f->setParams(p1);  // Only takes amount parameter
+        if (f) {
+            float p1 = instance.parameters[1].value; // Amount
+            f->setParams(p1);                        // Only takes amount parameter
         }
-    }
-    else if (filterName == "robotize")
-    {
+    } else if (filterName == "robotize") {
         auto* f = dynamic_cast<SoLoud::RobotizeFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Frequency
-            float p3 = instance.parameters[2].value;  // Waveform
+        if (f) {
+            float p1 = instance.parameters[0].value;   // Wet
+            float p2 = instance.parameters[1].value;   // Frequency
+            float p3 = instance.parameters[2].value;   // Waveform
             float freq = std::clamp(p2, 0.1f, 100.0f); // Frequency between 0.1 and 100 Hz
             int wave = static_cast<int>(std::clamp(p3, 0.0f, 6.0f)); // Waveform between 0 and 6
             f->setParams(freq, wave);
         }
-    }
-    else if (filterName == "freeverb")
-    {
+    } else if (filterName == "freeverb") {
         auto* f = dynamic_cast<SoLoud::FreeverbFilter*>(instance.filter.get());
-        if (f)
-        {
-            float p1 = instance.parameters[0].value;  // Wet
-            float p2 = instance.parameters[1].value;  // Room size
-            float p3 = instance.parameters[2].value;  // Damp
-            float p4 = instance.parameters[3].value;  // Width
-            f->setParams(p1, p2, p3, p4);  // Wet, Room size, Damp, Width
+        if (f) {
+            float p1 = instance.parameters[0].value; // Wet
+            float p2 = instance.parameters[1].value; // Room size
+            float p3 = instance.parameters[2].value; // Damp
+            float p4 = instance.parameters[3].value; // Width
+            f->setParams(p1, p2, p3, p4);            // Wet, Room size, Damp, Width
         }
     }
 
     // Mark all parameters as not changed
-    for (auto& [paramId, param] : instance.parameters)
-    {
+    for (auto& [paramId, param] : instance.parameters) {
         param.changed = false;
         std::cout << "Parameter " << paramId << " marked as unchanged" << std::endl;
     }
     instance.needsUpdate = false;
 }
 
-bool AudioSystem::isSupportedFileExtension(const std::string& extension)
-{
+bool AudioSystem::isSupportedFileExtension(const std::string& extension) {
     std::string ext = extension;
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     return ext == ".ogg";
 }
 
-bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
-{
-    if (!m_isInitialized)
-    {
+bool AudioSystem::loadDirectory(const std::filesystem::path& directory) {
+    if (!m_isInitialized) {
         std::cout << "Cannot load directory - AudioSystem not initialized" << std::endl;
         return false;
     }
@@ -316,29 +256,25 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
     m_voiceHandles.clear();
 
     // Load all audio files from the directory
-    for (const auto& entry : std::filesystem::directory_iterator(directory))
-    {
-        if (entry.is_regular_file())
-        {
+    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+        if (entry.is_regular_file()) {
             std::string ext = entry.path().extension().string();
-            std::cout << "Found file: " << entry.path().filename() << " (extension: " << ext << ")" << std::endl;
-            
-            if (isSupportedFileExtension(ext))
-            {
+            std::cout << "Found file: " << entry.path().filename() << " (extension: " << ext << ")"
+                      << std::endl;
+
+            if (isSupportedFileExtension(ext)) {
                 auto wav = std::make_unique<SoLoud::Wav>();
                 SoLoud::result result = wav->load(entry.path().string().c_str());
-                if (result == SoLoud::SO_NO_ERROR)
-                {
+                if (result == SoLoud::SO_NO_ERROR) {
                     std::cout << "Successfully loaded: " << entry.path().filename() << std::endl;
                     m_tracks.push_back(std::move(wav));
                     m_trackVolumes.push_back(1.0f);
                     m_trackFilters.push_back(TrackFilters());
                     // Enable looping by default for the newly loaded track
                     m_tracks.back()->setLooping(true);
-                }
-                else
-                {
-                    std::cout << "Failed to load: " << entry.path().filename() << " (error: " << result << ")" << std::endl;
+                } else {
+                    std::cout << "Failed to load: " << entry.path().filename()
+                              << " (error: " << result << ")" << std::endl;
                 }
             }
         }
@@ -348,16 +284,14 @@ bool AudioSystem::loadDirectory(const std::filesystem::path& directory)
     return !m_tracks.empty();
 }
 
-void AudioSystem::playAll()
-{
+void AudioSystem::playAll() {
     if (!m_isInitialized)
         return;
 
     stopAll();
 
     // Ensure the bus is playing
-    if (m_busHandle == 0)
-    {
+    if (m_busHandle == 0) {
         m_busHandle = m_soloud.play(m_masterBus);
         m_masterBus.setVolume(m_busVolume);
         m_soloud.setVolume(m_busHandle, m_busVolume);
@@ -367,14 +301,11 @@ void AudioSystem::playAll()
     double startTime = m_soloud.getStreamPosition(0) + 0.1; // Start 100ms from now
 
     // Play all tracks through the bus
-    for (size_t i = 0; i < m_tracks.size(); ++i)
-    {
+    for (size_t i = 0; i < m_tracks.size(); ++i) {
         // Apply filters to the audio source before playing
         int filterSlot = 0;
-        for (auto& [name, instance] : m_trackFilters[i].filters)
-        {
-            if (instance.enabled && instance.filter)
-            {
+        for (auto& [name, instance] : m_trackFilters[i].filters) {
+            if (instance.enabled && instance.filter) {
                 m_tracks[i]->setFilter(filterSlot, instance.filter.get());
                 instance.slot = filterSlot;
                 filterSlot++;
@@ -382,8 +313,7 @@ void AudioSystem::playAll()
         }
 
         // Clear any remaining filter slots
-        for (int slot = filterSlot; slot < 8; ++slot)
-        {
+        for (int slot = filterSlot; slot < 8; ++slot) {
             m_tracks[i]->setFilter(slot, nullptr);
         }
 
@@ -392,24 +322,19 @@ void AudioSystem::playAll()
         m_voiceHandles[i] = handle;
 
         // Fade parameters for all enabled filters
-        for (auto& [name, instance] : m_trackFilters[i].filters)
-        {
-            if (instance.enabled && instance.filter && instance.slot >= 0)
-            {
-                for (const auto& [paramId, param] : instance.parameters)
-                {
-                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot), 
-                                               static_cast<unsigned int>(paramId), 
-                                               param.value, 
-                                               FILTER_PARAM_TRANSITION_TIME);
+        for (auto& [name, instance] : m_trackFilters[i].filters) {
+            if (instance.enabled && instance.filter && instance.slot >= 0) {
+                for (const auto& [paramId, param] : instance.parameters) {
+                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot),
+                                                 static_cast<unsigned int>(paramId), param.value,
+                                                 FILTER_PARAM_TRANSITION_TIME);
                 }
             }
         }
     }
 }
 
-void AudioSystem::stopAll()
-{
+void AudioSystem::stopAll() {
     if (!m_isInitialized)
         return;
 
@@ -419,90 +344,75 @@ void AudioSystem::stopAll()
     m_busHandle = 0;
 }
 
-void AudioSystem::pauseAll()
-{
+void AudioSystem::pauseAll() {
     if (!m_isInitialized)
         return;
 
     m_soloud.setPauseAll(true);
 }
 
-void AudioSystem::resumeAll()
-{
+void AudioSystem::resumeAll() {
     if (!m_isInitialized)
         return;
 
     m_soloud.setPauseAll(false);
 }
 
-float AudioSystem::getPlaybackPosition()
-{
+float AudioSystem::getPlaybackPosition() {
     if (!m_isInitialized || m_tracks.empty())
         return 0.0f;
 
     return m_soloud.getStreamPosition(m_voiceHandles[0]);
 }
 
-void AudioSystem::setPlaybackPosition(float position)
-{
+void AudioSystem::setPlaybackPosition(float position) {
     if (!m_isInitialized)
         return;
 
-    for (const auto& handlePair : m_voiceHandles)
-    {
+    for (const auto& handlePair : m_voiceHandles) {
         m_soloud.seek(handlePair.second, position);
     }
 }
 
-void AudioSystem::setTrackVolume(size_t trackIndex, float volume)
-{
+void AudioSystem::setTrackVolume(size_t trackIndex, float volume) {
     if (!m_isInitialized || trackIndex >= m_trackVolumes.size())
         return;
 
     m_trackVolumes[trackIndex] = volume;
     auto it = m_voiceHandles.find(trackIndex);
-    if (it != m_voiceHandles.end())
-    {
+    if (it != m_voiceHandles.end()) {
         m_soloud.setVolume(it->second, volume);
     }
 }
 
-float AudioSystem::getTrackVolume(size_t trackIndex) const
-{
+float AudioSystem::getTrackVolume(size_t trackIndex) const {
     if (trackIndex >= m_trackVolumes.size())
         return 0.0f;
     return m_trackVolumes[trackIndex];
 }
 
-void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId, float value)
-{
-    if (!m_isInitialized || trackIndex >= m_trackFilters.size())
-    {
+void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId,
+                                     float value) {
+    if (!m_isInitialized || trackIndex >= m_trackFilters.size()) {
         std::cout << "Set filter parameter failed - invalid track or not initialized" << std::endl;
         return;
     }
 
-    std::cout << "Setting filter parameter - track: " << trackIndex 
-              << " filter: " << filterName 
-              << " param: " << paramId 
-              << " value: " << value << std::endl;
+    std::cout << "Setting filter parameter - track: " << trackIndex << " filter: " << filterName
+              << " param: " << paramId << " value: " << value << std::endl;
 
     auto& trackFilters = m_trackFilters[trackIndex];
     auto it = trackFilters.filters.find(filterName);
-    if (it == trackFilters.filters.end())
-    {
+    if (it == trackFilters.filters.end()) {
         // Initialize the filter if it doesn't exist
         std::cout << "Initializing new filter: " << filterName << std::endl;
         FilterInstance instance;
         initializeFilter(instance, filterName);
-        if (instance.filter)
-        {
-            instance.enabled = true;  // Enable the filter by default
+        if (instance.filter) {
+            instance.enabled = true; // Enable the filter by default
             trackFilters.filters[filterName] = std::move(instance);
             it = trackFilters.filters.find(filterName);
-        }
-        else
-        {
+        } else {
             std::cout << "Failed to initialize filter: " << filterName << std::endl;
             return;
         }
@@ -510,49 +420,45 @@ void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filte
 
     auto& instance = it->second;
     auto paramIt = instance.parameters.find(paramId);
-    if (paramIt != instance.parameters.end())
-    {
+    if (paramIt != instance.parameters.end()) {
         auto& param = paramIt->second;
-        if (param.value != value)
-        {
-            std::cout << "Parameter value changed from " << param.value << " to " << value << std::endl;
-            
+        if (param.value != value) {
+            std::cout << "Parameter value changed from " << param.value << " to " << value
+                      << std::endl;
+
             // Get the voice handle for this track
             auto voiceIt = m_voiceHandles.find(trackIndex);
-            if (voiceIt != m_voiceHandles.end() && instance.slot >= 0)
-            {
+            if (voiceIt != m_voiceHandles.end() && instance.slot >= 0) {
                 SoLoud::handle voiceHandle = voiceIt->second;
-                
+
                 // Use SoLoud's built-in parameter fading on the track's voice handle
-                m_soloud.fadeFilterParameter(voiceHandle, static_cast<unsigned int>(instance.slot), 
-                                          static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
+                m_soloud.fadeFilterParameter(voiceHandle, static_cast<unsigned int>(instance.slot),
+                                             static_cast<unsigned int>(paramId), value,
+                                             FILTER_PARAM_TRANSITION_TIME);
             }
-            
+
             // Store the new value
             param.value = value;
             param.changed = true;
             instance.needsUpdate = true;
-            instance.enabled = true;  // Ensure filter is enabled when parameters change
-            
+            instance.enabled = true; // Ensure filter is enabled when parameters change
+
             // Update the filter instance parameters
             updateFilterInstance(instance, filterName);
         }
-    }
-    else
-    {
+    } else {
         std::cout << "Parameter " << paramId << " not found in filter " << filterName << std::endl;
     }
 }
 
-float AudioSystem::getFilterParameter(size_t trackIndex, const std::string& filterName, int paramId) const
-{
+float AudioSystem::getFilterParameter(size_t trackIndex, const std::string& filterName,
+                                      int paramId) const {
     if (!m_isInitialized || trackIndex >= m_trackFilters.size())
         return 0.0f;
 
     const auto& trackFilters = m_trackFilters[trackIndex];
     auto it = trackFilters.filters.find(filterName);
-    if (it != trackFilters.filters.end())
-    {
+    if (it != trackFilters.filters.end()) {
         const auto& instance = it->second;
         auto paramIt = instance.parameters.find(paramId);
         if (paramIt != instance.parameters.end())
@@ -561,33 +467,27 @@ float AudioSystem::getFilterParameter(size_t trackIndex, const std::string& filt
     return 0.0f;
 }
 
-void AudioSystem::setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled)
-{
+void AudioSystem::setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled) {
     if (!m_isInitialized || trackIndex >= m_trackFilters.size())
         return;
 
     auto& trackFilters = m_trackFilters[trackIndex];
     auto it = trackFilters.filters.find(filterName);
-    if (it == trackFilters.filters.end())
-    {
+    if (it == trackFilters.filters.end()) {
         FilterInstance instance;
         initializeFilter(instance, filterName);
-        if (instance.filter)
-        {
+        if (instance.filter) {
             instance.enabled = enabled;
             trackFilters.filters[filterName] = std::move(instance);
             updateFilterParams(trackIndex);
         }
-    }
-    else if (it->second.enabled != enabled)
-    {
+    } else if (it->second.enabled != enabled) {
         it->second.enabled = enabled;
         updateFilterParams(trackIndex);
     }
 }
 
-bool AudioSystem::isFilterEnabled(size_t trackIndex, const std::string& filterName) const
-{
+bool AudioSystem::isFilterEnabled(size_t trackIndex, const std::string& filterName) const {
     if (!m_isInitialized || trackIndex >= m_trackFilters.size())
         return false;
 
@@ -596,19 +496,18 @@ bool AudioSystem::isFilterEnabled(size_t trackIndex, const std::string& filterNa
     return it != trackFilters.filters.end() && it->second.enabled;
 }
 
-const std::unordered_map<std::string, FilterInstance>& AudioSystem::getFilters(size_t trackIndex) const
-{
+const std::unordered_map<std::string, FilterInstance>&
+AudioSystem::getFilters(size_t trackIndex) const {
     static const std::unordered_map<std::string, FilterInstance> empty;
     if (!m_isInitialized || trackIndex >= m_trackFilters.size())
         return empty;
     return m_trackFilters[trackIndex].filters;
 }
 
-void AudioSystem::updateFilterParams(size_t trackIndex)
-{
-    if (!m_isInitialized || trackIndex >= m_tracks.size())
-    {
-        std::cout << "Filter params update skipped - track " << trackIndex << " invalid" << std::endl;
+void AudioSystem::updateFilterParams(size_t trackIndex) {
+    if (!m_isInitialized || trackIndex >= m_tracks.size()) {
+        std::cout << "Filter params update skipped - track " << trackIndex << " invalid"
+                  << std::endl;
         return;
     }
 
@@ -617,8 +516,7 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
     // Save current playback position if playing
     float position = 0.0f;
     auto it = m_voiceHandles.find(trackIndex);
-    if (it != m_voiceHandles.end())
-    {
+    if (it != m_voiceHandles.end()) {
         position = m_soloud.getStreamPosition(it->second);
         // Stop the current voice
         m_soloud.stop(it->second);
@@ -626,27 +524,21 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
     }
 
     // Remove all filters from the track
-    for (int slot = 0; slot < 8; ++slot)
-    {
+    for (int slot = 0; slot < 8; ++slot) {
         m_tracks[trackIndex]->setFilter(slot, nullptr);
         std::cout << "Cleared track filter slot " << slot << std::endl;
     }
 
     // Apply enabled filters
     int filterSlot = 0;
-    for (auto& [name, instance] : m_trackFilters[trackIndex].filters)
-    {
-        if (instance.enabled && instance.filter)
-        {
+    for (auto& [name, instance] : m_trackFilters[trackIndex].filters) {
+        if (instance.enabled && instance.filter) {
             std::cout << "Applying filter " << name << " to slot " << filterSlot << std::endl;
             m_tracks[trackIndex]->setFilter(filterSlot, instance.filter.get());
             instance.slot = filterSlot;
             filterSlot++;
-        }
-        else if (!instance.enabled)
-        {
-            if (instance.slot >= 0)
-            {
+        } else if (!instance.enabled) {
+            if (instance.slot >= 0) {
                 m_tracks[trackIndex]->setFilter(instance.slot, nullptr);
                 instance.slot = -1;
             }
@@ -654,76 +546,60 @@ void AudioSystem::updateFilterParams(size_t trackIndex)
     }
 
     // Clear any remaining filter slots
-    for (int slot = filterSlot; slot < 8; ++slot)
-    {
+    for (int slot = filterSlot; slot < 8; ++slot) {
         m_tracks[trackIndex]->setFilter(slot, nullptr);
     }
 
     // Restart the track at the previous position if it was playing
-    if (m_isInitialized && m_masterBus.getActiveVoiceCount() > 0)
-    {
-        unsigned int handle = m_masterBus.playClocked(m_soloud.getStreamPosition(0), *m_tracks[trackIndex], m_trackVolumes[trackIndex]);
+    if (m_isInitialized && m_masterBus.getActiveVoiceCount() > 0) {
+        unsigned int handle = m_masterBus.playClocked(
+            m_soloud.getStreamPosition(0), *m_tracks[trackIndex], m_trackVolumes[trackIndex]);
         m_voiceHandles[trackIndex] = handle;
         m_soloud.seek(handle, position);
         // Fade parameters for all enabled filters
-        for (auto& [name, instance] : m_trackFilters[trackIndex].filters)
-        {
-            if (instance.enabled && instance.filter && instance.slot >= 0)
-            {
-                for (const auto& [paramId, param] : instance.parameters)
-                {
-                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot), 
-                                               static_cast<unsigned int>(paramId), 
-                                               param.value, 
-                                               FILTER_PARAM_TRANSITION_TIME);
+        for (auto& [name, instance] : m_trackFilters[trackIndex].filters) {
+            if (instance.enabled && instance.filter && instance.slot >= 0) {
+                for (const auto& [paramId, param] : instance.parameters) {
+                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot),
+                                                 static_cast<unsigned int>(paramId), param.value,
+                                                 FILTER_PARAM_TRANSITION_TIME);
                 }
             }
         }
     }
 }
 
-void AudioSystem::setBusFilterEnabled(const std::string& filterName, bool enabled)
-{
+void AudioSystem::setBusFilterEnabled(const std::string& filterName, bool enabled) {
     auto it = m_busFilters.find(filterName);
-    if (it == m_busFilters.end())
-    {
+    if (it == m_busFilters.end()) {
         FilterInstance instance;
         initializeFilter(instance, filterName);
-        if (instance.filter)
-        {
+        if (instance.filter) {
             instance.enabled = enabled;
             m_busFilters[filterName] = std::move(instance);
             updateBusFilterParams();
         }
-    }
-    else if (it->second.enabled != enabled)
-    {
+    } else if (it->second.enabled != enabled) {
         it->second.enabled = enabled;
         updateBusFilterParams();
     }
 }
 
-bool AudioSystem::isBusFilterEnabled(const std::string& filterName) const
-{
+bool AudioSystem::isBusFilterEnabled(const std::string& filterName) const {
     auto it = m_busFilters.find(filterName);
     return it != m_busFilters.end() && it->second.enabled;
 }
 
-void AudioSystem::setBusFilterParameter(const std::string& filterName, int paramId, float value)
-{
+void AudioSystem::setBusFilterParameter(const std::string& filterName, int paramId, float value) {
     auto it = m_busFilters.find(filterName);
-    if (it == m_busFilters.end())
-    {
+    if (it == m_busFilters.end()) {
         FilterInstance instance;
         initializeFilter(instance, filterName);
-        if (instance.filter)
-        {
-            instance.enabled = true;  // Enable the filter by default
+        if (instance.filter) {
+            instance.enabled = true; // Enable the filter by default
             m_busFilters[filterName] = std::move(instance);
             it = m_busFilters.find(filterName);
-        }
-        else
-        {
+        } else {
             std::cout << "Failed to initialize filter: " << filterName << std::endl;
             return;
         }
@@ -731,44 +607,38 @@ void AudioSystem::setBusFilterParameter(const std::string& filterName, int param
 
     auto& instance = it->second;
     auto paramIt = instance.parameters.find(paramId);
-    if (paramIt != instance.parameters.end())
-    {
+    if (paramIt != instance.parameters.end()) {
         auto& param = paramIt->second;
-        if (param.value != value)
-        {
-            std::cout << "Setting bus filter parameter - filter: " << filterName 
-                      << " param: " << paramId 
-                      << " value: " << value << std::endl;
-            
+        if (param.value != value) {
+            std::cout << "Setting bus filter parameter - filter: " << filterName
+                      << " param: " << paramId << " value: " << value << std::endl;
+
             // Get the bus handle
-            if (m_busHandle && instance.slot >= 0)
-            {
+            if (m_busHandle && instance.slot >= 0) {
                 // Use SoLoud's built-in parameter fading
-                m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(instance.slot), 
-                                          static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
+                m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(instance.slot),
+                                             static_cast<unsigned int>(paramId), value,
+                                             FILTER_PARAM_TRANSITION_TIME);
             }
-            
+
             // Store the new value
             param.value = value;
             param.changed = true;
             instance.needsUpdate = true;
-            instance.enabled = true;  // Ensure filter is enabled when parameters change
-            
+            instance.enabled = true; // Ensure filter is enabled when parameters change
+
             // Update the filter instance parameters
             updateFilterInstance(instance, filterName);
         }
-    }
-    else
-    {
-        std::cout << "Parameter " << paramId << " not found in bus filter " << filterName << std::endl;
+    } else {
+        std::cout << "Parameter " << paramId << " not found in bus filter " << filterName
+                  << std::endl;
     }
 }
 
-float AudioSystem::getBusFilterParameter(const std::string& filterName, int paramId) const
-{
+float AudioSystem::getBusFilterParameter(const std::string& filterName, int paramId) const {
     auto it = m_busFilters.find(filterName);
-    if (it != m_busFilters.end())
-    {
+    if (it != m_busFilters.end()) {
         const auto& instance = it->second;
         auto paramIt = instance.parameters.find(paramId);
         if (paramIt != instance.parameters.end())
@@ -777,43 +647,36 @@ float AudioSystem::getBusFilterParameter(const std::string& filterName, int para
     return 0.0f;
 }
 
-const std::unordered_map<std::string, FilterInstance>& AudioSystem::getBusFilters() const
-{
+const std::unordered_map<std::string, FilterInstance>& AudioSystem::getBusFilters() const {
     return m_busFilters;
 }
 
-void AudioSystem::updateBusFilterParams()
-{
+void AudioSystem::updateBusFilterParams() {
     std::cout << "Updating bus filter parameters" << std::endl;
 
     // Remove all filters from the bus
-    for (int slot = 0; slot < 8; ++slot)
-    {
+    for (int slot = 0; slot < 8; ++slot) {
         m_masterBus.setFilter(slot, nullptr);
         std::cout << "Cleared bus filter slot " << slot << std::endl;
     }
 
     // Apply enabled filters
     int filterSlot = 0;
-    for (auto& [name, instance] : m_busFilters)
-    {
-        if (instance.enabled && instance.filter)
-        {
+    for (auto& [name, instance] : m_busFilters) {
+        if (instance.enabled && instance.filter) {
             // Only set the filter on the bus
             m_masterBus.setFilter(filterSlot, instance.filter.get());
             // Fade each parameter to its value
-            if (m_busHandle)
-            {
-                for (const auto& [paramId, param] : instance.parameters)
-                {
-                    m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(filterSlot), static_cast<unsigned int>(paramId), param.value, FILTER_PARAM_TRANSITION_TIME);
+            if (m_busHandle) {
+                for (const auto& [paramId, param] : instance.parameters) {
+                    m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(filterSlot),
+                                                 static_cast<unsigned int>(paramId), param.value,
+                                                 FILTER_PARAM_TRANSITION_TIME);
                 }
             }
-            instance.slot = filterSlot;  // Store the slot number
+            instance.slot = filterSlot; // Store the slot number
             filterSlot++;
-        }
-        else if (!instance.enabled && instance.slot >= 0)
-        {
+        } else if (!instance.enabled && instance.slot >= 0) {
             // Remove filter if it was previously enabled
             m_masterBus.setFilter(instance.slot, nullptr);
             instance.slot = -1;
@@ -821,14 +684,12 @@ void AudioSystem::updateBusFilterParams()
     }
 
     // Clear any remaining filter slots
-    for (int slot = filterSlot; slot < 8; ++slot)
-    {
+    for (int slot = filterSlot; slot < 8; ++slot) {
         m_masterBus.setFilter(slot, nullptr);
     }
 }
 
-void AudioSystem::setBusVolume(float volume)
-{
+void AudioSystem::setBusVolume(float volume) {
     std::cout << "[AudioSystem] Setting bus volume to: " << volume << std::endl;
     m_busVolume = volume;
     m_masterBus.setVolume(volume);
@@ -836,14 +697,12 @@ void AudioSystem::setBusVolume(float volume)
         m_soloud.setVolume(m_busHandle, volume);
 }
 
-float AudioSystem::getLongestTrackLength() const
-{
+float AudioSystem::getLongestTrackLength() const {
     if (!m_isInitialized || m_tracks.empty())
         return 0.0f;
 
     float longestLength = 0.0f;
-    for (const auto& track : m_tracks)
-    {
+    for (const auto& track : m_tracks) {
         float length = track->getLength();
         if (length > longestLength)
             longestLength = length;
@@ -851,16 +710,14 @@ float AudioSystem::getLongestTrackLength() const
     return longestLength;
 }
 
-void AudioSystem::setTrackLooping(size_t trackIndex, bool loop)
-{
+void AudioSystem::setTrackLooping(size_t trackIndex, bool loop) {
     if (!m_isInitialized || trackIndex >= m_tracks.size())
         return;
 
     m_tracks[trackIndex]->setLooping(loop);
 }
 
-bool AudioSystem::isTrackLooping(size_t trackIndex) const
-{
+bool AudioSystem::isTrackLooping(size_t trackIndex) const {
     if (!m_isInitialized || trackIndex >= m_tracks.size())
         return false;
 

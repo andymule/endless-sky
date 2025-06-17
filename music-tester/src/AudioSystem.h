@@ -1,17 +1,17 @@
 #pragma once
 
 #include "soloud.h"
-#include "soloud_bus.h"
-#include "soloud_wav.h"
-#include "soloud_biquadresonantfilter.h"
-#include "soloud_echofilter.h"
-#include "soloud_lofifilter.h"
-#include "soloud_flangerfilter.h"
-#include "soloud_dcremovalfilter.h"
 #include "soloud_bassboostfilter.h"
-#include "soloud_waveshaperfilter.h"
-#include "soloud_robotizefilter.h"
+#include "soloud_biquadresonantfilter.h"
+#include "soloud_bus.h"
+#include "soloud_dcremovalfilter.h"
+#include "soloud_echofilter.h"
+#include "soloud_flangerfilter.h"
 #include "soloud_freeverbfilter.h"
+#include "soloud_lofifilter.h"
+#include "soloud_robotizefilter.h"
+#include "soloud_wav.h"
+#include "soloud_waveshaperfilter.h"
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -31,16 +31,15 @@ struct FilterInstance {
     std::unordered_map<int, FilterParameter> parameters;
     bool enabled = false;
     bool needsUpdate = false;
-    int slot = -1;  // Track which slot this filter is assigned to
+    int slot = -1; // Track which slot this filter is assigned to
 };
 
 struct TrackFilters {
     std::unordered_map<std::string, FilterInstance> filters;
 };
 
-class AudioSystem
-{
-  public:
+class AudioSystem {
+public:
     AudioSystem();
     ~AudioSystem();
 
@@ -76,7 +75,8 @@ class AudioSystem
 
     // Filter management
     void updateFilterParams(size_t trackIndex);
-    void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId, float value);
+    void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId,
+                            float value);
     float getFilterParameter(size_t trackIndex, const std::string& filterName, int paramId) const;
     void setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled);
     bool isFilterEnabled(size_t trackIndex, const std::string& filterName) const;
@@ -104,7 +104,7 @@ class AudioSystem
     static const std::vector<std::string> AVAILABLE_FILTERS;
     static bool isSupportedFileExtension(const std::string& extension);
 
-  private:
+private:
     SoLoud::Soloud m_soloud;
     SoLoud::Bus m_masterBus;
     std::vector<std::unique_ptr<SoLoud::Wav>> m_tracks;
