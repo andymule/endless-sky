@@ -12,7 +12,6 @@ struct Track {
     float volume = 1.0f;
     bool active = false;
     bool looping = false;
-    std::vector<std::string> effects;
 };
 
 class TesterView {
@@ -39,14 +38,12 @@ private:
     void RenderGlobalControls();
     void RenderTrackControls();
     void RenderBusControls();
-    void RenderEffectsControls(Track& track, size_t trackIndex);
 
     // UI State
     bool m_isRunning = true;
     std::string m_musicDir;
     std::vector<Track> m_tracks;
     bool m_isPlaying = false;
-    float m_playbackPosition = 0.0f;
     char m_dirInput[256] = "";
 
     // Audio System

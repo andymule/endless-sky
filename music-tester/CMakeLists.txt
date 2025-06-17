@@ -38,9 +38,6 @@ set(MUSIC_TESTER_SOURCES
     src/main.cpp
     src/AudioSystem.cpp
     src/TesterView.cpp
-    src/ResourceManager.cpp
-    src/ErrorHandling.h
-    src/ResourceManager.h
 )
 
 # Add the executable target

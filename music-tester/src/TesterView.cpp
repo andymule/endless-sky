@@ -207,10 +207,6 @@ void TesterView::drawFilterControls(size_t trackIndex) {
     }
 }
 
-void TesterView::RenderEffectsControls(Track& track, size_t trackIndex) {
-    // This method is no longer used - replaced by drawFilterControls
-}
-
 void TesterView::RenderBusControls() {
     ImGui::Begin("Bus Controls");
     float busVolume = m_audioSystem.getBusVolume();

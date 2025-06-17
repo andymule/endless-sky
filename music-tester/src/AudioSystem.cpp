@@ -27,7 +27,6 @@ namespace AudioTester {
         if (m_isInitialized)
             return true;
 
-        std::cout << "Initializing AudioSystem..." << std::endl;
         if (!m_engine->initialize()) {
             std::cerr << "Failed to initialize SoLoud" << std::endl;
             return false;
@@ -41,7 +40,6 @@ namespace AudioTester {
         m_engine->get().setVolume(m_busHandle, m_busVolume);
 
         m_isInitialized = true;
-        std::cout << "AudioSystem initialized successfully" << std::endl;
         return true;
     }
 
@@ -55,21 +53,18 @@ namespace AudioTester {
 
     void AudioSystem::loadAudioFile(const std::string& path) {
         if (!m_isInitialized) {
-            std::cout << "Cannot load file - AudioSystem not initialized" << std::endl;
+            std::cerr << "Cannot load file - AudioSystem not initialized" << std::endl;
             return;
         }
-
-        std::cout << "Loading audio file: " << path << std::endl;
         auto wav = std::make_unique<SoLoud::Wav>();
         SoLoud::result result = wav->load(path.c_str());
         if (result == SoLoud::SO_NO_ERROR) {
-            std::cout << "Successfully loaded: " << path << std::endl;
             m_tracks.push_back(std::move(wav));
             m_trackFilters.resize(m_tracks.size());
             // Enable looping by default for the newly loaded track
             m_tracks.back()->setLooping(true);
         } else {
-            std::cout << "Failed to load: " << path << " (error: " << result << ")" << std::endl;
+            std::cerr << "Failed to load: " << path << " (error: " << result << ")" << std::endl;
         }
     }
 
@@ -114,7 +109,6 @@ namespace AudioTester {
     }
 
     void AudioSystem::setBusVolume(float volume) {
-        std::cout << "[AudioSystem] Setting bus volume to: " << volume << std::endl;
         m_busVolume = volume;
         m_masterBus->setVolume(volume);
         if (m_busHandle)
@@ -157,19 +151,13 @@ namespace AudioTester {
     void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filterName,
                                          int paramId, float value) {
         if (!m_isInitialized || trackIndex >= m_trackFilters.size()) {
-            std::cout << "Set filter parameter failed - invalid track or not initialized"
-                      << std::endl;
             return;
         }
-
-        std::cout << "Setting filter parameter - track: " << trackIndex << " filter: " << filterName
-                  << " param: " << paramId << " value: " << value << std::endl;
 
         auto& trackFilters = m_trackFilters[trackIndex];
         auto it = trackFilters.filters.find(filterName);
         if (it == trackFilters.filters.end()) {
             // Initialize the filter if it doesn't exist
-            std::cout << "Initializing new filter: " << filterName << std::endl;
             FilterInstance instance;
             initializeFilter(instance, filterName);
             if (instance.filter) {
@@ -177,7 +165,6 @@ namespace AudioTester {
                 trackFilters.filters[filterName] = std::move(instance);
                 it = trackFilters.filters.find(filterName);
             } else {
-                std::cout << "Failed to initialize filter: " << filterName << std::endl;
                 return;
             }
         }
@@ -187,9 +174,6 @@ namespace AudioTester {
         if (paramIt != instance.parameters.end()) {
             auto& param = paramIt->second;
             if (param.value != value) {
-                std::cout << "Parameter value changed from " << param.value << " to " << value
-                          << std::endl;
-
                 // Get the voice handle for this track
                 auto voiceIt = m_trackHandles.find(trackIndex);
                 if (voiceIt != m_trackHandles.end() && instance.slot >= 0) {
@@ -210,14 +194,10 @@ namespace AudioTester {
                 // DON'T call updateFilterInstance for realtime changes - this causes conflicts
                 // updateFilterInstance should only be used for initial setup
             }
-        } else {
-            std::cout << "Parameter " << paramId << " not found in filter " << filterName
-                      << std::endl;
         }
     }
 
     void AudioSystem::initializeFilter(FilterInstance& instance, const std::string& filterName) {
-        std::cout << "Initializing filter: " << filterName << std::endl;
 
         if (filterName == "biquad")
             instance.filter = std::make_unique<SoLoud::BiquadResonantFilter>();
@@ -239,7 +219,6 @@ namespace AudioTester {
             instance.filter = std::make_unique<SoLoud::FreeverbFilter>();
 
         if (instance.filter) {
-            std::cout << "Filter created successfully" << std::endl;
 
             // Initialize parameters with their ranges based on filter type
             if (filterName == "biquad") {
@@ -285,24 +264,14 @@ namespace AudioTester {
 
             // Apply initial parameters
             updateFilterInstance(instance, filterName);
-        } else {
-            std::cout << "Failed to create filter: " << filterName << std::endl;
         }
     }
 
     void AudioSystem::updateFilterInstance(FilterInstance& instance,
                                            const std::string& filterName) {
-        if (!instance.filter) {
-            std::cout << "Filter update skipped - no filter instance" << std::endl;
+        if (!instance.filter || !instance.enabled) {
             return;
         }
-
-        if (!instance.enabled) {
-            std::cout << "Filter update skipped - filter disabled" << std::endl;
-            return;
-        }
-
-        std::cout << "Updating filter: " << filterName << std::endl;
 
         // Update all changed parameters for the correct filter type
         if (filterName == "biquad") {
@@ -311,8 +280,6 @@ namespace AudioTester {
                 float p1 = instance.parameters[1].value; // Type
                 float p2 = instance.parameters[2].value; // Frequency
                 float p3 = instance.parameters[3].value; // Resonance
-                std::cout << "Setting biquad params: type=" << p1 << " freq=" << p2 << " res=" << p3
-                          << std::endl;
                 f->setParams(static_cast<int>(p1), p2, p3);
             }
         } else if (filterName == "echo") {
@@ -383,7 +350,6 @@ namespace AudioTester {
         // Mark all parameters as not changed
         for (auto& [paramId, param] : instance.parameters) {
             param.changed = false;
-            std::cout << "Parameter " << paramId << " marked as unchanged" << std::endl;
         }
         instance.needsUpdate = false;
     }
@@ -575,7 +541,6 @@ namespace AudioTester {
     }
 
     void AudioSystem::updateBusFilterParams() {
-        std::cout << "Updating bus filter parameters" << std::endl;
 
         // Ensure bus is playing first
         if (m_busHandle == 0) {
@@ -587,7 +552,6 @@ namespace AudioTester {
         // Remove all filters from the bus
         for (int slot = 0; slot < 8; ++slot) {
             m_masterBus->get().setFilter(slot, nullptr);
-            std::cout << "Cleared bus filter slot " << slot << std::endl;
         }
 
         // Apply enabled filters
