@@ -8,33 +8,17 @@ const std::vector<std::string> AudioSystem::AVAILABLE_FILTERS = {
 // Time in seconds for smooth parameter transitions
 constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
 
-AudioSystem::AudioSystem() : m_isInitialized(false) {}
-
-AudioSystem::~AudioSystem() {
-    if (m_isInitialized) {
-        m_soloud.deinit();
+AudioSystem::AudioSystem() {
+    try {
+        m_engine = std::make_unique<SoloudEngine>();
+        m_masterBus = std::make_unique<AudioBus>(m_engine->get(), m_busVolume);
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to initialize AudioSystem: " << e.what() << std::endl;
+        throw;
     }
 }
 
 bool AudioSystem::initialize() {
-    if (m_isInitialized)
-        return true;
-
-    std::cout << "Initializing AudioSystem..." << std::endl;
-    SoLoud::result result = m_soloud.init();
-    if (result != SoLoud::SO_NO_ERROR) {
-        std::cerr << "Failed to initialize SoLoud: " << result << std::endl;
-        return false;
-    }
-
-    // Play the bus once and store the handle
-    m_busHandle = m_soloud.play(m_masterBus);
-    m_masterBus.setVolume(m_busVolume);
-    m_soloud.setVolume(m_busHandle, m_busVolume);
-
-    m_isInitialized = true;
-    std::cout << "AudioSystem initialized successfully" << std::endl;
-
     // Auto-load tracks from the default folder
     std::filesystem::path defaultFolder = "sound_staging";
     std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
@@ -242,11 +226,6 @@ bool AudioSystem::isSupportedFileExtension(const std::string& extension) {
 }
 
 bool AudioSystem::loadDirectory(const std::filesystem::path& directory) {
-    if (!m_isInitialized) {
-        std::cout << "Cannot load directory - AudioSystem not initialized" << std::endl;
-        return false;
-    }
-
     std::cout << "Loading directory: " << std::filesystem::absolute(directory) << std::endl;
 
     // Clear existing tracks
@@ -292,13 +271,13 @@ void AudioSystem::playAll() {
 
     // Ensure the bus is playing
     if (m_busHandle == 0) {
-        m_busHandle = m_soloud.play(m_masterBus);
-        m_masterBus.setVolume(m_busVolume);
-        m_soloud.setVolume(m_busHandle, m_busVolume);
+        m_busHandle = m_engine->get().play(m_masterBus);
+        m_masterBus->setVolume(m_busVolume);
+        m_engine->get().setVolume(m_busHandle, m_busVolume);
     }
 
     // Calculate the start time for synchronized playback
-    double startTime = m_soloud.getStreamPosition(0) + 0.1; // Start 100ms from now
+    double startTime = m_engine->get().getStreamPosition(0) + 0.1; // Start 100ms from now
 
     // Play all tracks through the bus
     for (size_t i = 0; i < m_tracks.size(); ++i) {
@@ -318,16 +297,17 @@ void AudioSystem::playAll() {
         }
 
         // Play the track through the bus
-        unsigned int handle = m_masterBus.playClocked(startTime, *m_tracks[i], m_trackVolumes[i]);
+        unsigned int handle = m_masterBus->playClocked(startTime, *m_tracks[i], m_trackVolumes[i]);
         m_voiceHandles[i] = handle;
 
         // Fade parameters for all enabled filters
         for (auto& [name, instance] : m_trackFilters[i].filters) {
             if (instance.enabled && instance.filter && instance.slot >= 0) {
                 for (const auto& [paramId, param] : instance.parameters) {
-                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot),
-                                                 static_cast<unsigned int>(paramId), param.value,
-                                                 FILTER_PARAM_TRANSITION_TIME);
+                    m_engine->get().fadeFilterParameter(handle,
+                                                        static_cast<unsigned int>(instance.slot),
+                                                        static_cast<unsigned int>(paramId),
+                                                        param.value, FILTER_PARAM_TRANSITION_TIME);
                 }
             }
         }
@@ -338,8 +318,8 @@ void AudioSystem::stopAll() {
     if (!m_isInitialized)
         return;
 
-    m_soloud.stopAudioSource(m_masterBus);
-    m_soloud.stopAll();
+    m_engine->get().stopAudioSource(m_masterBus);
+    m_engine->get().stopAll();
     m_voiceHandles.clear();
     m_busHandle = 0;
 }
@@ -348,21 +328,21 @@ void AudioSystem::pauseAll() {
     if (!m_isInitialized)
         return;
 
-    m_soloud.setPauseAll(true);
+    m_engine->get().setPauseAll(true);
 }
 
 void AudioSystem::resumeAll() {
     if (!m_isInitialized)
         return;
 
-    m_soloud.setPauseAll(false);
+    m_engine->get().setPauseAll(false);
 }
 
 float AudioSystem::getPlaybackPosition() {
     if (!m_isInitialized || m_tracks.empty())
         return 0.0f;
 
-    return m_soloud.getStreamPosition(m_voiceHandles[0]);
+    return m_engine->get().getStreamPosition(m_voiceHandles[0]);
 }
 
 void AudioSystem::setPlaybackPosition(float position) {
@@ -370,7 +350,7 @@ void AudioSystem::setPlaybackPosition(float position) {
         return;
 
     for (const auto& handlePair : m_voiceHandles) {
-        m_soloud.seek(handlePair.second, position);
+        m_engine->get().seek(handlePair.second, position);
     }
 }
 
@@ -381,7 +361,7 @@ void AudioSystem::setTrackVolume(size_t trackIndex, float volume) {
     m_trackVolumes[trackIndex] = volume;
     auto it = m_voiceHandles.find(trackIndex);
     if (it != m_voiceHandles.end()) {
-        m_soloud.setVolume(it->second, volume);
+        m_engine->get().setVolume(it->second, volume);
     }
 }
 
@@ -432,9 +412,9 @@ void AudioSystem::setFilterParameter(size_t trackIndex, const std::string& filte
                 SoLoud::handle voiceHandle = voiceIt->second;
 
                 // Use SoLoud's built-in parameter fading on the track's voice handle
-                m_soloud.fadeFilterParameter(voiceHandle, static_cast<unsigned int>(instance.slot),
-                                             static_cast<unsigned int>(paramId), value,
-                                             FILTER_PARAM_TRANSITION_TIME);
+                m_engine->get().fadeFilterParameter(
+                    voiceHandle, static_cast<unsigned int>(instance.slot),
+                    static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
             }
 
             // Store the new value
@@ -517,9 +497,9 @@ void AudioSystem::updateFilterParams(size_t trackIndex) {
     float position = 0.0f;
     auto it = m_voiceHandles.find(trackIndex);
     if (it != m_voiceHandles.end()) {
-        position = m_soloud.getStreamPosition(it->second);
+        position = m_engine->get().getStreamPosition(it->second);
         // Stop the current voice
-        m_soloud.stop(it->second);
+        m_engine->get().stop(it->second);
         m_voiceHandles.erase(it);
     }
 
@@ -551,18 +531,20 @@ void AudioSystem::updateFilterParams(size_t trackIndex) {
     }
 
     // Restart the track at the previous position if it was playing
-    if (m_isInitialized && m_masterBus.getActiveVoiceCount() > 0) {
-        unsigned int handle = m_masterBus.playClocked(
-            m_soloud.getStreamPosition(0), *m_tracks[trackIndex], m_trackVolumes[trackIndex]);
+    if (m_isInitialized && m_masterBus->getActiveVoiceCount() > 0) {
+        unsigned int handle =
+            m_masterBus->playClocked(m_engine->get().getStreamPosition(0), *m_tracks[trackIndex],
+                                     m_trackVolumes[trackIndex]);
         m_voiceHandles[trackIndex] = handle;
-        m_soloud.seek(handle, position);
+        m_engine->get().seek(handle, position);
         // Fade parameters for all enabled filters
         for (auto& [name, instance] : m_trackFilters[trackIndex].filters) {
             if (instance.enabled && instance.filter && instance.slot >= 0) {
                 for (const auto& [paramId, param] : instance.parameters) {
-                    m_soloud.fadeFilterParameter(handle, static_cast<unsigned int>(instance.slot),
-                                                 static_cast<unsigned int>(paramId), param.value,
-                                                 FILTER_PARAM_TRANSITION_TIME);
+                    m_engine->get().fadeFilterParameter(handle,
+                                                        static_cast<unsigned int>(instance.slot),
+                                                        static_cast<unsigned int>(paramId),
+                                                        param.value, FILTER_PARAM_TRANSITION_TIME);
                 }
             }
         }
@@ -616,9 +598,9 @@ void AudioSystem::setBusFilterParameter(const std::string& filterName, int param
             // Get the bus handle
             if (m_busHandle && instance.slot >= 0) {
                 // Use SoLoud's built-in parameter fading
-                m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(instance.slot),
-                                             static_cast<unsigned int>(paramId), value,
-                                             FILTER_PARAM_TRANSITION_TIME);
+                m_engine->get().fadeFilterParameter(
+                    m_busHandle, static_cast<unsigned int>(instance.slot),
+                    static_cast<unsigned int>(paramId), value, FILTER_PARAM_TRANSITION_TIME);
             }
 
             // Store the new value
@@ -656,7 +638,7 @@ void AudioSystem::updateBusFilterParams() {
 
     // Remove all filters from the bus
     for (int slot = 0; slot < 8; ++slot) {
-        m_masterBus.setFilter(slot, nullptr);
+        m_masterBus->setFilter(slot, nullptr);
         std::cout << "Cleared bus filter slot " << slot << std::endl;
     }
 
@@ -665,36 +647,37 @@ void AudioSystem::updateBusFilterParams() {
     for (auto& [name, instance] : m_busFilters) {
         if (instance.enabled && instance.filter) {
             // Only set the filter on the bus
-            m_masterBus.setFilter(filterSlot, instance.filter.get());
+            m_masterBus->setFilter(filterSlot, instance.filter.get());
             // Fade each parameter to its value
             if (m_busHandle) {
                 for (const auto& [paramId, param] : instance.parameters) {
-                    m_soloud.fadeFilterParameter(m_busHandle, static_cast<unsigned int>(filterSlot),
-                                                 static_cast<unsigned int>(paramId), param.value,
-                                                 FILTER_PARAM_TRANSITION_TIME);
+                    m_engine->get().fadeFilterParameter(m_busHandle,
+                                                        static_cast<unsigned int>(filterSlot),
+                                                        static_cast<unsigned int>(paramId),
+                                                        param.value, FILTER_PARAM_TRANSITION_TIME);
                 }
             }
             instance.slot = filterSlot; // Store the slot number
             filterSlot++;
         } else if (!instance.enabled && instance.slot >= 0) {
             // Remove filter if it was previously enabled
-            m_masterBus.setFilter(instance.slot, nullptr);
+            m_masterBus->setFilter(instance.slot, nullptr);
             instance.slot = -1;
         }
     }
 
     // Clear any remaining filter slots
     for (int slot = filterSlot; slot < 8; ++slot) {
-        m_masterBus.setFilter(slot, nullptr);
+        m_masterBus->setFilter(slot, nullptr);
     }
 }
 
 void AudioSystem::setBusVolume(float volume) {
     std::cout << "[AudioSystem] Setting bus volume to: " << volume << std::endl;
     m_busVolume = volume;
-    m_masterBus.setVolume(volume);
+    m_masterBus->setVolume(volume);
     if (m_busHandle)
-        m_soloud.setVolume(m_busHandle, volume);
+        m_engine->get().setVolume(m_busHandle, volume);
 }
 
 float AudioSystem::getLongestTrackLength() const {
