@@ -124,12 +124,6 @@ void TesterView::RenderTrackControls() {
         ImGui::SameLine();
         ImGui::Text("%s", track.name.c_str());
 
-        // Loop toggle
-        bool looping = track.looping;
-        if (ImGui::Checkbox("Loop", &looping)) {
-            m_controller->setTrackLooping(i, looping);
-        }
-
         // Volume slider
         float volume = track.volume;
         if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
