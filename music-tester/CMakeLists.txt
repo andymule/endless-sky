@@ -3,6 +3,9 @@ add_definitions(-DWITH_SDL2_STATIC)
 cmake_minimum_required(VERSION 3.19)
 project(music-tester VERSION 0.1.0)
 
+# Generate compile_commands.json for better IntelliSense
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
