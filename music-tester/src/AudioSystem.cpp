@@ -65,12 +65,13 @@ namespace AudioTester {
             return;
 
         if (m_busHandle == 0) {
+            m_masterBus->setVolume(m_busVolume);
             m_busHandle = m_engine->get().play(m_masterBus->get());
             m_engine->get().setVolume(m_busHandle, m_busVolume);
         }
 
-        // Play the track and store its handle
-        unsigned int handle = m_engine->get().play(*m_tracks[index]);
+        // Play the track through the bus
+        unsigned int handle = m_masterBus->get().play(*m_tracks[index]);
         m_trackHandles[index] = handle;
     }
 
@@ -92,7 +93,7 @@ namespace AudioTester {
         // Set the volume directly on the track
         m_tracks[index]->setVolume(volume);
 
-        // If the track has a handle, update its volume immediately
+        // Update the track's volume through the bus
         auto it = m_trackHandles.find(index);
         if (it != m_trackHandles.end()) {
             m_engine->get().setVolume(it->second, volume);
@@ -111,6 +112,11 @@ namespace AudioTester {
             return;
 
         m_busVolume = volume;
+
+        // Update the bus's internal volume
+        m_masterBus->setVolume(volume);
+
+        // Update the bus handle volume
         if (m_busHandle != 0) {
             m_engine->get().setVolume(m_busHandle, volume);
         }

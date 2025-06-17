@@ -61,7 +61,6 @@ namespace AudioTester {
         void setVolume(float volume) {
             m_volume = volume;
             m_bus.setVolume(volume);
-            Logger::debug("Audio bus volume set to " + std::to_string(volume), "AudioBus");
         }
 
         float getVolume() const { return m_volume; }
@@ -76,7 +75,6 @@ namespace AudioTester {
 
         void setFilter(int slot, std::shared_ptr<SoLoud::Filter> filter) {
             m_bus.setFilter(slot, filter.get());
-            Logger::debug("Filter set on audio bus slot " + std::to_string(slot), "AudioBus");
         }
 
         int getActiveVoiceCount() { return m_bus.getActiveVoiceCount(); }
