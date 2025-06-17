@@ -1,0 +1,31 @@
+{
+	"configurations": [
+		{
+			"name": "Mac",
+			"includePath": [
+				"${workspaceFolder}/**",
+				"${workspaceFolder}/build/_deps/imgui-src",
+				"${workspaceFolder}/build/_deps/imgui-src/backends",
+				"${workspaceFolder}/build/_deps/soloud-src/include",
+				"/opt/homebrew/Cellar/sdl2/2.32.8/include",
+				"/opt/homebrew/include",
+				"/opt/homebrew/Cellar/sdl2/2.32.8/include/SDL2",
+				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include",
+				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include/minizip"
+			],
+			"defines": [
+				"GL_SILENCE_DEPRECATION",
+				"WITH_SDL2_STATIC"
+			],
+			"macFrameworkPath": [
+				"/Applications/Xcode250Luck.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX16.0.sdk/System/Library/Frameworks"
+			],
+			"compilerPath": "/usr/bin/clang++",
+			"cStandard": "c17",
+			"cppStandard": "c++20",
+			"intelliSenseMode": "macos-clang-arm64",
+			"compileCommands": "${workspaceFolder}/build/compile_commands.json"
+		}
+	],
+	"version": 4
+}
