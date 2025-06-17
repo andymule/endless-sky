@@ -11,6 +11,28 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+# Add warning flags
+if(MSVC)
+    add_compile_options(/W4)
+    # Suppress specific warnings for third-party code
+    add_compile_options(/wd4100) # Unused parameter
+    add_compile_options(/wd4505) # Unreferenced local function
+else()
+    add_compile_options(-Wall -Wextra)
+    # Suppress specific warnings for third-party code
+    add_compile_options(-Wno-unused-parameter)
+    add_compile_options(-Wno-unused-variable)
+endif()
+
+# Add ImGui and SoLoud specific definitions
+add_definitions(
+    -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    -DIMGUI_DISABLE_OBSOLETE_KEYIO
+    -DIMGUI_IMPL_OPENGL_LOADER_GL3W
+    -DIMGUI_IMPL_OPENGL_USE_DESKTOP_GL
+    -DSOLOUD_STATIC
+)
+
 # Set up sources for music-tester
 set(MUSIC_TESTER_SOURCES
     src/main.cpp

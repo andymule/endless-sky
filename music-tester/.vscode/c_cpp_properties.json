@@ -18,7 +18,9 @@
 				"WITH_SDL2_STATIC",
 				"SDL_MAIN_HANDLED",
 				"IMGUI_IMPL_OPENGL_LOADER_GL3W",
-				"IMGUI_IMPL_OPENGL_USE_DESKTOP_GL"
+				"IMGUI_IMPL_OPENGL_USE_DESKTOP_GL",
+				"IMGUI_DISABLE_OBSOLETE_FUNCTIONS",
+				"IMGUI_DISABLE_OBSOLETE_KEYIO"
 			],
 			"macFrameworkPath": [
 				"/Applications/Xcode250Luck.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX16.0.sdk/System/Library/Frameworks"
@@ -39,11 +41,7 @@
 					"${workspaceFolder}/build/_deps/soloud-src/include"
 				],
 				"limitSymbolsToIncludedHeaders": true
-			},
-			"forcedInclude": [
-				"${workspaceFolder}/build/_deps/imgui-src/imgui.h",
-				"${workspaceFolder}/build/_deps/soloud-src/include/soloud.h"
-			]
+			}
 		}
 	],
 	"version": 4
