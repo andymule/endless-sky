@@ -75,6 +75,10 @@ namespace AudioTester {
         std::unordered_map<int, FilterParameter> parameters;
         bool enabled = false;
         int slot = -1;
+
+        // Note: For most filters, parameter index 0 is the WET parameter
+        // which controls the dry/wet mix (0.0 = dry only, 1.0 = wet only)
+        // DCRemovalFilter is an exception and doesn't have a WET parameter
     };
 
     struct TrackFilters {

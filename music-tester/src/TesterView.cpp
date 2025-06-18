@@ -150,13 +150,17 @@ void TesterView::drawFilterControls(size_t trackIndex) {
         if (enabled) {
             auto it = filters.find(filterName);
             if (it != filters.end()) {
+                // Push unique ID for this filter to ensure parameter sliders are unique
+                ImGui::PushID((filterName + std::to_string(trackIndex)).c_str());
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
+                    // Use parameter name as label, the unique ID is handled by PushID
                     if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
                         m_controller->setTrackFilterParameter(trackIndex, filterName, paramId,
                                                               value);
                     }
                 }
+                ImGui::PopID();
             }
         }
     }
@@ -186,12 +190,16 @@ void TesterView::RenderBusControls() {
         if (enabled) {
             auto it = busFilters.find(filterName);
             if (it != busFilters.end()) {
+                // Push unique ID for this bus filter to ensure parameter sliders are unique
+                ImGui::PushID((filterName + "bus").c_str());
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
+                    // Use parameter name as label, the unique ID is handled by PushID
                     if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
                         m_controller->setBusFilterParameter(filterName, paramId, value);
                     }
                 }
+                ImGui::PopID();
             }
         }
     }
