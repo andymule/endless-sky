@@ -50,12 +50,18 @@ namespace AudioTester {
         void setBusFilterEnabled(const std::string& filterName, bool enabled);
         void setBusFilterParameter(const std::string& filterName, int paramId, float value);
 
-        // Master tempo controls
+        // Master tempo controls (playback speed)
         void setMasterTempo(float tempo);
         float getMasterTempo() const;
         void setMasterTempoEnabled(bool enabled);
         bool isMasterTempoEnabled() const;
         float getMasterTempoLatencyMs() const;
+
+        // Granular tempo controls (pitch-preserving)
+        void setGranularTempo(float tempo);
+        float getGranularTempo() const;
+        void setGranularTempoEnabled(bool enabled);
+        bool isGranularTempoEnabled() const;
 
         // State access (read-only for the view)
         const AudioState& getState() const { return m_state; }
@@ -75,7 +81,8 @@ namespace AudioTester {
 
         AudioState m_state;
         AudioSystem m_audioSystem;
-        MasterTempoProcessor m_tempoProcessor;
+        MasterTempoProcessor m_tempoProcessor;    // For playback speed (not used for processing)
+        MasterTempoProcessor m_granularProcessor; // For granular tempo stretching
         std::string m_currentDirectory;
         bool m_isInitialized = false;
     };

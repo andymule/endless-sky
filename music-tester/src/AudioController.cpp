@@ -26,6 +26,12 @@ namespace AudioTester {
             // Tempo processor failure is not critical - continue without it
         }
 
+        // Initialize granular tempo processor
+        if (!m_granularProcessor.initialize(sampleRate, channels, blockSize)) {
+            std::cerr << "Warning: Failed to initialize granular tempo processor" << std::endl;
+            // Granular processor failure is not critical - continue without it
+        }
+
         // Load initial music directory
         loadMusicFromDirectory();
 
@@ -174,18 +180,47 @@ namespace AudioTester {
     bool AudioController::isPlaying() const { return m_audioSystem.isPlaying(); }
 
     // Master tempo controls
-    void AudioController::setMasterTempo(float tempo) { m_tempoProcessor.setTempo(tempo); }
+    void AudioController::setMasterTempo(float tempo) {
+        m_tempoProcessor.setTempo(tempo);
+        // Also apply to audio system for immediate feedback
+        m_audioSystem.setGlobalPlaybackRate(tempo);
+    }
 
     float AudioController::getMasterTempo() const { return m_tempoProcessor.getTempo(); }
 
     void AudioController::setMasterTempoEnabled(bool enabled) {
         m_tempoProcessor.setEnabled(enabled);
+        // Apply the tempo change to audio system
+        if (enabled) {
+            m_audioSystem.setGlobalPlaybackRate(m_tempoProcessor.getTempo());
+        } else {
+            m_audioSystem.setGlobalPlaybackRate(1.0f); // Reset to normal speed
+        }
     }
 
     bool AudioController::isMasterTempoEnabled() const { return m_tempoProcessor.isEnabled(); }
 
     float AudioController::getMasterTempoLatencyMs() const {
         return m_tempoProcessor.getLatencyMs();
+    }
+
+    // Granular tempo controls (pitch-preserving)
+    void AudioController::setGranularTempo(float tempo) {
+        m_granularProcessor.setTempo(tempo);
+        // Apply to the audio system's granular filter
+        m_audioSystem.setGranularTempo(tempo);
+    }
+
+    float AudioController::getGranularTempo() const { return m_audioSystem.getGranularTempo(); }
+
+    void AudioController::setGranularTempoEnabled(bool enabled) {
+        m_granularProcessor.setEnabled(enabled);
+        // Apply to the audio system's granular filter
+        m_audioSystem.setGranularTempoEnabled(enabled);
+    }
+
+    bool AudioController::isGranularTempoEnabled() const {
+        return m_audioSystem.isGranularTempoEnabled();
     }
 
 } // namespace AudioTester

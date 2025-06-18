@@ -109,9 +109,28 @@ namespace AudioTester {
                 }
             }
 
-            // Process through Signalsmith Stretch
-            m_stretcher->process(m_inputPointers.data(), inputSamples, m_outputPointers.data(),
-                                 outputSamples);
+            // Create wrapper objects for Signalsmith Stretch API
+            struct InputWrapper {
+                std::vector<std::vector<float>>& buffers;
+                float* operator[](int channel) { return buffers[channel].data(); }
+            } inputWrapper{m_inputBuffers};
+
+            struct OutputWrapper {
+                std::vector<std::vector<float>>& buffers;
+                float* operator[](int channel) { return buffers[channel].data(); }
+            } outputWrapper{m_outputBuffers};
+
+            // The key insight: Signalsmith Stretch controls stretching via seek() with playback
+            // rate For tempo control: playback rate = 1/tempo
+            // - tempo = 0.5 (half speed) -> playback rate = 2.0
+            // - tempo = 2.0 (double speed) -> playback rate = 0.5
+            float playbackRate = 1.0f / m_currentTempo;
+
+            // Call seek before each process to set the playback rate
+            m_stretcher->seek(inputWrapper, inputSamples, playbackRate);
+
+            // Process with equal input/output sample counts - stretching is handled internally
+            m_stretcher->process(inputWrapper, inputSamples, outputWrapper, outputSamples);
 
             // Copy processed data to output buffers
             for (int ch = 0; ch < m_channels; ++ch) {

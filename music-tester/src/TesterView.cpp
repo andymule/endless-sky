@@ -12,7 +12,9 @@ TesterView::TesterView() {
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
-    m_masterTempoEnabledUI = false;
+
+    m_granularTempoUI = 1.0f;
+    m_granularTempoEnabledUI = false;
 }
 
 TesterView::~TesterView() { cleanup(); }
@@ -341,8 +343,8 @@ void TesterView::RenderControlsWindow() {
 
     ImGui::Separator();
 
-    // Master Tempo Control Section
-    ImGui::Text("Master Tempo Control");
+    // Tempo Control Section
+    ImGui::Text("Tempo Control");
     ImGui::Separator();
 
     if (m_controller) {
@@ -350,30 +352,47 @@ void TesterView::RenderControlsWindow() {
         bool uiIsDragging = ImGui::IsAnyItemActive();
         if (!uiIsDragging) {
             m_masterTempoUI = m_controller->getMasterTempo();
-            m_masterTempoEnabledUI = m_controller->isMasterTempoEnabled();
+
+            m_granularTempoUI = m_controller->getGranularTempo();
+            m_granularTempoEnabledUI = m_controller->isGranularTempoEnabled();
         }
 
-        // Tempo slider from 0.1x to 2.0x
-        if (ImGui::SliderFloat("Tempo", &m_masterTempoUI, 0.1f, 2.0f, "%.2fx")) {
+        // Playback Speed slider (tape-style, affects pitch)
+        if (ImGui::SliderFloat("Playback Speed", &m_masterTempoUI, 0.1f, 2.0f, "%.2fx")) {
             m_controller->setMasterTempo(m_masterTempoUI);
         }
-
-        // Tempo enable/disable checkbox
-        if (ImGui::Checkbox("Enable Tempo Stretching", &m_masterTempoEnabledUI)) {
-            m_controller->setMasterTempoEnabled(m_masterTempoEnabledUI);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Tape-style speed change (affects pitch)");
         }
 
-        // Show latency info
-        if (m_masterTempoEnabledUI) {
+        // Granular Tempo slider (pitch-preserving)
+        if (ImGui::SliderFloat("Granular Tempo", &m_granularTempoUI, 0.1f, 2.0f, "%.2fx")) {
+            m_controller->setGranularTempo(m_granularTempoUI);
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Pitch-preserving tempo stretch using granular synthesis");
+        }
+
+        // Enable checkbox for granular tempo
+        if (ImGui::Checkbox("Enable Granular Tempo", &m_granularTempoEnabledUI)) {
+            m_controller->setGranularTempoEnabled(m_granularTempoEnabledUI);
+        }
+
+        // Show latency info when granular is enabled
+        if (m_granularTempoEnabledUI) {
             float latencyMs = m_controller->getMasterTempoLatencyMs();
-            ImGui::Text("Processing latency: %.1f ms", latencyMs);
+            ImGui::Text("Granular latency: %.1f ms", latencyMs);
         }
 
         ImGui::Separator();
 
         // Help text
-        ImGui::TextWrapped("Tip: Enable tempo stretching and use the slider to change playback "
-                           "speed while maintaining pitch.");
+        ImGui::TextWrapped("Playback Speed: Classic tape-style speed control (changes pitch).\n"
+                           "Granular Tempo: High-quality pitch-preserving time stretching.");
     }
 
     ImGui::End();
