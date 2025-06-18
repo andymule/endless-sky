@@ -2,6 +2,7 @@
 
 #include "AudioState.h"
 #include "AudioSystem.h"
+#include "MasterTempoProcessor.h"
 #include <filesystem>
 #include <functional>
 #include <string>
@@ -49,6 +50,13 @@ namespace AudioTester {
         void setBusFilterEnabled(const std::string& filterName, bool enabled);
         void setBusFilterParameter(const std::string& filterName, int paramId, float value);
 
+        // Master tempo controls
+        void setMasterTempo(float tempo);
+        float getMasterTempo() const;
+        void setMasterTempoEnabled(bool enabled);
+        bool isMasterTempoEnabled() const;
+        float getMasterTempoLatencyMs() const;
+
         // State access (read-only for the view)
         const AudioState& getState() const { return m_state; }
         const AudioSystem& getAudioSystem() const { return m_audioSystem; }
@@ -67,6 +75,7 @@ namespace AudioTester {
 
         AudioState m_state;
         AudioSystem m_audioSystem;
+        MasterTempoProcessor m_tempoProcessor;
         std::string m_currentDirectory;
         bool m_isInitialized = false;
     };

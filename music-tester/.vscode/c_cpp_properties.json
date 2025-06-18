@@ -4,6 +4,9 @@
 			"name": "Mac",
 			"includePath": [
 				"${workspaceFolder}/**",
+				"${workspaceFolder}/src",
+				"${workspaceFolder}/third-party/signalsmith-stretch/include",
+				"${workspaceFolder}/third-party/signalsmith-linear/include",
 				"${workspaceFolder}/build/_deps/imgui-src",
 				"${workspaceFolder}/build/_deps/imgui-src/backends",
 				"${workspaceFolder}/build/_deps/soloud-src/include",
@@ -23,7 +26,8 @@
 				"IMGUI_DISABLE_OBSOLETE_KEYIO"
 			],
 			"macFrameworkPath": [
-				"/Applications/Xcode250Luck.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX16.0.sdk/System/Library/Frameworks"
+				"/Applications/Xcode250Luck.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX16.0.sdk/System/Library/Frameworks",
+				"/Applications/Xcode250Luck.app/Contents/SharedFrameworks"
 			],
 			"compilerPath": "/usr/bin/clang++",
 			"cStandard": "c17",
@@ -33,6 +37,8 @@
 			"browse": {
 				"path": [
 					"${workspaceFolder}",
+					"${workspaceFolder}/src",
+					"${workspaceFolder}/third-party",
 					"/opt/homebrew/include",
 					"/opt/homebrew/Cellar/sdl2/2.32.8/include/SDL2",
 					"/opt/homebrew/Cellar/sdl2/2.32.8/include",

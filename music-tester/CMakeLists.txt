@@ -39,6 +39,7 @@ set(MUSIC_TESTER_SOURCES
     src/AudioSystem.cpp
     src/AudioController.cpp
     src/TesterView.cpp
+    src/MasterTempoProcessor.cpp
 )
 
 # Set up headers for music-tester
@@ -48,6 +49,7 @@ set(MUSIC_TESTER_HEADERS
     src/AudioController.h
     src/TesterView.h
     src/ErrorHandling.h
+    src/MasterTempoProcessor.h
 )
 
 # Add the executable target
@@ -143,6 +145,7 @@ endif()
 # Include directories
 target_include_directories(music-tester PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/third-party/signalsmith-stretch
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${soloud_SOURCE_DIR}/include

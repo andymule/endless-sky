@@ -16,6 +16,16 @@ namespace AudioTester {
             return false;
         }
 
+        // Initialize the master tempo processor
+        const int sampleRate = 44100; // TODO: Get this from audio system
+        const int channels = 2;       // TODO: Get this from audio system
+        const int blockSize = 1024;   // Good default for real-time processing
+
+        if (!m_tempoProcessor.initialize(sampleRate, channels, blockSize)) {
+            std::cerr << "Warning: Failed to initialize master tempo processor" << std::endl;
+            // Tempo processor failure is not critical - continue without it
+        }
+
         // Load initial music directory
         loadMusicFromDirectory();
 
@@ -162,5 +172,20 @@ namespace AudioTester {
     double AudioController::getGlobalTime() const { return m_audioSystem.getGlobalTime(); }
 
     bool AudioController::isPlaying() const { return m_audioSystem.isPlaying(); }
+
+    // Master tempo controls
+    void AudioController::setMasterTempo(float tempo) { m_tempoProcessor.setTempo(tempo); }
+
+    float AudioController::getMasterTempo() const { return m_tempoProcessor.getTempo(); }
+
+    void AudioController::setMasterTempoEnabled(bool enabled) {
+        m_tempoProcessor.setEnabled(enabled);
+    }
+
+    bool AudioController::isMasterTempoEnabled() const { return m_tempoProcessor.isEnabled(); }
+
+    float AudioController::getMasterTempoLatencyMs() const {
+        return m_tempoProcessor.getLatencyMs();
+    }
 
 } // namespace AudioTester

@@ -1,9 +1,38 @@
 #!/bin/bash
 set -e
 
+# Parse command line arguments
+BUILD_TYPE="Release"
+CLEAN_BUILD=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        clean)
+            CLEAN_BUILD=true
+            shift
+            ;;
+        debug)
+            BUILD_TYPE="Debug"
+            shift
+            ;;
+        release)
+            BUILD_TYPE="Release"
+            shift
+            ;;
+        *)
+            echo "Usage: $0 [clean] [debug|release]"
+            echo "  clean   - Clean build directory before building"
+            echo "  debug   - Build in Debug mode (default: Release)"
+            echo "  release - Build in Release mode"
+            exit 1
+            ;;
+    esac
+done
+
 # Determine architecture
 ARCH=$(uname -m)
 echo "Detected architecture: $ARCH"
+echo "Build type: $BUILD_TYPE"
 
 # Get Homebrew prefix for library paths
 BREW_PREFIX=$(brew --prefix)
@@ -43,8 +72,8 @@ MAKE_JOBS=$((CPU_CORES - 1))
 [ "$MAKE_JOBS" -lt 1 ] && MAKE_JOBS=1
 echo "Using $MAKE_JOBS parallel jobs for building"
 
-# Only clean if explicitly requested
-if [ "$1" == "clean" ]; then
+# Clean if explicitly requested
+if [ "$CLEAN_BUILD" = true ]; then
     echo "Cleaning build directory..."
     rm -rf "$BUILD_DIR"
 fi
@@ -60,7 +89,7 @@ CURRENT_DATE=$(date +%Y%m%d)
 LAST_CHECK_DATE=0
 [ -f "$PACKAGE_TIMESTAMP" ] && LAST_CHECK_DATE=$(cat "$PACKAGE_TIMESTAMP")
 
-if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$1" == "clean" ]; then
+if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$CLEAN_BUILD" = true ]; then
     # Check for required packages
     echo "Checking for required libraries..."
     REQUIRED_PACKAGES=("pkg-config" "sdl2" "libpng" "jpeg" "openal-soft")
@@ -158,14 +187,15 @@ echo "Configuring and building music-tester..."
 cd "$BUILD_DIR"
 
 # Only reconfigure if needed
-if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$1" == "clean" ]; then
+if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$CLEAN_BUILD" = true ]; then
     # Configure the build
     CMAKE_ARGS=(
-        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake"
         -Dunofficial-minizip_DIR="$MINIZIP_DIR"
         -DCMAKE_PREFIX_PATH="${BREW_PREFIX};/usr/local"
         -DCMAKE_FIND_FRAMEWORK=LAST
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     )
     
     if [ "$NINJA_AVAILABLE" = true ]; then
@@ -190,4 +220,7 @@ echo "You can run the music-tester with:"
 echo "./run-music-tester.sh"
 echo ""
 echo "To clean and rebuild, run:"
-echo "./build-macos.sh clean" 
+echo "./build-macos.sh clean"
+echo ""
+echo "To build in debug mode, run:"
+echo "./build-macos.sh debug" 

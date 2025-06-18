@@ -2,10 +2,54 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run Music Tester",
-            "type": "node",
+            "name": "Debug Music Tester",
+            "type": "lldb",
             "request": "launch",
-            "preLaunchTask": "Build Music Tester",
+            "program": "${workspaceFolder}/build/music-tester",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "stopOnEntry": false,
+            "preLaunchTask": "Build Music Tester (Debug)"
+        },
+        {
+            "name": "Run Music Tester (No Debug)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/music-tester",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+            },
+            "stopOnEntry": false,
+            "preLaunchTask": "Build Music Tester (Release)"
+        },
+        {
+            "name": "Debug Music Tester (Legacy cppdbg)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/music-tester",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "DYLD_LIBRARY_PATH",
+                    "value": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "miDebuggerPath": "/usr/bin/lldb",
+            "preLaunchTask": "Build Music Tester (Debug)"
+        },
+        {
+            "name": "Run Music Tester (Script)",
+            "type": "node",
+            "request": "launch", 
             "program": "${workspaceFolder}/run-music-tester.sh",
             "runtimeExecutable": "/bin/bash",
             "console": "integratedTerminal",

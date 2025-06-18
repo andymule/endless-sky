@@ -9,6 +9,10 @@ TesterView::TesterView() {
     // Initialize UI with default directory
     strncpy(m_dirInput, "sound_staging", DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+
+    // Initialize tempo UI state
+    m_masterTempoUI = 1.0f;
+    m_masterTempoEnabledUI = false;
 }
 
 TesterView::~TesterView() { cleanup(); }
@@ -87,6 +91,7 @@ void TesterView::Render() {
     ImGui::NewFrame();
 
     RenderMainWindow();
+    RenderControlsWindow();
 
     // Update which window is currently active/focused
     UpdateActiveWindow();
@@ -316,10 +321,71 @@ void TesterView::RenderBusControls() {
     ImGui::End();
 }
 
+void TesterView::RenderControlsWindow() {
+    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Controls", nullptr, ImGuiWindowFlags_None);
+
+    // Track if this window is focused for keyboard input routing
+    m_controlsWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+    // Keyboard Shortcuts Section
+    ImGui::Text("Keyboard Shortcuts");
+    ImGui::Separator();
+    ImGui::Text("Space:  Toggle Play/Pause");
+    ImGui::Text("1-9:    Toggle tracks 1-9 (active window)");
+    ImGui::Text("0:      Toggle track 10 (active window)");
+
+    // Show which window is currently active for number keys
+    const char* activeWindowName = (m_activeWindow == ActiveWindow::MAIN) ? "Main" : "Controls";
+    ImGui::Text("Active window: %s", activeWindowName);
+
+    ImGui::Separator();
+
+    // Master Tempo Control Section
+    ImGui::Text("Master Tempo Control");
+    ImGui::Separator();
+
+    if (m_controller) {
+        // Sync UI state with controller state only when not actively editing
+        bool uiIsDragging = ImGui::IsAnyItemActive();
+        if (!uiIsDragging) {
+            m_masterTempoUI = m_controller->getMasterTempo();
+            m_masterTempoEnabledUI = m_controller->isMasterTempoEnabled();
+        }
+
+        // Tempo slider from 0.1x to 2.0x
+        if (ImGui::SliderFloat("Tempo", &m_masterTempoUI, 0.1f, 2.0f, "%.2fx")) {
+            m_controller->setMasterTempo(m_masterTempoUI);
+        }
+
+        // Tempo enable/disable checkbox
+        if (ImGui::Checkbox("Enable Tempo Stretching", &m_masterTempoEnabledUI)) {
+            m_controller->setMasterTempoEnabled(m_masterTempoEnabledUI);
+        }
+
+        // Show latency info
+        if (m_masterTempoEnabledUI) {
+            float latencyMs = m_controller->getMasterTempoLatencyMs();
+            ImGui::Text("Processing latency: %.1f ms", latencyMs);
+        }
+
+        ImGui::Separator();
+
+        // Help text
+        ImGui::TextWrapped("Tip: Enable tempo stretching and use the slider to change playback "
+                           "speed while maintaining pitch.");
+    }
+
+    ImGui::End();
+}
+
 void TesterView::UpdateActiveWindow() {
     // Update active window based on which window was focused during rendering
 
     if (m_mainWindowWasFocused) {
+        m_activeWindow = ActiveWindow::MAIN;
+    } else if (m_controlsWindowWasFocused) {
+        // For now, controls window acts like main window for keyboard shortcuts
         m_activeWindow = ActiveWindow::MAIN;
     }
 

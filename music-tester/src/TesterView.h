@@ -31,6 +31,7 @@ public:
 private:
     void cleanup();
     void RenderMainWindow();
+    void RenderControlsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
     void RenderTrackControls();
@@ -49,7 +50,8 @@ private:
     char m_dirInput[DIR_INPUT_SIZE] = "";
     ActiveWindow m_activeWindow = ActiveWindow::MAIN;
     bool m_mainWindowWasFocused = false;
-    bool m_secondaryWindowWasFocused = false; // Future: for secondary window support
+    bool m_controlsWindowWasFocused = false;
+    // bool m_secondaryWindowWasFocused = false; // Future: for secondary window support
 
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;
@@ -57,4 +59,8 @@ private:
     // SDL/OpenGL
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_glContext = nullptr;
+
+    // Local UI state for tempo control to avoid ImGui slider issues
+    float m_masterTempoUI = 1.0f;
+    bool m_masterTempoEnabledUI = false;
 };
