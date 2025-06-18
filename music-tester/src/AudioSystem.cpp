@@ -194,6 +194,13 @@ namespace AudioTester {
                         m_engine->get().setFilterParameter(
                             voiceHandle, static_cast<unsigned int>(instance.slot),
                             static_cast<unsigned int>(paramId), value);
+                    } else if (filterName == "freeverb") {
+                        // For Freeverb, apply ALL parameters immediately to force the Revmodel to
+                        // update This is needed because FreeverbFilterInstance constructor doesn't
+                        // apply parameters to Revmodel
+                        m_engine->get().setFilterParameter(
+                            voiceHandle, static_cast<unsigned int>(instance.slot),
+                            static_cast<unsigned int>(paramId), value);
                     } else {
                         // Use normal fade for other parameters
                         m_engine->get().fadeFilterParameter(
@@ -366,14 +373,10 @@ namespace AudioTester {
         } else if (filterName == "freeverb") {
             auto* f = dynamic_cast<SoLoud::FreeverbFilter*>(instance.filter.get());
             if (f) {
-                float p1 = instance.parameters[1].value; // Freeze
-                float p2 = instance.parameters[2].value; // Room size
-                float p3 = instance.parameters[3].value; // Damp
-                float p4 = instance.parameters[4].value; // Width
-                f->setParams(p1, p2, p3, p4);
-
-                // FreeverbFilter sets WET=1 in constructor, but our parameter system should
-                // override it The WET parameter will be applied through SoLoud's parameter system
+                // For Freeverb, don't call setParams() as it interferes with SoLoud's parameter
+                // system All parameters (including Freeze, Room Size, Damp, Width) are handled
+                // through SoLoud's parameter system via setFilterParameter/fadeFilterParameter The
+                // WET parameter is handled separately with immediate setting
             }
         }
     }
@@ -448,6 +451,12 @@ namespace AudioTester {
                          name == "flanger" || name == "bassboost") &&
                         paramId == 0) {
                         // Apply WET parameter immediately without fade for these filters
+                        m_engine->get().setFilterParameter(newHandle, filterSlot, paramId,
+                                                           param.value);
+                    } else if (name == "freeverb") {
+                        // For Freeverb, apply ALL parameters immediately to force the Revmodel to
+                        // update This is needed because FreeverbFilterInstance constructor doesn't
+                        // apply parameters to Revmodel
                         m_engine->get().setFilterParameter(newHandle, filterSlot, paramId,
                                                            param.value);
                     } else {
@@ -568,6 +577,11 @@ namespace AudioTester {
                     paramId == 0) {
                     // Apply WET parameter immediately without fade for these filters
                     m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId, value);
+                } else if (filterName == "freeverb") {
+                    // For Freeverb, apply ALL parameters immediately to force the Revmodel to
+                    // update This is needed because FreeverbFilterInstance constructor doesn't
+                    // apply parameters to Revmodel
+                    m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId, value);
                 } else {
                     // Use normal fade for other parameters
                     m_engine->get().fadeFilterParameter(m_busHandle, instance.slot, paramId, value,
@@ -626,6 +640,12 @@ namespace AudioTester {
                          name == "flanger" || name == "bassboost") &&
                         paramId == 0) {
                         // Apply WET parameter immediately without fade for these filters
+                        m_engine->get().setFilterParameter(m_busHandle, filterSlot, paramId,
+                                                           param.value);
+                    } else if (name == "freeverb") {
+                        // For Freeverb, apply ALL parameters immediately to force the Revmodel to
+                        // update This is needed because FreeverbFilterInstance constructor doesn't
+                        // apply parameters to Revmodel
                         m_engine->get().setFilterParameter(m_busHandle, filterSlot, paramId,
                                                            param.value);
                     } else {
