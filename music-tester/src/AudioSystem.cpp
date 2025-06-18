@@ -43,22 +43,11 @@ namespace AudioTester {
 
         m_masterBus = std::make_unique<AudioBus>(m_engine->get(), m_busVolume);
 
-        // Create and initialize the granular tempo filter
-        m_granularFilter = std::make_unique<GranularTempoFilter>();
-
         // Play the bus once and store the handle
         m_busHandle = m_engine->get().play(m_masterBus->get());
         m_engine->get().setVolume(m_busHandle, m_busVolume);
 
-        // Apply the granular filter to the master bus
-        // This ensures granular processing happens after playback speed changes
-        m_masterBus->get().setFilter(0, m_granularFilter.get());
-
-        // Initialize granular filter with default parameters
-        if (m_busHandle) {
-            m_engine->get().setFilterParameter(m_busHandle, 0, GranularTempoFilter::TEMPO, 1.0f);
-            m_engine->get().setFilterParameter(m_busHandle, 0, GranularTempoFilter::ENABLED, 0.0f);
-        }
+        // Master bus is ready
 
         m_isInitialized = true;
         return true;
@@ -173,47 +162,6 @@ namespace AudioTester {
 
         // Store the rate for future tracks
         m_globalPlaybackRate = rate;
-    }
-
-    void AudioSystem::setGranularTempo(float tempo) {
-        if (m_granularFilter) {
-            std::cout << "Setting granular tempo to: " << tempo << std::endl;
-            m_granularFilter->setTempo(tempo);
-            // Update the SoLoud filter parameter system - this is how FilterInstance gets the
-            // values
-            if (m_busHandle && m_isInitialized) {
-                m_engine->get().setFilterParameter(m_busHandle, 0, GranularTempoFilter::TEMPO,
-                                                   tempo);
-            }
-        }
-    }
-
-    float AudioSystem::getGranularTempo() const {
-        if (m_granularFilter) {
-            return m_granularFilter->getTempo();
-        }
-        return 1.0f;
-    }
-
-    void AudioSystem::setGranularTempoEnabled(bool enabled) {
-        if (m_granularFilter) {
-            std::cout << "Setting granular enabled to: " << (enabled ? "true" : "false")
-                      << std::endl;
-            m_granularFilter->setEnabled(enabled);
-            // Update the SoLoud filter parameter system - this is how FilterInstance gets the
-            // values
-            if (m_busHandle && m_isInitialized) {
-                m_engine->get().setFilterParameter(m_busHandle, 0, GranularTempoFilter::ENABLED,
-                                                   enabled ? 1.0f : 0.0f);
-            }
-        }
-    }
-
-    bool AudioSystem::isGranularTempoEnabled() const {
-        if (m_granularFilter) {
-            return m_granularFilter->isEnabled();
-        }
-        return false;
     }
 
     void AudioSystem::addFilterToTrack(size_t trackIndex, const std::string& filterName) {

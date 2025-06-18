@@ -39,8 +39,6 @@ set(MUSIC_TESTER_SOURCES
     src/AudioSystem.cpp
     src/AudioController.cpp
     src/TesterView.cpp
-    src/MasterTempoProcessor.cpp
-    src/GranularTempoFilter.cpp
 )
 
 # Set up headers for music-tester
@@ -50,8 +48,6 @@ set(MUSIC_TESTER_HEADERS
     src/AudioController.h
     src/TesterView.h
     src/ErrorHandling.h
-    src/MasterTempoProcessor.h
-    src/GranularTempoFilter.h
 )
 
 # Add the executable target

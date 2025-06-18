@@ -62,7 +62,4 @@ private:
 
     // Local UI state for tempo control to avoid ImGui slider issues
     float m_masterTempoUI = 1.0f;
-
-    float m_granularTempoUI = 1.0f;
-    bool m_granularTempoEnabledUI = true;
 };

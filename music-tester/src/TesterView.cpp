@@ -12,9 +12,6 @@ TesterView::TesterView() {
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
-
-    m_granularTempoUI = 1.0f;
-    m_granularTempoEnabledUI = false;
 }
 
 TesterView::~TesterView() { cleanup(); }
@@ -352,13 +349,10 @@ void TesterView::RenderControlsWindow() {
         bool uiIsDragging = ImGui::IsAnyItemActive();
         if (!uiIsDragging) {
             m_masterTempoUI = m_controller->getMasterTempo();
-
-            m_granularTempoUI = m_controller->getGranularTempo();
-            m_granularTempoEnabledUI = m_controller->isGranularTempoEnabled();
         }
 
         // Playback Speed slider (tape-style, affects pitch)
-        if (ImGui::SliderFloat("Playback Speed", &m_masterTempoUI, 0.1f, 2.0f, "%.2fx")) {
+        if (ImGui::SliderFloat("Playback Speed", &m_masterTempoUI, 0.1f, 4.0f, "%.2fx")) {
             m_controller->setMasterTempo(m_masterTempoUI);
         }
         ImGui::SameLine();
@@ -367,32 +361,12 @@ void TesterView::RenderControlsWindow() {
             ImGui::SetTooltip("Tape-style speed change (affects pitch)");
         }
 
-        // Granular Tempo slider (pitch-preserving)
-        if (ImGui::SliderFloat("Granular Tempo", &m_granularTempoUI, 0.1f, 2.0f, "%.2fx")) {
-            m_controller->setGranularTempo(m_granularTempoUI);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Pitch-preserving tempo stretch using granular synthesis");
-        }
-
-        // Enable checkbox for granular tempo
-        if (ImGui::Checkbox("Enable Granular Tempo", &m_granularTempoEnabledUI)) {
-            m_controller->setGranularTempoEnabled(m_granularTempoEnabledUI);
-        }
-
-        // Show latency info when granular is enabled
-        if (m_granularTempoEnabledUI) {
-            float latencyMs = m_controller->getMasterTempoLatencyMs();
-            ImGui::Text("Granular latency: %.1f ms", latencyMs);
-        }
-
         ImGui::Separator();
 
         // Help text
         ImGui::TextWrapped("Playback Speed: Classic tape-style speed control (changes pitch).\n"
-                           "Granular Tempo: High-quality pitch-preserving time stretching.");
+                           "Future: Granular pitch-preserving tempo and pitch shifting will be "
+                           "implemented outside SoLoud's filter system.");
     }
 
     ImGui::End();

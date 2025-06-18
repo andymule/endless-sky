@@ -1,6 +1,5 @@
 #pragma once
 
-#include "GranularTempoFilter.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
@@ -156,12 +155,6 @@ namespace AudioTester {
         // Tempo/playback rate control
         void setGlobalPlaybackRate(float rate);
 
-        // Granular tempo control (pitch-preserving)
-        void setGranularTempo(float tempo);
-        float getGranularTempo() const;
-        void setGranularTempoEnabled(bool enabled);
-        bool isGranularTempoEnabled() const;
-
         // Filter management
         void addFilterToTrack(size_t trackIndex, const std::string& filterName);
         void removeFilterFromTrack(size_t trackIndex, const std::string& filterName);
@@ -202,7 +195,6 @@ namespace AudioTester {
         std::vector<TrackInfo> m_tracks;
         std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;
-        std::unique_ptr<GranularTempoFilter> m_granularFilter;
         float m_busVolume = 1.0f;
         float m_globalPlaybackRate = 1.0f;
         bool m_isInitialized = false;
