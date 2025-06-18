@@ -20,6 +20,14 @@ public:
     // Set the controller (dependency injection)
     void SetController(AudioTester::AudioController* controller) { m_controller = controller; }
 
+    // Window management for multi-window support
+    enum class ActiveWindow { MAIN = 0, SECONDARY = 1 };
+    void SetActiveWindow(ActiveWindow window) { m_activeWindow = window; }
+    ActiveWindow GetActiveWindow() const { return m_activeWindow; }
+
+    // Window focus tracking
+    void UpdateActiveWindow();
+
 private:
     void cleanup();
     void RenderMainWindow();
@@ -29,6 +37,9 @@ private:
     void RenderBusControls();
     void drawFilterControls(size_t trackIndex);
 
+    // Input handling helpers
+    void handleNumberKeyPress(int keyNumber);
+
     // Constants
     static constexpr size_t DIR_INPUT_SIZE = 256;
 
@@ -36,6 +47,9 @@ private:
     bool m_isRunning = true;
     std::string m_musicDir;
     char m_dirInput[DIR_INPUT_SIZE] = "";
+    ActiveWindow m_activeWindow = ActiveWindow::MAIN;
+    bool m_mainWindowWasFocused = false;
+    bool m_secondaryWindowWasFocused = false; // Future: for secondary window support
 
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;

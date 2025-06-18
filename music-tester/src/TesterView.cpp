@@ -45,10 +45,26 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
 void TesterView::ProcessEvents(const SDL_Event& event) {
     ImGui_ImplSDL2_ProcessEvent(&event);
 
-    // Handle spacebar for play/pause
-    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
-        if (m_controller) {
-            m_controller->toggleGlobalPlayback();
+    // Handle keyboard shortcuts
+    ImGuiIO& io = ImGui::GetIO();
+    if (event.type == SDL_KEYDOWN) {
+        // Allow our shortcuts to work unless we're actively typing in a text input
+        bool allowShortcuts = !io.WantTextInput;
+
+        if (allowShortcuts) {
+            // Handle spacebar for play/pause
+            if (event.key.keysym.sym == SDLK_SPACE) {
+                if (m_controller) {
+                    m_controller->toggleGlobalPlayback();
+                }
+            }
+            // Handle number keys 1-9, 0 for track toggling
+            else if (event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym <= SDLK_9) {
+                int keyNumber = event.key.keysym.sym - SDLK_1 + 1; // Convert to 1-9
+                handleNumberKeyPress(keyNumber);
+            } else if (event.key.keysym.sym == SDLK_0) {
+                handleNumberKeyPress(0);
+            }
         }
     }
 
@@ -72,6 +88,9 @@ void TesterView::Render() {
 
     RenderMainWindow();
 
+    // Update which window is currently active/focused
+    UpdateActiveWindow();
+
     // Rendering
     ImGui::Render();
     glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
@@ -84,6 +103,9 @@ void TesterView::Render() {
 void TesterView::RenderMainWindow() {
     ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
     ImGui::Begin("Music Tester");
+
+    // Track if this window is focused for keyboard input routing
+    m_mainWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
     RenderDirectoryInput();
     ImGui::Separator();
@@ -114,6 +136,17 @@ void TesterView::RenderGlobalControls() {
     if (ImGui::Button(state.globalPlaying ? "Stop" : "Play")) {
         m_controller->toggleGlobalPlayback();
     }
+
+    // Add keyboard shortcuts help
+    ImGui::Separator();
+    ImGui::Text("Keyboard Shortcuts:");
+    ImGui::Text("  Space: Toggle Play/Pause");
+    ImGui::Text("  1-9:   Toggle tracks 1-9 (active window)");
+    ImGui::Text("  0:     Toggle track 10 (active window)");
+
+    // Show which window is currently active for number keys
+    const char* activeWindowName = (m_activeWindow == ActiveWindow::MAIN) ? "Main" : "Secondary";
+    ImGui::Text("Active window: %s", activeWindowName);
 }
 
 void TesterView::RenderTrackControls() {
@@ -130,7 +163,10 @@ void TesterView::RenderTrackControls() {
             m_controller->setTrackActive(i, active);
         }
         ImGui::SameLine();
-        ImGui::Text("%s", track.name.c_str());
+
+        // Show keyboard shortcut for track
+        std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
+        ImGui::Text("[%s] %s", keyText.c_str(), track.name.c_str());
 
         // Volume slider
         float volume = track.volume;
@@ -138,8 +174,11 @@ void TesterView::RenderTrackControls() {
             m_controller->setTrackVolume(i, volume);
         }
 
-        // Filter controls
-        drawFilterControls(i);
+        // Collapsible filter controls (start collapsed)
+        if (ImGui::TreeNodeEx("Effects", ImGuiTreeNodeFlags_None)) {
+            drawFilterControls(i);
+            ImGui::TreePop();
+        }
 
         ImGui::PopID();
         ImGui::Separator();
@@ -275,6 +314,64 @@ void TesterView::RenderBusControls() {
     }
 
     ImGui::End();
+}
+
+void TesterView::UpdateActiveWindow() {
+    // Update active window based on which window was focused during rendering
+
+    if (m_mainWindowWasFocused) {
+        m_activeWindow = ActiveWindow::MAIN;
+    }
+
+    // Future: When secondary window is implemented
+    // if (m_secondaryWindowWasFocused) {
+    //     m_activeWindow = ActiveWindow::SECONDARY;
+    // }
+
+    // If no window is focused, keep the current active window
+    // This ensures number keys continue to work on the last focused window
+    // even when the user isn't actively clicking in windows
+}
+
+void TesterView::handleNumberKeyPress(int keyNumber) {
+    if (!m_controller) {
+        return;
+    }
+
+    // Always operate on the main window's tracks for now
+    // When secondary window is implemented, this will route based on m_activeWindow
+    const auto& state = m_controller->getState();
+    size_t trackCount = state.getTrackCount();
+
+    // Map number keys to track indices
+    // 1-9 maps to tracks 0-8, 0 maps to track 9
+    size_t trackIndex;
+    if (keyNumber >= 1 && keyNumber <= 9) {
+        trackIndex = keyNumber - 1; // 1->0, 2->1, ..., 9->8
+    } else if (keyNumber == 0) {
+        trackIndex = 9; // 0->9
+    } else {
+        return; // Invalid key
+    }
+
+    // Only toggle if the track exists
+    if (trackIndex < trackCount) {
+        // Route to appropriate window's tracks based on active window
+        switch (m_activeWindow) {
+            case ActiveWindow::MAIN:
+                // Main window tracks (current implementation)
+                {
+                    const auto& track = state.getTrack(trackIndex);
+                    m_controller->setTrackActive(trackIndex, !track.active);
+                }
+                break;
+
+            case ActiveWindow::SECONDARY:
+                // Future: Secondary window tracks
+                // Would operate on a different track set or different controller instance
+                break;
+        }
+    }
 }
 
 void TesterView::cleanup() {
