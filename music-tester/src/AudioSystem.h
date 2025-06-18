@@ -63,11 +63,14 @@ namespace AudioTester {
         float m_volume;
     };
 
+    enum class ParameterType { FLOAT, INT, BOOL };
+
     struct FilterParameter {
         float value;
         float min;
         float max;
         std::string name;
+        ParameterType type = ParameterType::FLOAT;
     };
 
     struct FilterInstance {

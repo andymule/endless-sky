@@ -243,49 +243,55 @@ namespace AudioTester {
             // Initialize parameters with their ranges based on filter type
             if (filterName == "biquad") {
                 // WET, Type, Frequency, Resonance
-                instance.parameters[0] = {1.0f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {0.0f, 0.0f, 2.0f, "Filter Type"};
-                instance.parameters[2] = {1000.0f, 20.0f, 8000.0f, "Frequency (Hz)"};
-                instance.parameters[3] = {2.0f, 0.1f, 10.0f, "Resonance"};
+                instance.parameters[0] = {1.0f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {0.0f, 0.0f, 2.0f, "Filter Type", ParameterType::INT};
+                instance.parameters[2] = {1000.0f, 20.0f, 8000.0f, "Frequency (Hz)",
+                                          ParameterType::FLOAT};
+                instance.parameters[3] = {2.0f, 0.1f, 10.0f, "Resonance", ParameterType::FLOAT};
             } else if (filterName == "echo") {
                 // WET, Delay, Decay, Filter
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {0.3f, MIN_DELAY, 1.0f, "Delay (s)"};
-                instance.parameters[2] = {0.7f, MIN_DECAY, 1.0f, "Decay"};
-                instance.parameters[3] = {0.0f, 0.0f, MAX_FILTER_VALUE, "Filter"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {0.3f, MIN_DELAY, 1.0f, "Delay (s)", ParameterType::FLOAT};
+                instance.parameters[2] = {0.7f, MIN_DECAY, 1.0f, "Decay", ParameterType::FLOAT};
+                instance.parameters[3] = {0.0f, 0.0f, MAX_FILTER_VALUE, "Filter",
+                                          ParameterType::FLOAT};
             } else if (filterName == "lofi") {
                 // WET, Sample rate, Bit depth
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {4000.0f, 100.0f, 22000.0f, "Sample Rate (Hz)"};
-                instance.parameters[2] = {3.0f, 0.5f, 16.0f, "Bit Depth"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {4000.0f, 100.0f, 22000.0f, "Sample Rate (Hz)",
+                                          ParameterType::FLOAT};
+                instance.parameters[2] = {3.0f, 0.5f, 16.0f, "Bit Depth", ParameterType::FLOAT};
             } else if (filterName == "flanger") {
                 // WET, Delay, Freq
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {0.005f, 0.001f, 0.1f, "Delay (s)"};
-                instance.parameters[2] = {10.0f, 0.1f, 100.0f, "Frequency (Hz)"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {0.005f, 0.001f, 0.1f, "Delay (s)", ParameterType::FLOAT};
+                instance.parameters[2] = {10.0f, 0.1f, 100.0f, "Frequency (Hz)",
+                                          ParameterType::FLOAT};
             } else if (filterName == "dcremoval") {
                 // Only one parameter: Length (in seconds) - no WET parameter for this filter
-                instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length (s)"};
+                instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length (s)", ParameterType::FLOAT};
             } else if (filterName == "bassboost") {
                 // WET, Boost
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {2.0f, 0.0f, 10.0f, "Boost"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {2.0f, 0.0f, 10.0f, "Boost", ParameterType::FLOAT};
             } else if (filterName == "waveshaper") {
                 // WET, Amount
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {0.5f, -1.0f, 1.0f, "Distortion"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {0.5f, -1.0f, 1.0f, "Distortion", ParameterType::FLOAT};
             } else if (filterName == "robotize") {
                 // WET, Frequency, Waveform
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {30.0f, MIN_FREQUENCY, MAX_FREQUENCY, "Frequency (Hz)"};
-                instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
+                instance.parameters[1] = {30.0f, MIN_FREQUENCY, MAX_FREQUENCY, "Frequency (Hz)",
+                                          ParameterType::FLOAT};
+                instance.parameters[2] = {0.0f, 0.0f, 6.0f, "Waveform", ParameterType::INT};
             } else if (filterName == "freeverb") {
                 // WET, Freeze, Room size, Damp, Width
-                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"}; // Restored to 0.5
-                instance.parameters[1] = {0.0f, 0.0f, 1.0f, "Freeze"};
-                instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Room Size"};
-                instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Damping"};
-                instance.parameters[4] = {0.5f, 0.0f, 1.0f, "Width"};
+                instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix",
+                                          ParameterType::FLOAT}; // Restored to 0.5
+                instance.parameters[1] = {0.0f, 0.0f, 1.0f, "Freeze", ParameterType::INT};
+                instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Room Size", ParameterType::FLOAT};
+                instance.parameters[3] = {0.5f, 0.0f, 1.0f, "Damping", ParameterType::FLOAT};
+                instance.parameters[4] = {0.5f, 0.0f, 1.0f, "Width", ParameterType::FLOAT};
             }
 
             // Apply initial parameters

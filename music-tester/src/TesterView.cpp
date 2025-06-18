@@ -154,8 +154,39 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                 ImGui::PushID((filterName + std::to_string(trackIndex)).c_str());
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
-                    // Use parameter name as label, the unique ID is handled by PushID
-                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
+                    bool changed = false;
+
+                    // Use appropriate control based on parameter type
+                    switch (param.type) {
+                        case AudioTester::ParameterType::BOOL: {
+                            bool boolValue = value > 0.5f;
+                            if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
+                                value = boolValue ? 1.0f : 0.0f;
+                                changed = true;
+                            }
+                            break;
+                        }
+                        case AudioTester::ParameterType::INT: {
+                            int intValue = static_cast<int>(value);
+                            if (ImGui::SliderInt(param.name.c_str(), &intValue,
+                                                 static_cast<int>(param.min),
+                                                 static_cast<int>(param.max))) {
+                                value = static_cast<float>(intValue);
+                                changed = true;
+                            }
+                            break;
+                        }
+                        case AudioTester::ParameterType::FLOAT:
+                        default: {
+                            if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
+                                                   param.max)) {
+                                changed = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (changed) {
                         m_controller->setTrackFilterParameter(trackIndex, filterName, paramId,
                                                               value);
                     }
@@ -194,8 +225,39 @@ void TesterView::RenderBusControls() {
                 ImGui::PushID((filterName + "bus").c_str());
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
-                    // Use parameter name as label, the unique ID is handled by PushID
-                    if (ImGui::SliderFloat(param.name.c_str(), &value, param.min, param.max)) {
+                    bool changed = false;
+
+                    // Use appropriate control based on parameter type
+                    switch (param.type) {
+                        case AudioTester::ParameterType::BOOL: {
+                            bool boolValue = value > 0.5f;
+                            if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
+                                value = boolValue ? 1.0f : 0.0f;
+                                changed = true;
+                            }
+                            break;
+                        }
+                        case AudioTester::ParameterType::INT: {
+                            int intValue = static_cast<int>(value);
+                            if (ImGui::SliderInt(param.name.c_str(), &intValue,
+                                                 static_cast<int>(param.min),
+                                                 static_cast<int>(param.max))) {
+                                value = static_cast<float>(intValue);
+                                changed = true;
+                            }
+                            break;
+                        }
+                        case AudioTester::ParameterType::FLOAT:
+                        default: {
+                            if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
+                                                   param.max)) {
+                                changed = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (changed) {
                         m_controller->setBusFilterParameter(filterName, paramId, value);
                     }
                 }
