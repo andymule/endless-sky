@@ -165,14 +165,15 @@ namespace AudioTester {
 
     // Master tempo controls (tape-style playback speed)
     void AudioController::setMasterTempo(float tempo) {
+        // Store the tempo value for UI synchronization
+        m_currentTempo = tempo;
         // Direct playback rate control - affects both tempo and pitch (tape-style)
         m_audioSystem.setGlobalPlaybackRate(tempo);
     }
 
     float AudioController::getMasterTempo() const {
-        // For now, we don't store the tempo value separately
-        // The working playback speed control is directly applied to SoLoud
-        return 1.0f; // TODO: Store and return actual tempo value
+        // Return the stored tempo value
+        return m_currentTempo;
     }
 
 } // namespace AudioTester

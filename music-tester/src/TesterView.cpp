@@ -352,7 +352,7 @@ void TesterView::RenderControlsWindow() {
         }
 
         // Playback Speed slider (tape-style, affects pitch)
-        if (ImGui::SliderFloat("Playback Speed", &m_masterTempoUI, 0.1f, 4.0f, "%.2fx")) {
+        if (ImGui::SliderFloat("Tape Speed", &m_masterTempoUI, 0.1f, 4.0f, "%.2fx")) {
             m_controller->setMasterTempo(m_masterTempoUI);
         }
         ImGui::SameLine();
@@ -364,7 +364,7 @@ void TesterView::RenderControlsWindow() {
         ImGui::Separator();
 
         // Help text
-        ImGui::TextWrapped("Playback Speed: Classic tape-style speed control (changes pitch).\n"
+        ImGui::TextWrapped("Tape Speed: Classic tape-style speed control (changes pitch).\n"
                            "Future: Granular pitch-preserving tempo and pitch shifting will be "
                            "implemented outside SoLoud's filter system.");
     }

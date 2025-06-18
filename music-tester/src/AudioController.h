@@ -73,6 +73,9 @@ namespace AudioTester {
         AudioSystem m_audioSystem;
         std::string m_currentDirectory;
         bool m_isInitialized = false;
+
+        // Store current tempo value for UI synchronization
+        float m_currentTempo = 1.0f;
     };
 
 } // namespace AudioTester
