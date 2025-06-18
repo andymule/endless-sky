@@ -183,9 +183,11 @@ namespace AudioTester {
                 if (voiceIt != m_trackHandles.end() && instance.slot >= 0) {
                     SoLoud::handle voiceHandle = voiceIt->second;
 
-                    // For problematic filters (freeverb, robotize), use immediate parameter setting
-                    // for WET parameter to override the broken initialization in SoLoud
-                    if ((filterName == "freeverb" || filterName == "robotize") && paramId == 0) {
+                    // For problematic filters (freeverb, robotize, lofi), use immediate parameter
+                    // setting for WET parameter to override the broken initialization in SoLoud
+                    if ((filterName == "freeverb" || filterName == "robotize" ||
+                         filterName == "lofi") &&
+                        paramId == 0) {
                         // Apply WET parameter immediately without fade for these filters
                         m_engine->get().setFilterParameter(
                             voiceHandle, static_cast<unsigned int>(instance.slot),
@@ -245,8 +247,8 @@ namespace AudioTester {
             } else if (filterName == "lofi") {
                 // WET, Sample rate, Bit depth
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
-                instance.parameters[1] = {0.5f, 0.0f, 1.0f, "Sample Rate"};
-                instance.parameters[2] = {0.5f, 0.0f, 1.0f, "Bit Depth"};
+                instance.parameters[1] = {4000.0f, 100.0f, 22000.0f, "Sample Rate (Hz)"};
+                instance.parameters[2] = {3.0f, 0.5f, 16.0f, "Bit Depth"};
             } else if (filterName == "flanger") {
                 // WET, Delay, Freq
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix"};
@@ -313,7 +315,10 @@ namespace AudioTester {
             if (f) {
                 float p1 = instance.parameters[1].value; // Sample rate
                 float p2 = instance.parameters[2].value; // Bit depth
-                f->setParams(p1, p2);
+                // Clamp to valid ranges for Lofi filter
+                float sampleRate = std::clamp(p1, 100.0f, 22000.0f);
+                float bitDepth = std::clamp(p2, 0.5f, 16.0f);
+                f->setParams(sampleRate, bitDepth);
             }
         } else if (filterName == "flanger") {
             auto* f = dynamic_cast<SoLoud::FlangerFilter*>(instance.filter.get());
@@ -433,9 +438,10 @@ namespace AudioTester {
             if (instance.enabled && instance.filter && filterSlot < 8) {
                 // Apply all parameters for this filter, including WET parameter
                 for (const auto& [paramId, param] : instance.parameters) {
-                    // For problematic filters (freeverb, robotize), ensure WET parameter is applied
-                    // immediately
-                    if ((name == "freeverb" || name == "robotize") && paramId == 0) {
+                    // For problematic filters (freeverb, robotize, lofi), ensure WET parameter is
+                    // applied immediately
+                    if ((name == "freeverb" || name == "robotize" || name == "lofi") &&
+                        paramId == 0) {
                         // Apply WET parameter immediately without fade for these filters
                         m_engine->get().setFilterParameter(newHandle, filterSlot, paramId,
                                                            param.value);
@@ -549,9 +555,11 @@ namespace AudioTester {
 
             // If bus is playing, apply the parameter change to the voice
             if (m_busHandle) {
-                // For problematic filters (freeverb, robotize), use immediate parameter setting
-                // for WET parameter to override the broken initialization in SoLoud
-                if ((filterName == "freeverb" || filterName == "robotize") && paramId == 0) {
+                // For problematic filters (freeverb, robotize, lofi), use immediate parameter
+                // setting for WET parameter to override the broken initialization in SoLoud
+                if ((filterName == "freeverb" || filterName == "robotize" ||
+                     filterName == "lofi") &&
+                    paramId == 0) {
                     // Apply WET parameter immediately without fade for these filters
                     m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId, value);
                 } else {
@@ -605,9 +613,10 @@ namespace AudioTester {
 
                 // Apply parameters to the bus voice with a small delay to ensure bus is ready
                 for (const auto& [paramId, param] : instance.parameters) {
-                    // For problematic filters (freeverb, robotize), ensure WET parameter is applied
-                    // immediately to override the broken initialization in SoLoud
-                    if ((name == "freeverb" || name == "robotize") && paramId == 0) {
+                    // For problematic filters (freeverb, robotize, lofi), ensure WET parameter is
+                    // applied immediately to override the broken initialization in SoLoud
+                    if ((name == "freeverb" || name == "robotize" || name == "lofi") &&
+                        paramId == 0) {
                         // Apply WET parameter immediately without fade for these filters
                         m_engine->get().setFilterParameter(m_busHandle, filterSlot, paramId,
                                                            param.value);
