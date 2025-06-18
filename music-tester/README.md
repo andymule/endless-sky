@@ -32,7 +32,7 @@ This utility allows music designers to:
 ## System Requirements
 
 - macOS (the build script is optimized for macOS)
-- CMake 3.19 or higher
+- CMake 3.24 or higher (required by Signalsmith libraries)
 - C++20 compatible compiler
 - Ninja build system (optional but recommended)
 - Other dependencies (SDL2, OpenGL, etc.) are handled by the build script
@@ -138,9 +138,11 @@ src/
 ├── AudioState.h          # Application state structures
 └── ErrorHandling.h       # Error handling utilities
 
-third-party/
-├── signalsmith-stretch/  # Tempo stretching library
-└── signalsmith-linear/   # Linear algebra for audio processing
+Dependencies (managed by CMake FetchContent):
+├── ImGui                 # Immediate mode GUI framework
+├── SoLoud                # Audio engine
+├── Signalsmith Stretch   # Real-time tempo stretching
+└── Signalsmith Linear    # Linear algebra for audio processing
 ```
 
 ## Troubleshooting

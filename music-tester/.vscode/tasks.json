@@ -27,7 +27,7 @@
         {
             "label": "Build Music Tester (Debug)",
             "type": "shell",
-            "command": "cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && ninja",
+            "command": "mkdir -p build && cd build && /opt/homebrew/bin/cmake .. -DCMAKE_BUILD_TYPE=Debug -G Ninja && ninja",
             "group": "build",
             "presentation": {
                 "reveal": "always",
@@ -59,7 +59,7 @@
         {
             "label": "Quick Build (Ninja Only)",
             "type": "shell",
-            "command": "cd build && ninja",
+            "command": "mkdir -p build && cd build && ninja",
             "group": "build",
             "presentation": {
                 "reveal": "silent",

@@ -198,10 +198,16 @@ if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$CL
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     )
     
+    # Use explicit CMake path to ensure correct version (CMake 3.24+ required)
+    CMAKE_BIN="/opt/homebrew/bin/cmake"
+    if [ ! -x "$CMAKE_BIN" ]; then
+        CMAKE_BIN="cmake"  # fallback to system cmake
+    fi
+    
     if [ "$NINJA_AVAILABLE" = true ]; then
-        cmake .. -G Ninja "${CMAKE_ARGS[@]}"
+        "$CMAKE_BIN" .. -G Ninja "${CMAKE_ARGS[@]}"
     else
-        cmake .. "${CMAKE_ARGS[@]}"
+        "$CMAKE_BIN" .. "${CMAKE_ARGS[@]}"
     fi
 else
     echo "CMake configuration already exists, skipping configuration step"

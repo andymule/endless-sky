@@ -12,6 +12,9 @@
                 "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
             },
             "stopOnEntry": false,
+            "initCommands": [
+                "settings set target.process.stop-on-sharedlibrary-events false"
+            ],
             "preLaunchTask": "Build Music Tester (Debug)"
         },
         {
@@ -25,6 +28,9 @@
                 "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
             },
             "stopOnEntry": false,
+            "initCommands": [
+                "settings set target.process.stop-on-sharedlibrary-events false"
+            ],
             "preLaunchTask": "Build Music Tester (Release)"
         },
         {

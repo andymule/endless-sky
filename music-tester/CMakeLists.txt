@@ -1,6 +1,6 @@
 add_definitions(-DWITH_SDL2_STATIC)
 
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.24)
 project(music-tester VERSION 0.1.0)
 
 # Generate compile_commands.json for better IntelliSense
@@ -74,6 +74,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(soloud)
 
+# Fetch Signalsmith Stretch
+FetchContent_Declare(
+    signalsmith-stretch
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(signalsmith-stretch)
+
+# Fetch Signalsmith Linear
+FetchContent_Declare(
+    signalsmith-linear
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-linear.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(signalsmith-linear)
+
 # Add ImGui sources
 set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -118,10 +134,16 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# Find SDL2
-find_package(SDL2 REQUIRED)
+# Find SDL2 - prefer pkg-config to avoid framework issues
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2)
+
+# If pkg-config fails, fall back to traditional find_package
 if(NOT SDL2_FOUND)
-    message(FATAL_ERROR "SDL2 not found.")
+    find_package(SDL2 REQUIRED)
+    if(NOT SDL2_FOUND)
+        message(FATAL_ERROR "SDL2 not found.")
+    endif()
 endif()
 
 # Find PNG
@@ -145,7 +167,8 @@ endif()
 # Include directories
 target_include_directories(music-tester PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/third-party/signalsmith-stretch
+    ${signalsmith-stretch_SOURCE_DIR}/include
+    ${signalsmith-linear_SOURCE_DIR}/include
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${soloud_SOURCE_DIR}/include
@@ -180,6 +203,12 @@ target_link_libraries(music-tester PRIVATE
     ${JPEG_LIBRARIES}
     ${OPENAL_LIBRARY}
 )
+
+# Add SDL2 library directories and link flags from pkg-config
+if(SDL2_FOUND AND SDL2_LINK_LIBRARIES)
+    target_link_directories(music-tester PRIVATE ${SDL2_LIBRARY_DIRS})
+    target_link_libraries(music-tester PRIVATE ${SDL2_LINK_LIBRARIES})
+endif()
 
 # Link with OpenGL library based on platform
 if(APPLE)

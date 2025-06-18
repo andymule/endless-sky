@@ -3,8 +3,8 @@
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/**",
         "${workspaceFolder}/src",
-        "${workspaceFolder}/third-party/signalsmith-stretch/include",
-        "${workspaceFolder}/third-party/signalsmith-linear/include",
+        "${workspaceFolder}/build/_deps/signalsmith-stretch-src/include",
+        "${workspaceFolder}/build/_deps/signalsmith-linear-src/include",
         "${workspaceFolder}/build/_deps/imgui-src",
         "${workspaceFolder}/build/_deps/imgui-src/backends",
         "${workspaceFolder}/build/_deps/soloud-src/include"
