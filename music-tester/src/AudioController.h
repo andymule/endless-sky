@@ -28,6 +28,12 @@ namespace AudioTester {
         void startPlayback();
         void stopPlayback();
 
+        // Synchronization
+        void updateSync(); // Call this regularly to maintain sync
+        double getMasterDuration() const;
+        double getGlobalTime() const;
+        bool isPlaying() const;
+
         // Track management
         void setTrackActive(size_t index, bool active);
         void setTrackVolume(size_t index, float volume);

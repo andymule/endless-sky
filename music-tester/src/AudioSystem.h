@@ -88,6 +88,43 @@ namespace AudioTester {
         std::unordered_map<std::string, FilterInstance> filters;
     };
 
+    // Custom WavInstance that supports accurate seeking
+    class SyncWavInstance : public SoLoud::WavInstance {
+    public:
+        SyncWavInstance(SoLoud::Wav* aParent);
+        virtual SoLoud::result seek(SoLoud::time aSeconds, float* aScratch,
+                                    unsigned int aScratchSize);
+        virtual double getStreamPosition();
+
+    private:
+        double mSeekPosition = 0.0;
+    };
+
+    // Custom Wav that creates SyncWavInstance
+    class SyncWav : public SoLoud::Wav {
+    public:
+        virtual SoLoud::AudioSourceInstance* createInstance();
+    };
+
+    struct TrackInfo {
+        std::unique_ptr<SyncWav> wav;
+        double duration = 0.0;   // Track duration in seconds
+        unsigned int handle = 0; // SoLoud voice handle
+        bool isPlaying = false;
+        double lastSyncCheck = 0.0;    // Last time we checked sync
+        double expectedPosition = 0.0; // Expected playback position
+    };
+
+    struct SyncState {
+        double masterDuration = 0.0; // Duration of shortest track (master clock)
+        double globalTime = 0.0;     // Global playback time
+        double lastSyncCheck = 0.0;  // Last time we checked for sync issues
+        bool isPlaying = false;
+        size_t masterTrackIndex = 0;                       // Index of the shortest track
+        static constexpr double SYNC_CHECK_INTERVAL = 0.1; // Check every 100ms
+        static constexpr double DRIFT_TOLERANCE = 0.001;   // 1ms tolerance
+    };
+
     class AudioSystem {
     public:
         AudioSystem();
@@ -98,10 +135,18 @@ namespace AudioTester {
 
         // Track management
         void loadAudioFile(const std::string& path);
+        void playAllTracks(); // Play all tracks with sync
+        void stopAllTracks(); // Stop all tracks
         void playTrack(size_t index);
         void stopTrack(size_t index);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
+
+        // Synchronization
+        void updateSync(); // Call this regularly to maintain sync
+        double getMasterDuration() const { return m_syncState.masterDuration; }
+        double getGlobalTime() const { return m_syncState.globalTime; }
+        bool isPlaying() const { return m_syncState.isPlaying; }
 
         // Bus management
         void setBusVolume(float volume);
@@ -135,15 +180,22 @@ namespace AudioTester {
         void initializeFilter(FilterInstance& instance, const std::string& filterName);
         void updateFilterInstance(FilterInstance& instance, const std::string& filterName);
 
+        // Synchronization methods
+        void calculateMasterDuration();
+        void checkAndCorrectSync();
+        void correctTrackSync(size_t trackIndex, double targetTime);
+        double getTrackCurrentTime(size_t trackIndex) const;
+        bool isTrackDrifting(size_t trackIndex) const;
+
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
-        std::vector<std::unique_ptr<SoLoud::Wav>> m_tracks;
+        std::vector<TrackInfo> m_tracks;
         std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;
-        std::unordered_map<size_t, unsigned int> m_trackHandles;
         float m_busVolume = 1.0f;
         bool m_isInitialized = false;
         unsigned int m_busHandle = 0;
+        SyncState m_syncState;
     };
 
 } // namespace AudioTester

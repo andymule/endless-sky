@@ -36,6 +36,18 @@ int main() {
         return 1;
     }
 
+    // Load and set window icon
+    SDL_Surface* iconSurface = SDL_LoadBMP("assets/icon.bmp");
+    if (iconSurface) {
+        SDL_SetWindowIcon(window, iconSurface);
+        SDL_FreeSurface(iconSurface);
+    } else {
+        // Try PNG format (requires SDL2_image)
+        std::cout
+            << "Note: No icon.bmp found. For PNG support, install SDL2_image and use SDL_image.h"
+            << std::endl;
+    }
+
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
         std::cerr << "Error creating OpenGL context: " << SDL_GetError() << std::endl;
@@ -70,6 +82,10 @@ int main() {
             if (event.type == SDL_QUIT)
                 view.SetRunning(false);
         }
+
+        // Update synchronization (call this regularly to prevent drift)
+        controller.updateSync();
+
         view.Render();
     }
 

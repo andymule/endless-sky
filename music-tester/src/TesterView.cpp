@@ -44,6 +44,14 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
 
 void TesterView::ProcessEvents(const SDL_Event& event) {
     ImGui_ImplSDL2_ProcessEvent(&event);
+
+    // Handle spacebar for play/pause
+    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
+        if (m_controller) {
+            m_controller->toggleGlobalPlayback();
+        }
+    }
+
     if (event.type == SDL_QUIT)
         m_isRunning = false;
     if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&

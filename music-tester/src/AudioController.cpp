@@ -78,17 +78,21 @@ namespace AudioTester {
     }
 
     void AudioController::startPlayback() {
-        m_state.setGlobalPlaying(true);
-        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            m_audioSystem.playTrack(i);
+        if (!m_isInitialized) {
+            return;
         }
+
+        m_audioSystem.playAllTracks(); // Use synchronized playback
+        m_state.setGlobalPlaying(true);
     }
 
     void AudioController::stopPlayback() {
-        m_state.setGlobalPlaying(false);
-        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            m_audioSystem.stopTrack(i);
+        if (!m_isInitialized) {
+            return;
         }
+
+        m_audioSystem.stopAllTracks(); // Use synchronized stop
+        m_state.setGlobalPlaying(false);
     }
 
     void AudioController::setTrackActive(size_t index, bool active) {
@@ -146,5 +150,17 @@ namespace AudioTester {
             syncTrackToAudioSystem(i);
         }
     }
+
+    void AudioController::updateSync() {
+        if (m_isInitialized) {
+            m_audioSystem.updateSync();
+        }
+    }
+
+    double AudioController::getMasterDuration() const { return m_audioSystem.getMasterDuration(); }
+
+    double AudioController::getGlobalTime() const { return m_audioSystem.getGlobalTime(); }
+
+    bool AudioController::isPlaying() const { return m_audioSystem.isPlaying(); }
 
 } // namespace AudioTester

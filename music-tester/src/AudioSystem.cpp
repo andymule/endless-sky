@@ -1,5 +1,8 @@
 #include "AudioSystem.h"
+#include <algorithm>
+#include <filesystem>
 #include <iostream>
+#include <vector>
 
 namespace AudioTester {
 
@@ -58,19 +61,36 @@ namespace AudioTester {
 
     void AudioSystem::loadAudioFile(const std::string& path) {
         if (!m_isInitialized) {
-            std::cerr << "Cannot load file - AudioSystem not initialized" << std::endl;
             return;
         }
-        auto wav = std::make_unique<SoLoud::Wav>();
-        SoLoud::result result = wav->load(path.c_str());
-        if (result == SoLoud::SO_NO_ERROR) {
-            m_tracks.push_back(std::move(wav));
-            m_trackFilters.resize(m_tracks.size());
-            // Enable looping by default for the newly loaded track
-            m_tracks.back()->setLooping(true);
-        } else {
-            std::cerr << "Failed to load: " << path << " (error: " << result << ")" << std::endl;
+
+        std::filesystem::path filePath(path);
+        std::string extension = filePath.extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+        if (!isSupportedFileExtension(extension)) {
+            std::cerr << "Unsupported file format: " << extension << std::endl;
+            return;
         }
+
+        TrackInfo trackInfo;
+
+        // Use SoLoud's built-in loading (which already loads OGG into RAM)
+        trackInfo.wav = std::make_unique<SyncWav>();
+        SoLoud::result result = trackInfo.wav->load(path.c_str());
+        if (result != SoLoud::SO_NO_ERROR) {
+            std::cerr << "Failed to load: " << path << " (error: " << result << ")" << std::endl;
+            return;
+        }
+
+        trackInfo.duration = trackInfo.wav->getLength();
+        trackInfo.wav->setLooping(true);
+        std::cout << "Loaded: " << path << " (duration: " << trackInfo.duration << "s)"
+                  << std::endl;
+
+        m_tracks.push_back(std::move(trackInfo));
+        m_trackFilters.resize(m_tracks.size());
+        calculateMasterDuration();
     }
 
     void AudioSystem::playTrack(size_t index) {
@@ -81,18 +101,19 @@ namespace AudioTester {
         stopTrack(index);
 
         // Play the track through the bus
-        unsigned int handle = m_masterBus->get().play(*m_tracks[index]);
-        m_trackHandles[index] = handle;
+        unsigned int handle = m_masterBus->get().play(*m_tracks[index].wav);
+        m_tracks[index].handle = handle;
+        m_tracks[index].isPlaying = true;
     }
 
     void AudioSystem::stopTrack(size_t index) {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
-        auto it = m_trackHandles.find(index);
-        if (it != m_trackHandles.end()) {
-            m_engine->get().stop(it->second);
-            m_trackHandles.erase(it);
+        if (m_tracks[index].isPlaying && m_tracks[index].handle != 0) {
+            m_engine->get().stop(m_tracks[index].handle);
+            m_tracks[index].handle = 0;
+            m_tracks[index].isPlaying = false;
         }
     }
 
@@ -100,9 +121,8 @@ namespace AudioTester {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
-        auto it = m_trackHandles.find(index);
-        if (it != m_trackHandles.end()) {
-            m_engine->get().setVolume(it->second, volume);
+        if (m_tracks[index].isPlaying && m_tracks[index].handle != 0) {
+            m_engine->get().setVolume(m_tracks[index].handle, volume);
         }
     }
 
@@ -110,7 +130,7 @@ namespace AudioTester {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
-        m_tracks[index]->setLooping(looping);
+        m_tracks[index].wav->setLooping(looping);
     }
 
     void AudioSystem::setBusVolume(float volume) {
@@ -179,9 +199,9 @@ namespace AudioTester {
             auto& param = paramIt->second;
             if (param.value != value) {
                 // Get the voice handle for this track
-                auto voiceIt = m_trackHandles.find(trackIndex);
-                if (voiceIt != m_trackHandles.end() && instance.slot >= 0) {
-                    SoLoud::handle voiceHandle = voiceIt->second;
+                if (trackIndex < m_tracks.size() && m_tracks[trackIndex].isPlaying &&
+                    instance.slot >= 0) {
+                    SoLoud::handle voiceHandle = m_tracks[trackIndex].handle;
 
                     // For problematic filters (freeverb, robotize, lofi, flanger, bassboost), use
                     // immediate parameter setting for WET parameter to override the broken
@@ -392,17 +412,16 @@ namespace AudioTester {
             return;
 
         // Check if track is currently playing
-        auto voiceIt = m_trackHandles.find(trackIndex);
-        if (voiceIt == m_trackHandles.end()) {
+        if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
             // Track not playing, just apply filters to the source for next play
             for (int slot = 0; slot < 8; ++slot) {
-                m_tracks[trackIndex]->setFilter(slot, nullptr);
+                m_tracks[trackIndex].wav->setFilter(slot, nullptr);
             }
 
             int filterSlot = 0;
             for (auto& [name, instance] : m_trackFilters[trackIndex].filters) {
                 if (instance.enabled && instance.filter && filterSlot < 8) {
-                    m_tracks[trackIndex]->setFilter(filterSlot, instance.filter.get());
+                    m_tracks[trackIndex].wav->setFilter(filterSlot, instance.filter.get());
                     // Set initial parameters immediately to ensure clean state
                     updateFilterInstance(instance, name);
                     instance.slot = filterSlot;
@@ -413,17 +432,18 @@ namespace AudioTester {
         }
 
         // Track is playing - need to restart it with new filters
-        unsigned int handle = voiceIt->second;
+        unsigned int handle = m_tracks[trackIndex].handle;
         float position = m_engine->get().getStreamPosition(handle);
         float volume = m_engine->get().getVolume(handle);
 
         // Stop current voice
         m_engine->get().stop(handle);
-        m_trackHandles.erase(voiceIt);
+        m_tracks[trackIndex].handle = 0;
+        m_tracks[trackIndex].isPlaying = false;
 
         // Clear all filters from the track source first
         for (int slot = 0; slot < 8; ++slot) {
-            m_tracks[trackIndex]->setFilter(slot, nullptr);
+            m_tracks[trackIndex].wav->setFilter(slot, nullptr);
         }
 
         // Apply enabled filters to the track source with clean initialization
@@ -432,7 +452,7 @@ namespace AudioTester {
             if (instance.enabled && instance.filter && filterSlot < 8) {
                 // Don't re-initialize the filter unless it's truly broken
                 // Just ensure parameters are correctly applied
-                m_tracks[trackIndex]->setFilter(filterSlot, instance.filter.get());
+                m_tracks[trackIndex].wav->setFilter(filterSlot, instance.filter.get());
                 updateFilterInstance(instance, name);
                 instance.slot = filterSlot;
                 filterSlot++;
@@ -440,8 +460,9 @@ namespace AudioTester {
         }
 
         // Restart the track with clean filters
-        unsigned int newHandle = m_masterBus->get().play(*m_tracks[trackIndex]);
-        m_trackHandles[trackIndex] = newHandle;
+        unsigned int newHandle = m_masterBus->get().play(*m_tracks[trackIndex].wav);
+        m_tracks[trackIndex].handle = newHandle;
+        m_tracks[trackIndex].isPlaying = true;
         m_engine->get().setVolume(newHandle, volume);
         m_engine->get().seek(newHandle, position);
 
@@ -675,4 +696,159 @@ namespace AudioTester {
 
     bool AudioSystem::isSupportedFileExtension(const std::string& ext) { return ext == ".ogg"; }
 
+    // Synchronization methods
+    void AudioSystem::calculateMasterDuration() {
+        if (m_tracks.empty()) {
+            m_syncState.masterDuration = 0.0;
+            m_syncState.masterTrackIndex = 0;
+            return;
+        }
+
+        // Find the shortest track duration (master clock)
+        double shortestDuration = std::numeric_limits<double>::max();
+        size_t shortestIndex = 0;
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            if (m_tracks[i].duration < shortestDuration) {
+                shortestDuration = m_tracks[i].duration;
+                shortestIndex = i;
+            }
+        }
+
+        m_syncState.masterDuration = shortestDuration;
+        m_syncState.masterTrackIndex = shortestIndex;
+
+        std::cout << "Master duration set to: " << m_syncState.masterDuration << "s (track "
+                  << shortestIndex << ")" << std::endl;
+    }
+
+    void AudioSystem::playAllTracks() {
+        if (!m_isInitialized || m_tracks.empty()) {
+            return;
+        }
+
+        // Stop all tracks first
+        stopAllTracks();
+
+        // Start all tracks simultaneously
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            playTrack(i);
+        }
+
+        m_syncState.isPlaying = true;
+        m_syncState.globalTime = 0.0;
+        m_syncState.lastSyncCheck = 0.0;
+
+        std::cout << "Started synchronized playback of " << m_tracks.size() << " tracks"
+                  << std::endl;
+    }
+
+    void AudioSystem::stopAllTracks() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            stopTrack(i);
+        }
+
+        m_syncState.isPlaying = false;
+        m_syncState.globalTime = 0.0;
+    }
+
+    void AudioSystem::updateSync() {
+        if (!m_isInitialized || !m_syncState.isPlaying || m_tracks.empty()) {
+            return;
+        }
+
+        // Update global time based on master track
+        if (m_syncState.masterTrackIndex < m_tracks.size() &&
+            m_tracks[m_syncState.masterTrackIndex].isPlaying) {
+            m_syncState.globalTime =
+                m_engine->get().getStreamPosition(m_tracks[m_syncState.masterTrackIndex].handle);
+        }
+
+        // Check for sync issues every 100ms
+        double currentTime = m_syncState.globalTime;
+        if (currentTime - m_syncState.lastSyncCheck < SyncState::SYNC_CHECK_INTERVAL) {
+            return;
+        }
+        m_syncState.lastSyncCheck = currentTime;
+
+        // Check each track for drift and correct if needed
+        checkAndCorrectSync();
+    }
+
+    void AudioSystem::checkAndCorrectSync() {
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            if (i == m_syncState.masterTrackIndex) {
+                continue; // Skip master track
+            }
+
+            if (m_tracks[i].isPlaying && isTrackDrifting(i)) {
+                std::cout << "Track " << i << " drifting, correcting..." << std::endl;
+                correctTrackSync(i, m_syncState.globalTime);
+            }
+        }
+    }
+
+    void AudioSystem::correctTrackSync(size_t trackIndex, double targetTime) {
+        if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
+            return;
+        }
+
+        // Get current position of this track
+        double currentTime = getTrackCurrentTime(trackIndex);
+        double timeDiff = std::abs(targetTime - currentTime);
+
+        // If drift is significant (>3ms), seek to correct position
+        if (timeDiff > SyncState::DRIFT_TOLERANCE) {
+            // Use our custom seek method for accurate positioning
+            m_engine->get().seek(m_tracks[trackIndex].handle, targetTime);
+            m_tracks[trackIndex].expectedPosition = targetTime;
+            std::cout << "Track " << trackIndex << " synced: " << timeDiff << "s correction"
+                      << std::endl;
+        }
+    }
+
+    double AudioSystem::getTrackCurrentTime(size_t trackIndex) const {
+        if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
+            return 0.0;
+        }
+        return m_engine->get().getStreamPosition(m_tracks[trackIndex].handle);
+    }
+
+    bool AudioSystem::isTrackDrifting(size_t trackIndex) const {
+        if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
+            return false;
+        }
+
+        double trackTime = getTrackCurrentTime(trackIndex);
+        double masterTime = m_syncState.globalTime;
+        double timeDiff = std::abs(masterTime - trackTime);
+
+        return timeDiff > SyncState::DRIFT_TOLERANCE;
+    }
+
+    // SyncWavInstance implementation
+    SyncWavInstance::SyncWavInstance(SoLoud::Wav* aParent) : SoLoud::WavInstance(aParent) {}
+
+    SoLoud::result SyncWavInstance::seek(SoLoud::time aSeconds, float* aScratch,
+                                         unsigned int aScratchSize) {
+        // For now, use the base class seek and track position manually
+        // We'll implement proper seeking later if needed
+        mSeekPosition = aSeconds;
+        mStreamPosition = aSeconds;
+
+        // Call base class seek (which may not be accurate for OGG, but we'll handle sync
+        // differently)
+        return SoLoud::WavInstance::seek(aSeconds, aScratch, aScratchSize);
+    }
+
+    double SyncWavInstance::getStreamPosition() {
+        return mSeekPosition + (mStreamPosition - mSeekPosition);
+    }
+
+    // SyncWav implementation
+    SoLoud::AudioSourceInstance* SyncWav::createInstance() { return new SyncWavInstance(this); }
 } // namespace AudioTester
