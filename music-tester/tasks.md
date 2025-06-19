@@ -275,9 +275,9 @@ public:
 ## Implementation Milestones
 
 ### Milestone 1: Basic Processor (Week 1)
-- [ ] CircularBuffer implementation
-- [ ] AudioStreamProcessor basic structure
-- [ ] Simple processing thread
+- [x] CircularBuffer implementation
+- [x] AudioStreamProcessor basic structure
+- [x] Simple processing thread
 
 ### Milestone 2: Signalsmith Integration (Week 2)
 - [ ] Integrate Signalsmith Stretch

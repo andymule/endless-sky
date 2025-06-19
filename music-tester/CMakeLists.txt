@@ -39,6 +39,7 @@ set(MUSIC_TESTER_SOURCES
     src/AudioSystem.cpp
     src/AudioController.cpp
     src/TesterView.cpp
+    src/AudioStreamProcessor.cpp
 )
 
 # Set up headers for music-tester
@@ -48,6 +49,8 @@ set(MUSIC_TESTER_HEADERS
     src/AudioController.h
     src/TesterView.h
     src/ErrorHandling.h
+    src/CircularBuffer.h
+    src/AudioStreamProcessor.h
 )
 
 # Add the executable target
@@ -231,4 +234,23 @@ add_custom_command(TARGET music-tester POST_BUILD
     COMMENT "Copying sound_staging directory to build directory"
 )
 
-# The OAML-related definition has been removed 
+# The OAML-related definition has been removed
+
+# Add test executable for CircularBuffer
+add_executable(test-circular-buffer src/test_circular_buffer.cpp)
+
+# Include directories for test
+target_include_directories(test-circular-buffer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${signalsmith-stretch_SOURCE_DIR}/include
+    ${signalsmith-linear_SOURCE_DIR}/include
+)
+
+# Link test with required libraries (minimal set for testing)
+target_link_libraries(test-circular-buffer PRIVATE
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+
+# Find Threads package for std::thread support
+find_package(Threads REQUIRED)
+target_link_libraries(test-circular-buffer PRIVATE Threads::Threads) 
