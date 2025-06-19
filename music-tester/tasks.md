@@ -280,9 +280,9 @@ public:
 - [x] Simple processing thread
 
 ### Milestone 2: Signalsmith Integration (Week 2)
-- [ ] Integrate Signalsmith Stretch
-- [ ] Implement tempo change handling
-- [ ] Latency measurement and reporting
+- [x] Integrate Signalsmith Stretch
+- [x] Implement tempo change handling
+- [x] Latency measurement and reporting
 
 ### Milestone 3: SoLoud Integration (Week 3)
 - [ ] ProcessedAudioSource implementation

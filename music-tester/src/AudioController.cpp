@@ -171,9 +171,17 @@ namespace AudioTester {
         m_audioSystem.setGlobalPlaybackRate(tempo);
     }
 
-    float AudioController::getMasterTempo() const {
-        // Return the stored tempo value
-        return m_currentTempo;
+    float AudioController::getMasterTempo() const { return m_currentTempo; }
+
+    // Granular tempo controls (pitch-preserving)
+    void AudioController::setGranularTempo(float tempo) { m_audioSystem.setGranularTempo(tempo); }
+
+    float AudioController::getGranularTempo() const { return m_audioSystem.getGranularTempo(); }
+
+    float AudioController::getGranularLatencyMs() const {
+        return m_audioSystem.getGranularLatencyMs();
     }
+
+    bool AudioController::isGranularEnabled() const { return m_audioSystem.isGranularEnabled(); }
 
 } // namespace AudioTester

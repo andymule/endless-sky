@@ -358,7 +358,19 @@ void TesterView::RenderControlsWindow() {
         ImGui::SameLine();
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Tape-style speed change (affects pitch)");
+            ImGui::SetTooltip("Tape-style speed control (affects pitch)");
+        }
+
+        // Granular Tempo slider (pitch-preserving)
+        float granularTempo = m_controller->getGranularTempo();
+        if (ImGui::SliderFloat("Granular Tempo", &granularTempo, 0.5f, 2.0f, "%.2fx")) {
+            m_controller->setGranularTempo(granularTempo);
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            float latency = m_controller->getGranularLatencyMs();
+            ImGui::SetTooltip("Pitch-preserving tempo stretching\nLatency: %.1f ms", latency);
         }
 
         ImGui::Separator();

@@ -53,6 +53,12 @@ namespace AudioTester {
         void setMasterTempo(float tempo);
         float getMasterTempo() const;
 
+        // Granular tempo controls (pitch-preserving)
+        void setGranularTempo(float tempo);
+        float getGranularTempo() const;
+        float getGranularLatencyMs() const;
+        bool isGranularEnabled() const;
+
         // State access (read-only for the view)
         const AudioState& getState() const { return m_state; }
         const AudioSystem& getAudioSystem() const { return m_audioSystem; }

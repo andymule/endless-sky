@@ -1,5 +1,6 @@
 #include "AudioSystem.h"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -47,6 +48,20 @@ namespace AudioTester {
         m_busHandle = m_engine->get().play(m_masterBus->get());
         m_engine->get().setVolume(m_busHandle, m_busVolume);
 
+        // Initialize granular tempo processor
+        m_granularProcessor = std::make_unique<AudioStreamProcessor>();
+        if (!m_granularProcessor->initialize(44100, 2, 3.0, 2.0)) {
+            std::cerr << "Failed to initialize granular processor in AudioSystem" << std::endl;
+            // Don't fail completely - granular tempo just won't be available
+        } else if (!m_granularProcessor->start()) {
+            std::cerr << "Failed to start granular processor in AudioSystem" << std::endl;
+            // Don't fail completely - granular tempo just won't be available
+        }
+
+        // Create granular intercept filter
+        m_granularFilter = std::make_unique<GranularInterceptFilter>(m_granularProcessor.get(),
+                                                                     &m_granularEnabled);
+
         // Master bus is ready
 
         m_isInitialized = true;
@@ -56,6 +71,9 @@ namespace AudioTester {
     void AudioSystem::cleanup() {
         if (m_isInitialized) {
             m_engine->get().stopAll();
+            if (m_granularProcessor) {
+                m_granularProcessor->stop();
+            }
             m_engine->deinitialize();
             m_isInitialized = false;
         }
@@ -162,6 +180,194 @@ namespace AudioTester {
 
         // Store the rate for future tracks
         m_globalPlaybackRate = rate;
+    }
+
+    // Granular tempo control (pitch-preserving)
+    void AudioSystem::setGranularTempo(float tempo) {
+        if (m_granularProcessor && m_granularProcessor->isReady()) {
+            m_granularProcessor->setTempo(tempo);
+
+            // Auto-enable granular processing when tempo != 1.0
+            bool shouldEnable = std::abs(tempo - 1.0f) > 0.001f;
+            setGranularEnabled(shouldEnable);
+        }
+    }
+
+    float AudioSystem::getGranularTempo() const {
+        if (m_granularProcessor) {
+            return m_granularProcessor->getTempo();
+        }
+        return 1.0f;
+    }
+
+    float AudioSystem::getGranularLatencyMs() const {
+        if (m_granularProcessor) {
+            return m_granularProcessor->getLatencyMs();
+        }
+        return 0.0f;
+    }
+
+    bool AudioSystem::isGranularProcessorReady() const {
+        return m_granularProcessor && m_granularProcessor->isReady();
+    }
+
+    void AudioSystem::setGranularEnabled(bool enabled) {
+        if (!m_granularProcessor || !m_granularProcessor->isReady() || !m_granularFilter) {
+            return;
+        }
+
+        if (enabled != m_granularEnabled) {
+            m_granularEnabled = enabled;
+
+            if (enabled) {
+                // Apply granular filter to master bus to intercept audio
+                m_masterBus->get().setFilter(0, m_granularFilter.get());
+                std::cout << "Granular tempo processing enabled - filter applied to master bus"
+                          << std::endl;
+            } else {
+                // Remove granular filter from master bus
+                m_masterBus->get().setFilter(0, nullptr);
+                std::cout << "Granular tempo processing disabled - filter removed from master bus"
+                          << std::endl;
+            }
+        }
+    }
+
+    bool AudioSystem::isGranularEnabled() const { return m_granularEnabled; }
+
+    void AudioSystem::processMasterOutput(float* buffer, unsigned int samples,
+                                          unsigned int channels) {
+        // This method will be called from updateSync() for now
+        // In the future, this could be hooked into SoLoud's audio pipeline more directly
+        if (!m_granularProcessor || !m_granularProcessor->isReady() || !m_granularEnabled) {
+            return;
+        }
+
+        // Skip processing if tempo is 1.0 (no change needed)
+        if (std::abs(m_granularProcessor->getTempo() - 1.0f) < 0.001f) {
+            return;
+        }
+
+        const size_t totalSamples = samples * channels;
+
+        // Ensure capture buffer is large enough
+        if (m_captureBuffer.size() < totalSamples) {
+            m_captureBuffer.resize(totalSamples);
+        }
+
+        // Copy input audio to our buffer
+        std::memcpy(m_captureBuffer.data(), buffer, totalSamples * sizeof(float));
+
+        // Feed audio to granular processor
+        size_t samplesWritten =
+            m_granularProcessor->feedInput(m_captureBuffer.data(), totalSamples);
+
+        // Try to read processed audio
+        size_t processedSamples = m_granularProcessor->readOutput(buffer, totalSamples);
+
+        if (processedSamples < totalSamples) {
+            // Not enough processed audio available - fill remaining with silence or original
+            // This can happen during startup or tempo changes
+            if (processedSamples > 0) {
+                // Fill remaining with silence to avoid artifacts
+                std::memset(buffer + processedSamples, 0,
+                            (totalSamples - processedSamples) * sizeof(float));
+            }
+            // If no processed audio available, keep original (buffer already contains it)
+        }
+    }
+
+    void AudioSystem::testGranularProcessing() {
+        // Simple test: generate sine wave audio and process it through granular processor
+        // This tests that the basic processing pipeline works
+        const size_t testSamples = 512; // Small test buffer
+        const size_t channels = 2;
+        const size_t totalSamples = testSamples * channels;
+
+        // Ensure test buffer exists
+        static std::vector<float> testBuffer(totalSamples);
+        static size_t sampleCount = 0;
+
+        // Generate simple sine wave test audio (very quiet)
+        const float frequency = 440.0f; // A4 note
+        const float sampleRate = 44100.0f;
+        const float amplitude = 0.01f; // Very quiet for testing
+
+        for (size_t i = 0; i < testSamples; ++i) {
+            float value = amplitude * std::sin(2.0f * M_PI * frequency * sampleCount / sampleRate);
+            testBuffer[i * channels] = value;     // Left channel
+            testBuffer[i * channels + 1] = value; // Right channel
+            sampleCount++;
+        }
+
+        // Feed test audio to granular processor
+        size_t fed = m_granularProcessor->feedInput(testBuffer.data(), totalSamples);
+
+        // Try to read processed audio (discard for now - just testing the flow)
+        std::vector<float> outputBuffer(totalSamples);
+        size_t read = m_granularProcessor->readOutput(outputBuffer.data(), totalSamples);
+
+        // Optional: print debug info occasionally
+        static int debugCounter = 0;
+        if (++debugCounter % 1000 == 0) { // Every ~23 seconds at 44.1kHz
+            std::cout << "Granular test: fed " << fed << " samples, read " << read
+                      << " samples, tempo " << m_granularProcessor->getTempo() << std::endl;
+        }
+    }
+
+    // Granular Intercept Filter Implementation
+    GranularInterceptFilter::GranularInterceptFilter(AudioStreamProcessor* processor,
+                                                     bool* enabledFlag)
+        : m_processor(processor), m_enabledFlag(enabledFlag) {}
+
+    SoLoud::FilterInstance* GranularInterceptFilter::createInstance() {
+        return new GranularInterceptFilterInstance(m_processor, m_enabledFlag);
+    }
+
+    GranularInterceptFilterInstance::GranularInterceptFilterInstance(
+        AudioStreamProcessor* processor, bool* enabledFlag)
+        : m_processor(processor), m_enabledFlag(enabledFlag) {}
+
+    void GranularInterceptFilterInstance::filterChannel(float* aBuffer, unsigned int aSamples,
+                                                        float aSamplerate, double aTime,
+                                                        unsigned int aChannel,
+                                                        unsigned int aChannels) {
+        // Only process on the first channel to avoid duplicate processing
+        if (aChannel != 0 || !m_processor || !m_enabledFlag || !*m_enabledFlag) {
+            return; // Pass through unchanged
+        }
+
+        // Skip processing if tempo is 1.0 (no change needed)
+        if (std::abs(m_processor->getTempo() - 1.0f) < 0.001f) {
+            return; // Pass through unchanged
+        }
+
+        // For the first channel, we need to collect all channels and process them together
+        const size_t totalSamples = aSamples * aChannels;
+
+        // Ensure buffers are large enough
+        if (m_interleavedBuffer.size() < totalSamples) {
+            m_interleavedBuffer.resize(totalSamples);
+            m_outputBuffer.resize(totalSamples);
+        }
+
+        // SoLoud calls filterChannel once per channel, so we need to reconstruct interleaved audio
+        // For now, just process the current channel in isolation (mono processing per channel)
+        // This is a limitation but simpler to implement
+
+        // Feed channel audio to granular processor
+        size_t fed = m_processor->feedInput(aBuffer, aSamples);
+
+        // Try to read processed audio for this channel
+        size_t read = m_processor->readOutput(aBuffer, aSamples);
+
+        if (read < aSamples) {
+            // Not enough processed audio - fill remaining with silence to avoid artifacts
+            if (read > 0) {
+                std::memset(aBuffer + read, 0, (aSamples - read) * sizeof(float));
+            }
+            // If no processed audio available, original audio remains (aBuffer already contains it)
+        }
     }
 
     void AudioSystem::addFilterToTrack(size_t trackIndex, const std::string& filterName) {

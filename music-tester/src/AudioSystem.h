@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AudioStreamProcessor.h"
+#include "ErrorHandling.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
@@ -18,6 +20,34 @@
 #include <vector>
 
 namespace AudioTester {
+
+    // Forward declaration for granular processor
+    class AudioStreamProcessor;
+
+    // Custom filter to intercept bus audio and route through granular processor
+    class GranularInterceptFilter : public SoLoud::Filter {
+    public:
+        GranularInterceptFilter(AudioStreamProcessor* processor, bool* enabledFlag);
+        virtual SoLoud::FilterInstance* createInstance() override;
+
+    private:
+        AudioStreamProcessor* m_processor;
+        bool* m_enabledFlag;
+    };
+
+    class GranularInterceptFilterInstance : public SoLoud::FilterInstance {
+    public:
+        GranularInterceptFilterInstance(AudioStreamProcessor* processor, bool* enabledFlag);
+        virtual void filterChannel(float* aBuffer, unsigned int aSamples, float aSamplerate,
+                                   double aTime, unsigned int aChannel,
+                                   unsigned int aChannels) override;
+
+    private:
+        AudioStreamProcessor* m_processor;
+        bool* m_enabledFlag;
+        std::vector<float> m_interleavedBuffer;
+        std::vector<float> m_outputBuffer;
+    };
 
     // RAII wrapper for SoLoud engine
     class SoloudEngine {
@@ -155,6 +185,14 @@ namespace AudioTester {
         // Tempo/playback rate control
         void setGlobalPlaybackRate(float rate);
 
+        // Granular tempo control (pitch-preserving)
+        void setGranularTempo(float tempo);
+        float getGranularTempo() const;
+        float getGranularLatencyMs() const;
+        bool isGranularProcessorReady() const;
+        void setGranularEnabled(bool enabled);
+        bool isGranularEnabled() const;
+
         // Filter management
         void addFilterToTrack(size_t trackIndex, const std::string& filterName);
         void removeFilterFromTrack(size_t trackIndex, const std::string& filterName);
@@ -192,6 +230,8 @@ namespace AudioTester {
 
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
+        std::unique_ptr<AudioStreamProcessor> m_granularProcessor;
+        std::unique_ptr<GranularInterceptFilter> m_granularFilter;
         std::vector<TrackInfo> m_tracks;
         std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;
@@ -200,6 +240,15 @@ namespace AudioTester {
         bool m_isInitialized = false;
         unsigned int m_busHandle = 0;
         SyncState m_syncState;
+
+        // Granular tempo processing
+        bool m_granularEnabled = false;
+        std::vector<float> m_captureBuffer;
+        std::vector<float> m_outputBuffer;
+
+        // Audio capture callback for granular processing
+        void processMasterOutput(float* buffer, unsigned int samples, unsigned int channels);
+        void testGranularProcessing();
     };
 
 } // namespace AudioTester
