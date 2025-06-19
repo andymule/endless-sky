@@ -1,4 +1,150 @@
-# Granular Time Stretching Implementation Tasks
+# Advanced Granular Tempo Implementation Tasks
+
+## 🎯 **Project Overview**
+
+This document outlines the implementation of **dual tape speed control with granular pitch compensation** for the Music Tester application. This approach eliminates complex buffering by maintaining perfect 1:1 input/output ratios in SoLoud filters while achieving independent pitch and tempo control.
+
+## 🧠 **Core Innovation: Dual Tape Speed Architecture**
+
+### **Mathematical Foundation**
+- **User Tape Speed**: 0.1x - 4.0x (traditional tape-like control affecting pitch + tempo)
+- **Granular Tempo**: 0.5x - 2.0x (pitch-preserving tempo change)
+- **Hidden Internal Tape Speed** = `userTapeSpeed * granularTempo`
+- **Granular Pitch Compensation** = `1.0 / granularTempo`
+
+### **Processing Chain**
+```
+Audio Input 
+    ↓
+User Tape Speed (SoLoud native)
+    ↓  
+Hidden Internal Tape Speed (SoLoud native)
+    ↓
+SoLoud Master Bus
+    ↓
+Granular Filter (1:1 ratio, pitch compensation)
+    ↓
+Audio Output
+```
+
+### **Key Benefits**
+1. **Perfect Realtime Behavior**: Always 1:1 input/output sample ratios
+2. **No Complex Buffering**: Eliminates variable rate accumulation logic
+3. **Independent Controls**: User tape speed + granular tempo work simultaneously  
+4. **SoLoud Filter Compliance**: Works within existing SoLoud constraints
+
+## 📋 **Implementation Tasks**
+
+### **Task 1: Enhanced Granular Filter Architecture**
+
+**File**: `src/AudioSystem.cpp` - Modify existing filter system
+
+**Requirements**:
+1. **Dual Tape Speed Management**:
+   ```cpp
+   // Calculate internal tape speed that compensates for granular tempo
+   float internalTapeSpeed = userTapeSpeed * granularTempo;
+   soloud.setGlobalVolume(internalTapeSpeed); // Or appropriate SoLoud method
+   ```
+
+2. **Granular Pitch Compensation**:
+   ```cpp
+   // In filter's audio processing
+   float pitchCompensation = 1.0f / granularTempo;
+   stretcher.setTransposeFactor(pitchCompensation);
+   stretcher.process(inputBuffer, samples, outputBuffer, samples); // Always 1:1
+   ```
+
+3. **Auto-enable Logic**: 
+   - Granular processing only active when `granularTempo != 1.0`
+   - When disabled, direct passthrough for zero latency
+
+### **Task 2: Signalsmith Stretch Integration**
+
+**File**: `src/AudioStreamProcessor.cpp` - Update existing processor
+
+**Requirements**:
+1. **Simultaneous Pitch + Time Operations**:
+   ```cpp
+   // Configure for pitch compensation only (time handled by tape speed)
+   stretcher.setTransposeFactor(pitchFactor);
+   // No time stretching in Signalsmith - that's handled by SoLoud tape speed
+   ```
+
+2. **Perfect 1:1 Processing**:
+   ```cpp
+   // Always process same number of samples in/out
+   stretcher.process(input, sampleCount, output, sampleCount);
+   ```
+
+3. **Latency Management**:
+   - Account for Signalsmith's processing latency
+   - Ensure smooth transitions when granular tempo changes
+
+### **Task 3: UI Control Integration**
+
+**File**: `src/TesterView.cpp` - Update existing sliders
+
+**Requirements**:
+1. **User Tape Speed Slider**: 0.1x - 4.0x (existing functionality)
+2. **Granular Tempo Slider**: 0.5x - 2.0x (pitch-preserving)
+3. **Visual Feedback**: Show calculated internal tape speed for debugging
+4. **Real-time Updates**: Both controls work simultaneously without conflicts
+
+### **Task 4: AudioController Logic**
+
+**File**: `src/AudioController.cpp` - Update control routing
+
+**Requirements**:
+1. **Coordinated Control Updates**:
+   ```cpp
+   void updateTempoControls(float userTape, float granularTempo) {
+       float internalTape = userTape * granularTempo;
+       audioSystem->setInternalTapeSpeed(internalTape);
+       audioSystem->setGranularPitchCompensation(1.0f / granularTempo);
+   }
+   ```
+
+2. **State Management**: Ensure both controls are properly synchronized
+3. **Error Handling**: Graceful fallback if granular processing fails
+
+## 🔧 **Technical Specifications**
+
+### **Signalsmith Stretch Configuration**
+- **Time Stretching**: DISABLED (handled by SoLoud tape speed)
+- **Pitch Shifting**: ENABLED (compensation for tempo changes)
+- **Processing Mode**: Real-time with minimal latency
+- **Sample Ratio**: Always 1:1 input to output
+
+### **SoLoud Integration Points**
+- **User Tape Speed**: Standard SoLoud playback rate control
+- **Internal Tape Speed**: Additional hidden rate multiplier
+- **Filter Application**: Master bus slot 0 for complete audio capture
+- **Latency Compensation**: Account for filter processing delay
+
+### **Performance Considerations**
+- **Auto-disable**: Granular filter bypassed when tempo = 1.0
+- **Smooth Transitions**: Avoid clicks when changing parameters
+- **CPU Efficiency**: Pitch shifting is less intensive than time stretching
+- **Memory Usage**: Minimal - no large ring buffers needed
+
+## ✅ **Success Criteria**
+
+1. **Independent Controls**: User can adjust tape speed and granular tempo simultaneously
+2. **Perfect Sync**: No timing drift or buffering artifacts
+3. **Preserved Audio Quality**: Pitch compensation maintains natural sound
+4. **Real-time Performance**: No dropouts or latency issues
+5. **Clean UI**: Both sliders work intuitively without conflicts
+
+## 🚀 **Implementation Priority**
+
+**High Priority**: Tasks 1 & 2 (Core audio processing)
+**Medium Priority**: Task 3 (UI integration)  
+**Low Priority**: Task 4 (Controller refinements)
+
+---
+
+**This approach leverages the elegance of mathematical compensation rather than complex buffering, resulting in a much simpler and more robust implementation.**
 
 ## Context & Current State
 
