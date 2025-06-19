@@ -489,6 +489,11 @@ namespace AudioTester {
         m_engine->get().setVolume(newHandle, volume);
         m_engine->get().seek(newHandle, position);
 
+        // CRITICAL: Reapply global playback rate after restart
+        if (m_globalPlaybackRate != 1.0f) {
+            m_engine->get().setRelativePlaySpeed(newHandle, m_globalPlaybackRate);
+        }
+
         // Apply all parameters to all filters after the track is restarted
         filterSlot = 0;
         for (auto& [name, instance] : m_trackFilters[trackIndex].filters) {
