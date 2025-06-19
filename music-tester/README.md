@@ -46,7 +46,7 @@ The music-tester is a standalone application that does not require building the 
 ```bash
 cd music-tester
 ./build-macos.sh
-./run-music-tester.sh
+cd build && ./music-tester
 ```
 
 ### Build Options
@@ -112,7 +112,7 @@ code --install-extension vadimcn.vscode-lldb
 
 After building, run the application with:
 ```bash
-./run-music-tester.sh [optional_music_directory]
+cd build && ./music-tester
 ```
 
 By default, it looks for audio files in the `sound_staging/` directory.
@@ -199,5 +199,5 @@ This tool is designed as a prototype for testing adaptive music concepts that co
 
 1. Make code changes
 2. Run `./quick-build.sh` or use VSCode task "Quick Build"
-3. Test with `./run-music-tester.sh` or F5 in VSCode
+3. Test with `cd build && ./music-tester` or F5 in VSCode
 4. For major changes, use `./build-macos.sh clean` to ensure clean build

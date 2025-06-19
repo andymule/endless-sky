@@ -223,7 +223,7 @@ fi
 echo "Build complete!"
 echo ""
 echo "You can run the music-tester with:"
-echo "./run-music-tester.sh"
+echo "cd build && ./music-tester"
 echo ""
 echo "To clean and rebuild, run:"
 echo "./build-macos.sh clean"

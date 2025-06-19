@@ -54,6 +54,17 @@
         },
         {
             "name": "Build and Run (Fast)",
+            "type": "node",
+            "request": "launch",
+            "program": "/usr/bin/true",
+            "runtimeExecutable": "/bin/bash",
+            "runtimeArgs": ["-c", "cd '${workspaceFolder}' && ./build-macos.sh && ./build/music-tester"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "skipFiles": ["<node_internals>/**"]
+        },
+        {
+            "name": "Run Music Tester (Direct)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/music-tester",
@@ -65,17 +76,7 @@
             "stopOnEntry": false,
             "initCommands": [
                 "settings set target.process.stop-on-sharedlibrary-events false"
-            ],
-            "preLaunchTask": "Build and Run"
-        },
-        {
-            "name": "Run Music Tester (Script)",
-            "type": "node",
-            "request": "launch", 
-            "program": "${workspaceFolder}/run-music-tester.sh",
-            "runtimeExecutable": "/bin/bash",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen"
+            ]
         }
     ]
 } 

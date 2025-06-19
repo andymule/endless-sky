@@ -76,17 +76,7 @@
                 }
             }
         },
-        {
-            "label": "Run Music Tester",
-            "type": "shell",
-            "command": "./run-music-tester.sh",
-            "group": "test",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
+
         {
             "label": "Run Music Tester (No Build)",
             "type": "shell",
@@ -111,6 +101,26 @@
             },
             "presentation": {
                 "reveal": "always"
+            }
+        },
+        {
+            "label": "Build and Run Exact",
+            "type": "shell",
+            "command": "./build-macos.sh",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
             }
         }
     ]
