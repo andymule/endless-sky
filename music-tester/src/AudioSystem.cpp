@@ -340,9 +340,24 @@ namespace AudioTester {
                                                         float aSamplerate, double aTime,
                                                         unsigned int aChannel,
                                                         unsigned int aChannels) {
-        // Only process on the first channel to avoid duplicate processing
-        if (aChannel != 0 || !m_processor || !m_enabledFlag || !*m_enabledFlag) {
+        // Safety checks
+        if (!m_processor || !m_enabledFlag || !*m_enabledFlag) {
             return; // Pass through unchanged
+        }
+
+        // Handle stereo by processing channel 0 and duplicating to other channels
+        if (aChannel != 0) {
+            // For non-zero channels, copy the result from channel 0 processing
+            // This ensures all channels have the same processed audio
+            // The processed audio is stored in m_outputAccumulator from channel 0
+            size_t available = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
+            if (available >= aSamples) {
+                std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
+                            aSamples * sizeof(float));
+            } else {
+                std::memset(aBuffer, 0, aSamples * sizeof(float));
+            }
+            return;
         }
 
         // Skip processing if tempo is 1.0 (no change needed)
