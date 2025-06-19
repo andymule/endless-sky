@@ -7,7 +7,8 @@
 namespace AudioTester {
 
     AudioStreamProcessor::AudioStreamProcessor()
-        : m_shouldStop(false), m_targetTempo(1.0f), m_currentTempo(1.0f) {}
+        : m_shouldStop(false), m_targetTempo(1.0f), m_currentTempo(1.0f),
+          m_targetPitchCompensation(1.0f), m_currentPitchCompensation(1.0f) {}
 
     AudioStreamProcessor::~AudioStreamProcessor() { stop(); }
 
@@ -35,11 +36,44 @@ namespace AudioTester {
             m_inputBuffer = std::make_unique<CircularBuffer<float>>(inputBufferSize);
             m_outputBuffer = std::make_unique<CircularBuffer<float>>(outputBufferSize);
 
-            // Create Signalsmith Stretch instance
+            // Create Signalsmith Stretch instance for tempo processing
             m_stretcher = std::make_unique<signalsmith::stretch::SignalsmithStretch<float>>();
 
             // Configure stretcher with optimal settings for real-time use
             m_stretcher->presetDefault(channels, sampleRate);
+
+            // Create stereo pitch processor for proper channel synchronization
+            m_pitchProcessor = std::make_unique<signalsmith::stretch::SignalsmithStretch<float>>();
+
+            // Configure pitch processor with high-quality settings for optimal pitch shifting
+            // Use larger block sizes for better frequency resolution and quality
+            int optimalBlockSamples = 2048;   // Larger blocks = better frequency resolution
+            int optimalIntervalSamples = 512; // 4:1 overlap ratio for high quality
+
+            // Use manual configuration for maximum control over quality
+            m_pitchProcessor->configure(
+                2, optimalBlockSamples, optimalIntervalSamples,
+                true); // Enable split computation for smoother real-time processing
+
+            // Configure for pitch-only processing with tonality limit for better timbre
+            // preservation
+            m_pitchProcessor->setTransposeSemitones(0.0); // Start with no pitch change
+
+            // Set tonality limit to preserve timbre - frequencies above 8kHz won't be pitch-shifted
+            // This reduces artifacts and preserves the natural character of the sound
+            float tonalityLimit = 8000.0f / sampleRate; // Normalize to sample rate
+            m_pitchProcessor->setTransposeSemitones(0.0, tonalityLimit);
+
+            // Enable formant compensation for more natural-sounding pitch shifts
+            // This helps preserve the vocal characteristics and timbre when pitch shifting
+            m_pitchProcessor->setFormantFactor(1.0f); // Start with no formant shift
+
+            // Set formant base frequency for typical musical content (around 200Hz fundamental)
+            float formantBase = 200.0f / sampleRate; // Normalize to sample rate
+            m_pitchProcessor->setFormantBase(formantBase);
+
+            // Reset to ensure clean initial state
+            m_pitchProcessor->reset();
 
             // Setup channel buffers for processing
             setupChannelBuffers();
@@ -47,6 +81,9 @@ namespace AudioTester {
             // Reset state
             m_currentTempo = 1.0f;
             m_targetTempo.store(1.0f);
+            m_currentPitchCompensation = 1.0f;
+            m_targetPitchCompensation.store(1.0f);
+            m_smoothPitchCompensation = 1.0f;
             m_initialized = true;
 
             std::cout << "AudioStreamProcessor initialized: " << sampleRate << "Hz, " << channels
@@ -317,5 +354,134 @@ namespace AudioTester {
     }
 
     void AudioStreamProcessor::updateCurrentTempo() { m_currentTempo = m_targetTempo.load(); }
+
+    // Pitch compensation methods for dual tape speed architecture
+    void AudioStreamProcessor::setPitchCompensation(float pitchFactor) {
+        // Clamp pitch compensation to reasonable range
+        pitchFactor = std::clamp(pitchFactor, 0.25f, 4.0f);
+        m_targetPitchCompensation.store(pitchFactor);
+    }
+
+    float AudioStreamProcessor::getPitchCompensation() const {
+        return m_targetPitchCompensation.load();
+    }
+
+    void AudioStreamProcessor::updateSmoothPitchCompensation() {
+        float targetPitch = m_targetPitchCompensation.load();
+
+        // Smooth interpolation to target pitch compensation (eliminates clicks)
+        float diff = targetPitch - m_smoothPitchCompensation;
+        if (std::abs(diff) > 0.001f) {
+            m_smoothPitchCompensation += diff * PITCH_SMOOTHING_FACTOR;
+
+            // Update pitch processor with smooth value and tonality limit
+            if (m_pitchProcessor) {
+                // Convert linear pitch factor to semitones for Signalsmith
+                // semitones = 12 * log2(pitchFactor)
+                float semitones = 12.0f * std::log2(m_smoothPitchCompensation);
+
+                // Apply tonality limit to preserve timbre above 8kHz
+                float tonalityLimit = 8000.0f / m_sampleRate; // Normalize to sample rate
+                m_pitchProcessor->setTransposeSemitones(semitones, tonalityLimit);
+
+                // Update formant compensation to counteract the pitch shift for more natural sound
+                // This preserves the original formant structure while changing pitch
+                m_pitchProcessor->setFormantFactor(1.0f / m_smoothPitchCompensation,
+                                                   true); // compensatePitch=true
+
+                // Only log significant changes to reduce console spam
+                static float lastLoggedPitch = 1.0f;
+                if (std::abs(m_smoothPitchCompensation - lastLoggedPitch) > 0.05f) {
+                    std::cout << "AudioStreamProcessor pitch compensation updated: "
+                              << m_smoothPitchCompensation << " (tonality limit: " << tonalityLimit
+                              << ")" << std::endl;
+                    lastLoggedPitch = m_smoothPitchCompensation;
+                }
+            }
+        }
+    }
+
+    bool AudioStreamProcessor::processPitchCompensation(const float* inputSamples,
+                                                        float* outputSamples, size_t sampleCount) {
+        if (!m_initialized || !m_pitchProcessor || !inputSamples || !outputSamples) {
+            return false;
+        }
+
+        // Update smooth pitch compensation to eliminate clicks
+        updateSmoothPitchCompensation();
+
+        // Skip processing if no pitch compensation needed (within threshold)
+        if (std::abs(m_smoothPitchCompensation - 1.0f) < 0.001f) {
+            // Simple copy for no processing needed
+            std::memcpy(outputSamples, inputSamples, sampleCount * sizeof(float));
+            return true;
+        }
+
+        try {
+            // Process single channel through stereo-configured processor
+            // Create stereo input/output with the same data in both channels
+            // This ensures the stereo processor gets consistent input and both channels stay in
+            // sync
+
+            // Resize working buffers if needed (for stereo processing)
+            size_t stereoSamples = sampleCount * 2; // Interleaved stereo
+            if (m_interleavedWorkBuffer.size() < stereoSamples) {
+                m_interleavedWorkBuffer.resize(stereoSamples);
+            }
+
+            // Create interleaved stereo input (duplicate mono to both channels)
+            for (size_t i = 0; i < sampleCount; ++i) {
+                m_interleavedWorkBuffer[i * 2] = inputSamples[i];     // Left
+                m_interleavedWorkBuffer[i * 2 + 1] = inputSamples[i]; // Right (same as left)
+            }
+
+            // Setup channel buffers for stereo processing
+            if (m_inputChannelBuffers[0].size() < sampleCount) {
+                m_inputChannelBuffers[0].resize(sampleCount);
+                m_inputChannelBuffers[1].resize(sampleCount);
+                m_outputChannelBuffers[0].resize(sampleCount);
+                m_outputChannelBuffers[1].resize(sampleCount);
+            }
+
+            // Deinterleave to channel buffers
+            for (size_t i = 0; i < sampleCount; ++i) {
+                m_inputChannelBuffers[0][i] = m_interleavedWorkBuffer[i * 2];     // Left
+                m_inputChannelBuffers[1][i] = m_interleavedWorkBuffer[i * 2 + 1]; // Right
+            }
+
+            // Set up channel pointers
+            m_inputChannelPointers[0] = m_inputChannelBuffers[0].data();
+            m_inputChannelPointers[1] = m_inputChannelBuffers[1].data();
+            m_outputChannelPointers[0] = m_outputChannelBuffers[0].data();
+            m_outputChannelPointers[1] = m_outputChannelBuffers[1].data();
+
+            // Process stereo (both channels will be identical due to identical input)
+            m_pitchProcessor->process(m_inputChannelPointers.data(), static_cast<int>(sampleCount),
+                                      m_outputChannelPointers.data(),
+                                      static_cast<int>(sampleCount));
+
+            // Use left channel output (both channels should be identical)
+            std::memcpy(outputSamples, m_outputChannelBuffers[0].data(),
+                        sampleCount * sizeof(float));
+
+            return true;
+
+        } catch (const std::exception& e) {
+            std::cerr << "Signalsmith pitch compensation error: " << e.what() << std::endl;
+            // Fall back to simple copy on error to maintain audio flow
+            std::memcpy(outputSamples, inputSamples, sampleCount * sizeof(float));
+            return true;
+        }
+    }
+
+    void AudioStreamProcessor::resetPitchProcessor() {
+        if (m_pitchProcessor) {
+            m_pitchProcessor->reset();
+            m_smoothPitchCompensation = 1.0f;
+            m_currentPitchCompensation = 1.0f;
+            m_targetPitchCompensation.store(1.0f);
+            std::cout << "AudioStreamProcessor pitch processor reset" << std::endl;
+        }
+    }
 
 } // namespace AudioTester

@@ -167,14 +167,17 @@ namespace AudioTester {
     void AudioController::setMasterTempo(float tempo) {
         // Store the tempo value for UI synchronization
         m_currentTempo = tempo;
-        // Direct playback rate control - affects both tempo and pitch (tape-style)
+        // Use the new dual tape speed architecture - this sets user tape speed
         m_audioSystem.setGlobalPlaybackRate(tempo);
     }
 
     float AudioController::getMasterTempo() const { return m_currentTempo; }
 
     // Granular tempo controls (pitch-preserving)
-    void AudioController::setGranularTempo(float tempo) { m_audioSystem.setGranularTempo(tempo); }
+    void AudioController::setGranularTempo(float tempo) {
+        // Use the new dual tape speed architecture - this coordinates with user tape speed
+        m_audioSystem.setGranularTempo(tempo);
+    }
 
     float AudioController::getGranularTempo() const { return m_audioSystem.getGranularTempo(); }
 

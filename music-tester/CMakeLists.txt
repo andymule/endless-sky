@@ -191,6 +191,15 @@ endif()
 if(APPLE)
     # On macOS, explicitly use the native framework to avoid X11 GL libraries
     find_library(OPENGL_FRAMEWORK OpenGL)
+    
+    # Find Accelerate framework for Signalsmith optimization
+    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    if(ACCELERATE_FRAMEWORK)
+        message(STATUS "Found Accelerate framework: ${ACCELERATE_FRAMEWORK}")
+        # Enable Signalsmith Accelerate optimization
+        target_compile_definitions(music-tester PRIVATE SIGNALSMITH_USE_ACCELERATE)
+    endif()
+    
     message(STATUS "Using macOS OpenGL framework: ${OPENGL_FRAMEWORK}")
 else()
     find_package(OpenGL REQUIRED)
@@ -214,6 +223,13 @@ endif()
 # Link with OpenGL library based on platform
 if(APPLE)
     target_link_libraries(music-tester PRIVATE ${OPENGL_FRAMEWORK})
+    
+    # Link with Accelerate framework if available for Signalsmith optimization
+    if(ACCELERATE_FRAMEWORK)
+        target_link_libraries(music-tester PRIVATE ${ACCELERATE_FRAMEWORK})
+        message(STATUS "Linked with Accelerate framework for optimized DSP")
+    endif()
+    
     # Apple deprecated OpenGL in MacOS 10.14, but we don't care
     target_compile_definitions(music-tester PRIVATE GL_SILENCE_DEPRECATION)
 else()

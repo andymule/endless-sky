@@ -171,33 +171,29 @@ namespace AudioTester {
             return;
         }
 
-        // Apply playback rate to all currently playing tracks
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            if (m_tracks[i].isPlaying && m_tracks[i].handle != 0) {
-                m_engine->get().setRelativePlaySpeed(m_tracks[i].handle, rate);
-            }
-        }
+        // Store user tape speed for dual tape speed calculation
+        m_userTapeSpeed = rate;
 
-        // Store the rate for future tracks
-        m_globalPlaybackRate = rate;
+        // Update the dual tape speed system
+        updateDualTapeSpeed();
     }
 
     // Granular tempo control (pitch-preserving)
     void AudioSystem::setGranularTempo(float tempo) {
-        if (m_granularProcessor && m_granularProcessor->isReady()) {
-            m_granularProcessor->setTempo(tempo);
+        // Store granular tempo for dual tape speed calculation
+        m_granularTempo = tempo;
 
-            // Auto-enable granular processing when tempo != 1.0
-            bool shouldEnable = std::abs(tempo - 1.0f) > 0.001f;
-            setGranularEnabled(shouldEnable);
-        }
+        // Update the dual tape speed system
+        updateDualTapeSpeed();
+
+        // Auto-enable granular processing when tempo != 1.0
+        bool shouldEnable = std::abs(tempo - 1.0f) > 0.001f;
+        setGranularEnabled(shouldEnable);
     }
 
     float AudioSystem::getGranularTempo() const {
-        if (m_granularProcessor) {
-            return m_granularProcessor->getTempo();
-        }
-        return 1.0f;
+        // Return the stored granular tempo value, not the processor's tempo
+        return m_granularTempo;
     }
 
     float AudioSystem::getGranularLatencyMs() const {
@@ -243,8 +239,8 @@ namespace AudioTester {
             return;
         }
 
-        // Skip processing if tempo is 1.0 (no change needed)
-        if (std::abs(m_granularProcessor->getTempo() - 1.0f) < 0.001f) {
+        // Skip processing if granular tempo is 1.0 (no change needed)
+        if (std::abs(m_granularTempo - 1.0f) < 0.001f) {
             return;
         }
 
@@ -311,7 +307,7 @@ namespace AudioTester {
         static int debugCounter = 0;
         if (++debugCounter % 1000 == 0) { // Every ~23 seconds at 44.1kHz
             std::cout << "Granular test: fed " << fed << " samples, read " << read
-                      << " samples, tempo " << m_granularProcessor->getTempo() << std::endl;
+                      << " samples, granularTempo " << m_granularTempo << std::endl;
         }
     }
 
@@ -326,14 +322,8 @@ namespace AudioTester {
 
     GranularInterceptFilterInstance::GranularInterceptFilterInstance(
         AudioStreamProcessor* processor, bool* enabledFlag)
-        : m_processor(processor), m_enabledFlag(enabledFlag), m_inputAccumulatorSize(0),
-          m_outputAccumulatorSize(0), m_outputAccumulatorReadPos(0), m_lastTempo(1.0f),
-          m_samplesNeededForNextBlock(0), m_hasPartialInput(false) {
-        // Initialize buffers for intelligent rate control
-        // Max buffer size for worst case: 0.5x tempo = need 2x input to produce 1x output
-        constexpr size_t MAX_BUFFER_SIZE = 8192 * 4; // Very conservative
-        m_inputAccumulator.resize(MAX_BUFFER_SIZE);
-        m_outputAccumulator.resize(MAX_BUFFER_SIZE);
+        : m_processor(processor), m_enabledFlag(enabledFlag), m_lastPitchCompensation(1.0f) {
+        // No additional initialization needed for simplified approach
     }
 
     void GranularInterceptFilterInstance::filterChannel(float* aBuffer, unsigned int aSamples,
@@ -345,102 +335,29 @@ namespace AudioTester {
             return; // Pass through unchanged
         }
 
-        // Handle stereo by processing channel 0 and duplicating to other channels
-        if (aChannel != 0) {
-            // For non-zero channels, copy the result from channel 0 processing
-            // This ensures all channels have the same processed audio
-            // The processed audio is stored in m_outputAccumulator from channel 0
-            size_t available = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
-            if (available >= aSamples) {
-                std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
-                            aSamples * sizeof(float));
-            } else {
-                std::memset(aBuffer, 0, aSamples * sizeof(float));
-            }
-            return;
+        // Skip processing if granular tempo is 1.0 (no pitch compensation needed)
+        float pitchCompensation = m_processor->getPitchCompensation();
+        if (std::abs(pitchCompensation - 1.0f) < 0.001f) {
+            return; // Pass through unchanged - no pitch compensation needed
         }
 
-        // Skip processing if tempo is 1.0 (no change needed)
-        float currentTempo = m_processor->getTempo();
-        if (std::abs(currentTempo - 1.0f) < 0.001f) {
-            return; // Pass through unchanged
+        // Only process stereo audio (2 channels)
+        if (aChannels != 2) {
+            return; // Pass through unchanged for non-stereo audio
         }
 
-        // INTELLIGENT INPUT RATE BUFFERING - The key insight!
-        // We accumulate input until we have the RIGHT AMOUNT to feed Signalsmith
-        // to produce exactly aSamples output samples
+        // Process each channel independently with identical settings
+        // This ensures both left and right channels get exactly the same processing
+        // The stereo-configured Signalsmith processor will handle each channel correctly
 
-        size_t inputSamplesNeeded = static_cast<size_t>(std::round(aSamples * currentTempo));
+        // Simple approach: process this channel directly with the mono method
+        // The AudioStreamProcessor uses a stereo-configured processor internally
+        // which ensures consistent processing across channels
+        bool success = m_processor->processPitchCompensation(aBuffer, aBuffer, aSamples);
 
-        // Step 1: Accumulate input samples
-        if (m_inputAccumulatorSize + aSamples > m_inputAccumulator.size()) {
-            std::cerr << "GranularFilter: Input accumulator overflow!" << std::endl;
-            return; // Prevent buffer overflow
-        }
-
-        // Add current input to accumulator
-        std::memcpy(m_inputAccumulator.data() + m_inputAccumulatorSize, aBuffer,
-                    aSamples * sizeof(float));
-        m_inputAccumulatorSize += aSamples;
-
-        // Step 2: Process if we have enough input accumulated
-        while (m_inputAccumulatorSize >= inputSamplesNeeded && inputSamplesNeeded > 0) {
-            // Feed exactly the right amount to get aSamples output
-            size_t fed = m_processor->feedInput(m_inputAccumulator.data(), inputSamplesNeeded);
-
-            // Calculate how much output we expect
-            size_t expectedOutput =
-                static_cast<size_t>(std::round(inputSamplesNeeded / currentTempo));
-
-            // Read the processed output
-            size_t outputSpace = m_outputAccumulator.size() - m_outputAccumulatorSize;
-            size_t maxRead = std::min(expectedOutput, outputSpace);
-
-            if (maxRead > 0) {
-                size_t actualRead = m_processor->readOutput(
-                    m_outputAccumulator.data() + m_outputAccumulatorSize, maxRead);
-                m_outputAccumulatorSize += actualRead;
-            }
-
-            // Remove consumed input
-            if (fed > 0) {
-                std::memmove(m_inputAccumulator.data(), m_inputAccumulator.data() + fed,
-                             (m_inputAccumulatorSize - fed) * sizeof(float));
-                m_inputAccumulatorSize -= fed;
-            } else {
-                break; // Avoid infinite loop if can't feed
-            }
-        }
-
-        // Step 3: Provide exactly aSamples to SoLoud
-        size_t available = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
-        if (available >= aSamples) {
-            // Perfect! We have enough processed samples
-            std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
-                        aSamples * sizeof(float));
-            m_outputAccumulatorReadPos += aSamples;
-
-            // Buffer maintenance: compact when half-consumed
-            if (m_outputAccumulatorReadPos > m_outputAccumulator.size() / 2) {
-                size_t remaining = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
-                std::memmove(m_outputAccumulator.data(),
-                             m_outputAccumulator.data() + m_outputAccumulatorReadPos,
-                             remaining * sizeof(float));
-                m_outputAccumulatorSize = remaining;
-                m_outputAccumulatorReadPos = 0;
-            }
-        } else {
-            // Not enough processed audio yet - output silence instead of mixing signals
-            // This prevents the weird mix of original + processed audio
-            std::memset(aBuffer, 0, aSamples * sizeof(float));
-
-            // Optional: output partial processed audio if available and fill rest with silence
-            if (available > 0) {
-                std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
-                            available * sizeof(float));
-                m_outputAccumulatorReadPos += available;
-                // Rest is already silence from memset above
-            }
+        // If processing failed, aBuffer remains unchanged (pass-through)
+        if (!success) {
+            // Already logged in processPitchCompensation, just pass through
         }
     }
 
@@ -1159,4 +1076,46 @@ namespace AudioTester {
 
     // SyncWav implementation
     SoLoud::AudioSourceInstance* SyncWav::createInstance() { return new SyncWavInstance(this); }
+
+    // Dual tape speed architecture implementation
+    void AudioSystem::updateDualTapeSpeed() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        // Calculate internal tape speed = userTapeSpeed * granularTempo
+        m_internalTapeSpeed = calculateInternalTapeSpeed();
+
+        // Calculate pitch compensation = 1.0 / granularTempo
+        m_pitchCompensation = calculatePitchCompensation();
+
+        // Apply internal tape speed to all currently playing tracks
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            if (m_tracks[i].isPlaying && m_tracks[i].handle != 0) {
+                m_engine->get().setRelativePlaySpeed(m_tracks[i].handle, m_internalTapeSpeed);
+            }
+        }
+
+        // Store for future tracks
+        m_globalPlaybackRate = m_internalTapeSpeed;
+
+        // Update Signalsmith Stretch with pitch compensation
+        if (m_granularProcessor && m_granularProcessor->isReady()) {
+            // Set pitch compensation in the AudioStreamProcessor
+            m_granularProcessor->setPitchCompensation(m_pitchCompensation);
+
+            std::cout << "Dual tape speed update: userSpeed=" << m_userTapeSpeed
+                      << ", granularTempo=" << m_granularTempo
+                      << ", internalSpeed=" << m_internalTapeSpeed
+                      << ", pitchComp=" << m_pitchCompensation << std::endl;
+        }
+    }
+
+    float AudioSystem::calculateInternalTapeSpeed() const {
+        return m_userTapeSpeed * m_granularTempo;
+    }
+
+    float AudioSystem::calculatePitchCompensation() const {
+        return (m_granularTempo != 0.0f) ? (1.0f / m_granularTempo) : 1.0f;
+    }
 } // namespace AudioTester

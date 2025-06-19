@@ -38,6 +38,7 @@ namespace AudioTester {
     class GranularInterceptFilterInstance : public SoLoud::FilterInstance {
     public:
         GranularInterceptFilterInstance(AudioStreamProcessor* processor, bool* enabledFlag);
+
         virtual void filterChannel(float* aBuffer, unsigned int aSamples, float aSamplerate,
                                    double aTime, unsigned int aChannel,
                                    unsigned int aChannels) override;
@@ -45,20 +46,7 @@ namespace AudioTester {
     private:
         AudioStreamProcessor* m_processor;
         bool* m_enabledFlag;
-        std::vector<float> m_interleavedBuffer;
-        std::vector<float> m_outputBuffer;
-
-        // Intelligent input rate buffering for sample rate mismatch
-        std::vector<float> m_inputAccumulator;
-        std::vector<float> m_outputAccumulator;
-        size_t m_inputAccumulatorSize;
-        size_t m_outputAccumulatorSize;
-        size_t m_outputAccumulatorReadPos;
-
-        // Rate control - track how much input we need for desired output
-        float m_lastTempo;
-        size_t m_samplesNeededForNextBlock;
-        bool m_hasPartialInput;
+        float m_lastPitchCompensation;
     };
 
     // RAII wrapper for SoLoud engine
@@ -205,6 +193,11 @@ namespace AudioTester {
         void setGranularEnabled(bool enabled);
         bool isGranularEnabled() const;
 
+        // Dual tape speed architecture for granular tempo
+        void updateDualTapeSpeed();
+        float calculateInternalTapeSpeed() const;
+        float calculatePitchCompensation() const;
+
         // Filter management
         void addFilterToTrack(size_t trackIndex, const std::string& filterName);
         void removeFilterFromTrack(size_t trackIndex, const std::string& filterName);
@@ -261,6 +254,12 @@ namespace AudioTester {
         // Audio capture callback for granular processing
         void processMasterOutput(float* buffer, unsigned int samples, unsigned int channels);
         void testGranularProcessing();
+
+        // Dual tape speed architecture
+        float m_userTapeSpeed = 1.0f;     // User-controlled tape speed (0.1x - 4.0x)
+        float m_granularTempo = 1.0f;     // Granular tempo multiplier (0.5x - 2.0x)
+        float m_internalTapeSpeed = 1.0f; // Hidden: userTapeSpeed * granularTempo
+        float m_pitchCompensation = 1.0f; // Hidden: 1.0 / granularTempo
     };
 
 } // namespace AudioTester

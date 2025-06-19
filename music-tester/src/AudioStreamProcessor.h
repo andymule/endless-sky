@@ -56,6 +56,28 @@ namespace AudioTester {
         float getTempo() const;
 
         /**
+         * Set pitch compensation factor for dual tape speed architecture
+         * @param pitchFactor Pitch multiplier (1.0 = normal, 2.0 = octave up, 0.5 = octave down)
+         */
+        void setPitchCompensation(float pitchFactor);
+
+        /**
+         * Get current pitch compensation setting
+         * @return Current pitch compensation factor
+         */
+        float getPitchCompensation() const;
+
+        /**
+         * Process audio with 1:1 sample ratio (pitch compensation only)
+         * @param inputSamples Interleaved input samples
+         * @param outputSamples Buffer for interleaved output samples
+         * @param sampleCount Number of samples (total, not per channel)
+         * @return true if processing succeeded
+         */
+        bool processPitchCompensation(const float* inputSamples, float* outputSamples,
+                                      size_t sampleCount);
+
+        /**
          * Feed input audio samples to the processor
          * @param samples Interleaved audio samples
          * @param count Number of samples (total, not per channel)
@@ -107,53 +129,68 @@ namespace AudioTester {
          */
         size_t getOutputBufferAvailable() const;
 
+        // Reset pitch processor to eliminate any residual state
+        void resetPitchProcessor();
+
     private:
-        // Core configuration
-        int m_sampleRate = 0;
-        int m_channels = 0;
         bool m_initialized = false;
         bool m_running = false;
+        std::atomic<bool> m_shouldStop{false};
 
-        // Ring buffer management
+        int m_sampleRate = 0;
+        int m_channels = 0;
+
+        // Ring buffers for audio streaming (interleaved)
         std::unique_ptr<CircularBuffer<float>> m_inputBuffer;
         std::unique_ptr<CircularBuffer<float>> m_outputBuffer;
 
-        // Signalsmith Stretch instance
+        // Signalsmith Stretch for time/pitch manipulation
         std::unique_ptr<signalsmith::stretch::SignalsmithStretch<float>> m_stretcher;
 
-        // Processing thread
-        std::unique_ptr<std::thread> m_processingThread;
-        std::atomic<bool> m_shouldStop;
+        // Separate mono pitch processor for per-channel filtering (avoids channel mismatch)
+        std::unique_ptr<signalsmith::stretch::SignalsmithStretch<float>> m_pitchProcessor;
 
-        // Tempo control
-        std::atomic<float> m_targetTempo;
-        float m_currentTempo;
-
-        // Processing parameters
-        static constexpr size_t PROCESSING_CHUNK_SIZE = 1024;
-        static constexpr int TEMPO_CHANGE_THRESHOLD_MS = 1; // Minimum time between tempo changes
-
-        // Working buffers for processing
+        // Channel buffers for processing
         std::vector<std::vector<float>> m_inputChannelBuffers;
         std::vector<std::vector<float>> m_outputChannelBuffers;
         std::vector<float*> m_inputChannelPointers;
         std::vector<float*> m_outputChannelPointers;
+
+        // Working buffer for interleaved audio
         std::vector<float> m_interleavedWorkBuffer;
 
-        // Processing thread methods
+        // Processing thread
+        std::unique_ptr<std::thread> m_processingThread;
+
+        // Tempo control
+        std::atomic<float> m_targetTempo{1.0f};
+        float m_currentTempo = 1.0f;
+
+        // Pitch compensation for dual tape speed architecture
+        std::atomic<float> m_targetPitchCompensation{1.0f};
+        float m_currentPitchCompensation = 1.0f;
+
+        // Smooth transition for pitch compensation (eliminates clicks)
+        float m_smoothPitchCompensation = 1.0f;
+        static constexpr float PITCH_SMOOTHING_FACTOR =
+            0.01f; // Adjust for smoother/faster transitions
+
+        // Processing constants
+        static constexpr size_t PROCESSING_CHUNK_SIZE = 512;
+
+        // Private methods
         void processingLoop();
         void handleTempoChange();
         void processChunk();
         size_t getOutputChunkSize() const;
-
-        // Buffer management
         void setupChannelBuffers();
         void deinterleaveInput(const float* interleavedInput, size_t samples);
         void interleaveOutput(float* interleavedOutput, size_t samples);
-
-        // Utility methods
         bool isTempoChangeNeeded() const;
         void updateCurrentTempo();
+
+        // Smooth pitch compensation update
+        void updateSmoothPitchCompensation();
     };
 
 } // namespace AudioTester
