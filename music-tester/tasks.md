@@ -285,10 +285,10 @@ public:
 - [x] Latency measurement and reporting
 
 ### Milestone 3: SoLoud Integration (Week 3)
-- [ ] ProcessedAudioSource implementation
-- [ ] AudioSystem modifications
-- [ ] Basic playback with time stretching
-- [ ] UI integration for tempo control
+- [x] ProcessedAudioSource implementation
+- [x] AudioSystem modifications
+- [x] Basic playback with time stretching
+- [x] UI integration for tempo control
 
 ### Milestone 4: Robustness (Week 4)
 - [ ] Seek support

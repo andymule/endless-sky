@@ -47,6 +47,18 @@ namespace AudioTester {
         bool* m_enabledFlag;
         std::vector<float> m_interleavedBuffer;
         std::vector<float> m_outputBuffer;
+
+        // Intelligent input rate buffering for sample rate mismatch
+        std::vector<float> m_inputAccumulator;
+        std::vector<float> m_outputAccumulator;
+        size_t m_inputAccumulatorSize;
+        size_t m_outputAccumulatorSize;
+        size_t m_outputAccumulatorReadPos;
+
+        // Rate control - track how much input we need for desired output
+        float m_lastTempo;
+        size_t m_samplesNeededForNextBlock;
+        bool m_hasPartialInput;
     };
 
     // RAII wrapper for SoLoud engine

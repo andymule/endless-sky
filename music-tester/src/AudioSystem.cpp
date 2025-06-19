@@ -326,7 +326,15 @@ namespace AudioTester {
 
     GranularInterceptFilterInstance::GranularInterceptFilterInstance(
         AudioStreamProcessor* processor, bool* enabledFlag)
-        : m_processor(processor), m_enabledFlag(enabledFlag) {}
+        : m_processor(processor), m_enabledFlag(enabledFlag), m_inputAccumulatorSize(0),
+          m_outputAccumulatorSize(0), m_outputAccumulatorReadPos(0), m_lastTempo(1.0f),
+          m_samplesNeededForNextBlock(0), m_hasPartialInput(false) {
+        // Initialize buffers for intelligent rate control
+        // Max buffer size for worst case: 0.5x tempo = need 2x input to produce 1x output
+        constexpr size_t MAX_BUFFER_SIZE = 8192 * 4; // Very conservative
+        m_inputAccumulator.resize(MAX_BUFFER_SIZE);
+        m_outputAccumulator.resize(MAX_BUFFER_SIZE);
+    }
 
     void GranularInterceptFilterInstance::filterChannel(float* aBuffer, unsigned int aSamples,
                                                         float aSamplerate, double aTime,
@@ -338,35 +346,86 @@ namespace AudioTester {
         }
 
         // Skip processing if tempo is 1.0 (no change needed)
-        if (std::abs(m_processor->getTempo() - 1.0f) < 0.001f) {
+        float currentTempo = m_processor->getTempo();
+        if (std::abs(currentTempo - 1.0f) < 0.001f) {
             return; // Pass through unchanged
         }
 
-        // For the first channel, we need to collect all channels and process them together
-        const size_t totalSamples = aSamples * aChannels;
+        // INTELLIGENT INPUT RATE BUFFERING - The key insight!
+        // We accumulate input until we have the RIGHT AMOUNT to feed Signalsmith
+        // to produce exactly aSamples output samples
 
-        // Ensure buffers are large enough
-        if (m_interleavedBuffer.size() < totalSamples) {
-            m_interleavedBuffer.resize(totalSamples);
-            m_outputBuffer.resize(totalSamples);
+        size_t inputSamplesNeeded = static_cast<size_t>(std::round(aSamples * currentTempo));
+
+        // Step 1: Accumulate input samples
+        if (m_inputAccumulatorSize + aSamples > m_inputAccumulator.size()) {
+            std::cerr << "GranularFilter: Input accumulator overflow!" << std::endl;
+            return; // Prevent buffer overflow
         }
 
-        // SoLoud calls filterChannel once per channel, so we need to reconstruct interleaved audio
-        // For now, just process the current channel in isolation (mono processing per channel)
-        // This is a limitation but simpler to implement
+        // Add current input to accumulator
+        std::memcpy(m_inputAccumulator.data() + m_inputAccumulatorSize, aBuffer,
+                    aSamples * sizeof(float));
+        m_inputAccumulatorSize += aSamples;
 
-        // Feed channel audio to granular processor
-        size_t fed = m_processor->feedInput(aBuffer, aSamples);
+        // Step 2: Process if we have enough input accumulated
+        while (m_inputAccumulatorSize >= inputSamplesNeeded && inputSamplesNeeded > 0) {
+            // Feed exactly the right amount to get aSamples output
+            size_t fed = m_processor->feedInput(m_inputAccumulator.data(), inputSamplesNeeded);
 
-        // Try to read processed audio for this channel
-        size_t read = m_processor->readOutput(aBuffer, aSamples);
+            // Calculate how much output we expect
+            size_t expectedOutput =
+                static_cast<size_t>(std::round(inputSamplesNeeded / currentTempo));
 
-        if (read < aSamples) {
-            // Not enough processed audio - fill remaining with silence to avoid artifacts
-            if (read > 0) {
-                std::memset(aBuffer + read, 0, (aSamples - read) * sizeof(float));
+            // Read the processed output
+            size_t outputSpace = m_outputAccumulator.size() - m_outputAccumulatorSize;
+            size_t maxRead = std::min(expectedOutput, outputSpace);
+
+            if (maxRead > 0) {
+                size_t actualRead = m_processor->readOutput(
+                    m_outputAccumulator.data() + m_outputAccumulatorSize, maxRead);
+                m_outputAccumulatorSize += actualRead;
             }
-            // If no processed audio available, original audio remains (aBuffer already contains it)
+
+            // Remove consumed input
+            if (fed > 0) {
+                std::memmove(m_inputAccumulator.data(), m_inputAccumulator.data() + fed,
+                             (m_inputAccumulatorSize - fed) * sizeof(float));
+                m_inputAccumulatorSize -= fed;
+            } else {
+                break; // Avoid infinite loop if can't feed
+            }
+        }
+
+        // Step 3: Provide exactly aSamples to SoLoud
+        size_t available = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
+        if (available >= aSamples) {
+            // Perfect! We have enough processed samples
+            std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
+                        aSamples * sizeof(float));
+            m_outputAccumulatorReadPos += aSamples;
+
+            // Buffer maintenance: compact when half-consumed
+            if (m_outputAccumulatorReadPos > m_outputAccumulator.size() / 2) {
+                size_t remaining = m_outputAccumulatorSize - m_outputAccumulatorReadPos;
+                std::memmove(m_outputAccumulator.data(),
+                             m_outputAccumulator.data() + m_outputAccumulatorReadPos,
+                             remaining * sizeof(float));
+                m_outputAccumulatorSize = remaining;
+                m_outputAccumulatorReadPos = 0;
+            }
+        } else {
+            // Not enough processed audio yet - output silence instead of mixing signals
+            // This prevents the weird mix of original + processed audio
+            std::memset(aBuffer, 0, aSamples * sizeof(float));
+
+            // Optional: output partial processed audio if available and fill rest with silence
+            if (available > 0) {
+                std::memcpy(aBuffer, m_outputAccumulator.data() + m_outputAccumulatorReadPos,
+                            available * sizeof(float));
+                m_outputAccumulatorReadPos += available;
+                // Rest is already silence from memset above
+            }
         }
     }
 
