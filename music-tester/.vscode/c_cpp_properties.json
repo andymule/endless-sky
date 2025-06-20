@@ -14,7 +14,12 @@
 				"/opt/homebrew/Cellar/sdl2/2.32.8/include/SDL2",
 				"/opt/homebrew/Cellar/sdl2/2.32.8/include",
 				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include",
-				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include/minizip"
+				"/Users/arckex/source/endless-sky/vcpkg/installed/arm64-osx/include/minizip",
+				"/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include/c++/v1",
+				"/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+				"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/vecLib.framework/Headers",
+				"/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include",
+				"/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"
 			],
 			"defines": [
 				"GL_SILENCE_DEPRECATION",
@@ -23,7 +28,8 @@
 				"IMGUI_IMPL_OPENGL_LOADER_GL3W",
 				"IMGUI_IMPL_OPENGL_USE_DESKTOP_GL",
 				"IMGUI_DISABLE_OBSOLETE_FUNCTIONS",
-				"IMGUI_DISABLE_OBSOLETE_KEYIO"
+				"IMGUI_DISABLE_OBSOLETE_KEYIO",
+				"SIGNALSMITH_USE_ACCELERATE"
 			],
 			"macFrameworkPath": [
 				"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks",
@@ -33,7 +39,7 @@
 			"cStandard": "c17",
 			"cppStandard": "c++20",
 			"intelliSenseMode": "macos-clang-arm64",
-			"compileCommands": "${workspaceFolder}/build/compile_commands.json",
+			"compileCommands": "${workspaceFolder}/compile_commands.json",
 			"browse": {
 				"path": [
 					"${workspaceFolder}",
@@ -45,7 +51,12 @@
 					"${workspaceFolder}/build/_deps/imgui-src/backends",
 					"${workspaceFolder}/build/_deps/soloud-src/include",
 					"${workspaceFolder}/build/_deps/signalsmith-stretch-src/include",
-					"${workspaceFolder}/build/_deps/signalsmith-linear-src/include"
+					"${workspaceFolder}/build/_deps/signalsmith-linear-src/include",
+					"/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include/c++/v1",
+					"/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+					"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/vecLib.framework/Headers",
+					"/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include",
+					"/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"
 				],
 				"limitSymbolsToIncludedHeaders": true
 			}

@@ -1,0 +1,25 @@
+CompileFlags:
+  Add: 
+    - -I/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include/c++/v1
+    - -I/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include
+    - -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/vecLib.framework/Headers
+    - -I/Library/Developer/CommandLineTools/SDKs/MacOSX15.6.sdk/usr/include
+    - -I/Applications/Xcode250Luck.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include
+    - -DSIGNALSMITH_USE_ACCELERATE
+    - -DGL_SILENCE_DEPRECATION
+    - -DWITH_SDL2_STATIC
+    - -DIMGUI_IMPL_OPENGL_LOADER_GL3W
+    - -DIMGUI_IMPL_OPENGL_USE_DESKTOP_GL
+    - -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    - -DIMGUI_DISABLE_OBSOLETE_KEYIO
+    - -DSOLOUD_STATIC
+  Remove: 
+    - -W*
+    - -Wno-*
+Index:
+  Background: Build
+Diagnostics:
+  ClangTidy:
+    Add: []
+    Remove: []
+  UnusedIncludes: Strict 
