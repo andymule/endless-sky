@@ -2,6 +2,8 @@
 
 #include "AudioState.h"
 #include "AudioSystem.h"
+#include "EventSystem.h"
+#include "SongManager.h"
 #include <filesystem>
 #include <functional>
 #include <string>
@@ -23,6 +25,11 @@ namespace AudioTester {
         void loadMusicFromDirectory();
         bool isSupportedFile(const std::string& filepath) const;
 
+        // Song management
+        void loadSongsFromDirectory(const std::string& directory);
+        void setCurrentSong(const std::string& songName);
+        const SongManager* getSongManager() const { return &m_songManager; }
+
         // Playback control
         void toggleGlobalPlayback();
         void startPlayback();
@@ -38,6 +45,7 @@ namespace AudioTester {
         void setTrackActive(size_t index, bool active);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
+        int findTrackByFilename(const std::string& filename) const;
 
         // Bus management
         void setBusVolume(float volume);
@@ -49,6 +57,14 @@ namespace AudioTester {
         void setBusFilterEnabled(const std::string& filterName, bool enabled);
         void setBusFilterParameter(const std::string& filterName, int paramId, float value);
 
+        // Effect automation (new methods for EventSystem)
+        void setTrackEffectEnabled(size_t trackIndex, const std::string& effectName, bool enabled);
+        void setTrackEffectParameter(size_t trackIndex, const std::string& effectName,
+                                     const std::string& paramName, float value);
+        void setBusEffectEnabled(const std::string& effectName, bool enabled);
+        void setBusEffectParameter(const std::string& effectName, const std::string& paramName,
+                                   float value);
+
         // Master tempo controls (playback speed)
         void setMasterTempo(float tempo);
         float getMasterTempo() const;
@@ -58,6 +74,11 @@ namespace AudioTester {
         float getGranularTempo() const;
         float getGranularLatencyMs() const;
         bool isGranularEnabled() const;
+
+        // Event triggering (external API)
+        void triggerSongEvent(const std::string& songName, const std::string& eventName);
+        void triggerMasterEvent(const std::string& eventName);
+        void updateEvents(float deltaTime);
 
         // State access (read-only for the view)
         const AudioState& getState() const { return m_state; }
@@ -77,7 +98,10 @@ namespace AudioTester {
 
         AudioState m_state;
         AudioSystem m_audioSystem;
+        SongManager m_songManager;
+        EventSystem m_eventSystem;
         std::string m_currentDirectory;
+        std::string m_currentSongName;
         bool m_isInitialized = false;
 
         // Store current tempo value for UI synchronization

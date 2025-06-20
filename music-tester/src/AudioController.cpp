@@ -4,7 +4,7 @@
 
 namespace AudioTester {
 
-    AudioController::AudioController() { m_currentDirectory = "sound_staging"; }
+    AudioController::AudioController() : m_eventSystem(this), m_currentDirectory("sound_staging") {}
 
     bool AudioController::initialize() {
         if (m_isInitialized) {
@@ -62,6 +62,15 @@ namespace AudioTester {
         syncAllTracksToAudioSystem();
     }
 
+    void AudioController::loadSongsFromDirectory(const std::string& directory) {
+        m_songManager.loadSongsFromDirectory(directory);
+    }
+
+    void AudioController::setCurrentSong(const std::string& songName) {
+        m_currentSongName = songName;
+        // TODO: Implement song switching logic
+    }
+
     bool AudioController::isSupportedFile(const std::string& filepath) const {
         std::filesystem::path path(filepath);
         std::string ext = path.extension().string();
@@ -110,6 +119,17 @@ namespace AudioTester {
         m_audioSystem.setTrackLooping(index, looping);
     }
 
+    int AudioController::findTrackByFilename(const std::string& filename) const {
+        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
+            const auto& track = m_state.getTrack(i);
+            std::filesystem::path trackPath(track.filepath);
+            if (trackPath.filename().string() == filename) {
+                return static_cast<int>(i);
+            }
+        }
+        return -1; // Not found
+    }
+
     void AudioController::setBusVolume(float volume) {
         m_state.setBusVolume(volume);
         m_audioSystem.setBusVolume(volume);
@@ -134,6 +154,89 @@ namespace AudioTester {
         m_audioSystem.setBusFilterParameter(filterName, paramId, value);
     }
 
+    // New effect automation methods
+    void AudioController::setTrackEffectEnabled(size_t trackIndex, const std::string& effectName,
+                                                bool enabled) {
+        // Map effect names to filter names (they're the same in our system)
+        setTrackFilterEnabled(trackIndex, effectName, enabled);
+    }
+
+    void AudioController::setTrackEffectParameter(size_t trackIndex, const std::string& effectName,
+                                                  const std::string& paramName, float value) {
+        // Map parameter names to parameter IDs
+        // This is a simplified mapping - in a real implementation you'd have a proper mapping table
+        int paramId = 0; // Default to first parameter
+
+        // Simple mapping for common parameters
+        if (paramName == "boost")
+            paramId = 0;
+        else if (paramName == "delay")
+            paramId = 0;
+        else if (paramName == "decay")
+            paramId = 1;
+        else if (paramName == "filter")
+            paramId = 2;
+        else if (paramName == "samplerate")
+            paramId = 0;
+        else if (paramName == "bitdepth")
+            paramId = 1;
+        else if (paramName == "wet")
+            paramId = 0;
+        else if (paramName == "roomsize")
+            paramId = 1;
+        else if (paramName == "damp")
+            paramId = 2;
+        else if (paramName == "width")
+            paramId = 3;
+        else if (paramName == "freq")
+            paramId = 0;
+        else if (paramName == "wave")
+            paramId = 1;
+        else if (paramName == "amount")
+            paramId = 0;
+
+        setTrackFilterParameter(trackIndex, effectName, paramId, value);
+    }
+
+    void AudioController::setBusEffectEnabled(const std::string& effectName, bool enabled) {
+        setBusFilterEnabled(effectName, enabled);
+    }
+
+    void AudioController::setBusEffectParameter(const std::string& effectName,
+                                                const std::string& paramName, float value) {
+        // Map parameter names to parameter IDs (same as track effects)
+        int paramId = 0;
+
+        if (paramName == "boost")
+            paramId = 0;
+        else if (paramName == "delay")
+            paramId = 0;
+        else if (paramName == "decay")
+            paramId = 1;
+        else if (paramName == "filter")
+            paramId = 2;
+        else if (paramName == "samplerate")
+            paramId = 0;
+        else if (paramName == "bitdepth")
+            paramId = 1;
+        else if (paramName == "wet")
+            paramId = 0;
+        else if (paramName == "roomsize")
+            paramId = 1;
+        else if (paramName == "damp")
+            paramId = 2;
+        else if (paramName == "width")
+            paramId = 3;
+        else if (paramName == "freq")
+            paramId = 0;
+        else if (paramName == "wave")
+            paramId = 1;
+        else if (paramName == "amount")
+            paramId = 0;
+
+        setBusFilterParameter(effectName, paramId, value);
+    }
+
     void AudioController::syncTrackToAudioSystem(size_t index) {
         if (index >= m_state.getTrackCount()) {
             return;
@@ -156,6 +259,8 @@ namespace AudioTester {
             m_audioSystem.updateSync();
         }
     }
+
+    void AudioController::updateEvents(float deltaTime) { m_eventSystem.update(deltaTime); }
 
     double AudioController::getMasterDuration() const { return m_audioSystem.getMasterDuration(); }
 
@@ -186,5 +291,15 @@ namespace AudioTester {
     }
 
     bool AudioController::isGranularEnabled() const { return m_audioSystem.isGranularEnabled(); }
+
+    // Event triggering (external API)
+    void AudioController::triggerSongEvent(const std::string& songName,
+                                           const std::string& eventName) {
+        m_eventSystem.triggerSongEvent(songName, eventName);
+    }
+
+    void AudioController::triggerMasterEvent(const std::string& eventName) {
+        m_eventSystem.triggerMasterEvent(eventName);
+    }
 
 } // namespace AudioTester
