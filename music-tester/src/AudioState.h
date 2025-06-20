@@ -1,10 +1,68 @@
 #pragma once
 
+#include <filesystem>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
 namespace AudioTester {
+
+    // Effect state for complete automation
+    struct EffectState {
+        bool enabled = false;
+        std::map<std::string, float> parameters;
+    };
+
+    // Enhanced track state with complete effect automation
+    struct TrackStateExtended {
+        std::string file; // Track filename
+        float volume = 1.0f;
+        bool active = true;
+        std::map<std::string, EffectState> effects;
+    };
+
+    // Complete state snapshot for events
+    struct StateSnapshot {
+        float masterTempo = 1.0f;   // Per-song tempo control
+        float granularTempo = 1.0f; // Per-song granular tempo control
+        std::vector<TrackStateExtended> tracks;
+    };
+
+    // Song event definition
+    struct SongEvent {
+        std::string name;
+        float fadeTime;      // Fade-in duration in seconds
+        StateSnapshot state; // Complete song state (tracks + tempo)
+    };
+
+    // Song container
+    struct Song {
+        std::string name;
+        std::vector<SongEvent> events;
+        std::filesystem::path folderPath;
+    };
+
+    // Master bus state with effects and tempo (only exists at master level)
+    struct MasterBusState {
+        float masterTempo = 1.0f;   // Master-level tempo control
+        float granularTempo = 1.0f; // Master-level granular tempo control
+        float volume = 1.0f;
+        std::map<std::string, EffectState> effects;
+    };
+
+    // Master bus event definition
+    struct MasterEvent {
+        std::string name;
+        float fadeTime;       // Fade-in duration in seconds
+        MasterBusState state; // Complete master bus state (effects + tempo)
+    };
+
+    // Master bus container (separate from songs)
+    struct MasterBus {
+        std::string name;
+        std::vector<MasterEvent> events; // Events containing MasterBusState and tempo
+    };
 
     class AudioState {
     public:

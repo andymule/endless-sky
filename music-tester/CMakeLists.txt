@@ -40,6 +40,7 @@ set(MUSIC_TESTER_SOURCES
     src/AudioController.cpp
     src/TesterView.cpp
     src/AudioStreamProcessor.cpp
+    src/SongManager.cpp
 )
 
 # Set up headers for music-tester
@@ -51,6 +52,7 @@ set(MUSIC_TESTER_HEADERS
     src/ErrorHandling.h
     src/CircularBuffer.h
     src/AudioStreamProcessor.h
+    src/SongManager.h
 )
 
 # Add the executable target
@@ -90,6 +92,14 @@ FetchContent_Declare(
     GIT_TAG main
 )
 FetchContent_MakeAvailable(signalsmith-linear)
+
+# Fetch nlohmann/json
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Add ImGui sources
 set(IMGUI_SOURCES
@@ -212,6 +222,7 @@ target_link_libraries(music-tester PRIVATE
     ${PNG_LIBRARIES}
     ${JPEG_LIBRARIES}
     ${OPENAL_LIBRARY}
+    nlohmann_json::nlohmann_json
 )
 
 # Add SDL2 library directories and link flags from pkg-config
@@ -252,19 +263,30 @@ add_custom_command(TARGET music-tester POST_BUILD
 
 # The OAML-related definition has been removed
 
-# Add test executable for CircularBuffer
+# Add test executables
 add_executable(test-circular-buffer src/test_circular_buffer.cpp)
+add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp)
 
-# Include directories for test
+# Include directories for tests
 target_include_directories(test-circular-buffer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${signalsmith-stretch_SOURCE_DIR}/include
     ${signalsmith-linear_SOURCE_DIR}/include
 )
 
-# Link test with required libraries (minimal set for testing)
+target_include_directories(test-song-loading PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${signalsmith-stretch_SOURCE_DIR}/include
+    ${signalsmith-linear_SOURCE_DIR}/include
+)
+
+# Link tests with required libraries
 target_link_libraries(test-circular-buffer PRIVATE
     ${CMAKE_THREAD_LIBS_INIT}
+)
+
+target_link_libraries(test-song-loading PRIVATE
+    nlohmann_json::nlohmann_json
 )
 
 # Find Threads package for std::thread support
