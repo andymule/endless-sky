@@ -14,6 +14,7 @@
 #include <SDL2/SDL_opengl.h>
 
 #include "AudioController.h"
+#include "EventSystem.h"
 #include "Logger.h"
 #include "TesterView.h"
 

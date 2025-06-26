@@ -1,11 +1,12 @@
 #include "AudioController.h"
+#include "EventSystem.h"
 #include "Logger.h"
 #include <algorithm>
 #include <iostream>
 
 namespace AudioTester {
 
-    AudioController::AudioController() : m_eventSystem(this) {}
+    AudioController::AudioController() : m_eventSystem(std::make_unique<EventSystem>(this)) {}
 
     bool AudioController::initialize(const std::string& executableDirectory) {
         if (m_isInitialized) {
@@ -256,7 +257,7 @@ namespace AudioTester {
         }
     }
 
-    void AudioController::updateEvents(float deltaTime) { m_eventSystem.update(deltaTime); }
+    void AudioController::updateEvents(float deltaTime) { m_eventSystem->update(deltaTime); }
 
     double AudioController::getMasterDuration() const { return m_audioSystem.getMasterDuration(); }
 
@@ -291,11 +292,11 @@ namespace AudioTester {
     // Event triggering (external API)
     void AudioController::triggerSongEvent(const std::string& songName,
                                            const std::string& eventName) {
-        m_eventSystem.triggerSongEvent(songName, eventName);
+        m_eventSystem->triggerSongEvent(songName, eventName);
     }
 
     void AudioController::triggerMasterEvent(const std::string& eventName) {
-        m_eventSystem.triggerMasterEvent(eventName);
+        m_eventSystem->triggerMasterEvent(eventName);
     }
 
 } // namespace AudioTester

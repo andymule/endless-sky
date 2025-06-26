@@ -2,13 +2,16 @@
 
 #include "AudioState.h"
 #include "AudioSystem.h"
-#include "EventSystem.h"
 #include "SongManager.h"
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace AudioTester {
+
+    // Forward declaration
+    class EventSystem;
 
     // Controller class that handles all business logic
     class AudioController {
@@ -100,7 +103,7 @@ namespace AudioTester {
         AudioState m_state;
         AudioSystem m_audioSystem;
         SongManager m_songManager;
-        EventSystem m_eventSystem;
+        std::unique_ptr<EventSystem> m_eventSystem;
         std::string m_executableDirectory;
         std::string m_currentDirectory;
         std::string m_currentSongName;
