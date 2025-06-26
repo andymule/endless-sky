@@ -29,6 +29,12 @@ namespace AudioTester {
         // Song lookup
         const Song* findSong(const std::string& songName) const;
 
+        // Event management
+        bool addSongEvent(const std::string& songName, const SongEvent& event);
+        bool addMasterEvent(const MasterEvent& event);
+        bool saveSongJson(const std::string& songName);
+        bool saveMasterJson();
+
         // Clear all loaded data
         void clear();
 
@@ -53,6 +59,9 @@ namespace AudioTester {
         // Logging
         void logError(const std::string& message) const;
         void logInfo(const std::string& message) const;
+
+        // Helper for master JSON path
+        std::string getCurrentMasterDirectory() const;
     };
 
 } // namespace AudioTester

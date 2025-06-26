@@ -234,7 +234,11 @@ namespace AudioTester {
         }
     }
 
-    void AudioController::updateEvents(float deltaTime) { m_eventSystem->update(deltaTime); }
+    void AudioController::updateEvents(float deltaTime) {
+        if (m_eventSystem) {
+            m_eventSystem->update(deltaTime);
+        }
+    }
 
     double AudioController::getMasterDuration() const { return m_audioSystem.getMasterDuration(); }
 
@@ -299,6 +303,80 @@ namespace AudioTester {
 
         // Event not found anywhere
         LOG_ERROR_COMP("AudioController", "Event not found: " + eventName);
+    }
+
+    bool AudioController::createSongEvent(const std::string& songName, const std::string& eventName,
+                                          float fadeTime) {
+        // Capture current state
+        StateSnapshot currentState;
+        currentState.masterTempo = getMasterTempo();
+        currentState.granularTempo = getGranularTempo();
+
+        // Capture track states
+        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
+            const auto& track = m_state.getTrack(i);
+
+            TrackStateExtended trackState;
+            trackState.file = std::filesystem::path(track.filepath).filename().string();
+            trackState.volume = track.volume;
+
+            // TODO: Capture effect states from AudioSystem
+            // For now, create empty effects map
+            trackState.effects = {};
+
+            currentState.tracks.push_back(trackState);
+        }
+
+        // Create the event
+        SongEvent event;
+        event.name = eventName;
+        event.fadeTime = fadeTime;
+        event.state = currentState;
+
+        // Add to song and save
+        if (m_songManager.addSongEvent(songName, event)) {
+            return m_songManager.saveSongJson(songName);
+        }
+        return false;
+    }
+
+    bool AudioController::createMasterEvent(const std::string& eventName, float fadeTime) {
+        LOG_INFO_COMP("AudioController", "Creating master event: " + eventName);
+
+        // Capture current master state
+        MasterBusState masterState;
+        masterState.masterTempo = getMasterTempo();
+        masterState.granularTempo = getGranularTempo();
+        masterState.volume = m_state.busVolume;
+
+        // TODO: Capture master effects from AudioSystem
+        // For now, create empty effects map
+        masterState.effects = {};
+
+        // Create the event
+        MasterEvent event;
+        event.name = eventName;
+        event.fadeTime = fadeTime;
+        event.state = masterState;
+
+        LOG_INFO_COMP("AudioController",
+                      "Event state captured - Tempo: " + std::to_string(masterState.masterTempo) +
+                          ", Volume: " + std::to_string(masterState.volume));
+
+        // Add to master bus and save
+        if (m_songManager.addMasterEvent(event)) {
+            LOG_INFO_COMP("AudioController", "Event added to memory, now saving...");
+            bool saveResult = m_songManager.saveMasterJson();
+            if (saveResult) {
+                LOG_INFO_COMP("AudioController", "Event saved successfully!");
+            } else {
+                LOG_ERROR_COMP("AudioController", "Failed to save event to JSON");
+            }
+            return saveResult;
+        } else {
+            LOG_ERROR_COMP("AudioController", "Failed to add event to memory");
+            return false;
+        }
     }
 
 } // namespace AudioTester

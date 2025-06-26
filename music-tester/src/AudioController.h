@@ -31,6 +31,7 @@ namespace AudioTester {
         // Song management (read-only access)
         void setCurrentSong(const std::string& songName);
         const SongManager* getSongManager() const { return &m_songManager; }
+        SongManager* getSongManagerMutable() { return &m_songManager; }
 
         // Playback control
         void toggleGlobalPlayback();
@@ -93,6 +94,11 @@ namespace AudioTester {
 
         // Current directory access
         const std::string& getCurrentDirectory() const { return m_currentDirectory; }
+
+        // Event creation methods
+        bool createSongEvent(const std::string& songName, const std::string& eventName,
+                             float fadeTime);
+        bool createMasterEvent(const std::string& eventName, float fadeTime);
 
     private:
         void syncTrackToAudioSystem(size_t index);

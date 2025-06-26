@@ -85,6 +85,11 @@ private:
     char m_newEventName[256] = "";
     float m_newEventFadeTime = 1.0f;
 
+    // Event creation state
+    enum class EventCreationType { MASTER, SONG };
+    EventCreationType m_eventCreationType = EventCreationType::MASTER;
+    std::string m_targetSongName = ""; // For song events
+
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;
 

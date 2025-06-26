@@ -592,12 +592,38 @@ void TesterView::RenderEventsWindow() {
     ImGui::Text("Event-Driven Music System");
     ImGui::Separator();
 
-    // Create Event button
-    if (ImGui::Button("Create Event from Current State")) {
-        m_showCreateEventDialog = true;
-        // Clear input fields
-        strcpy(m_newEventName, "");
-        m_newEventFadeTime = 1.0f;
+    // Create Event buttons for different types
+    const auto* songManager = m_controller->getSongManager();
+    if (songManager) {
+        // Master Event creation button
+        if (ImGui::Button("+ Master Event")) {
+            m_eventCreationType = EventCreationType::MASTER;
+            m_targetSongName = "";
+            m_showCreateEventDialog = true;
+            strcpy(m_newEventName, "");
+            m_newEventFadeTime = 1.0f;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(Global effects & tempo)");
+
+        // Song Event creation buttons
+        const auto& songs = songManager->getSongs();
+        for (const auto& song : songs) {
+            std::string buttonText = "+ " + song.name + " Event";
+            if (ImGui::Button(buttonText.c_str())) {
+                m_eventCreationType = EventCreationType::SONG;
+                m_targetSongName = song.name;
+                m_showCreateEventDialog = true;
+                strcpy(m_newEventName, "");
+                m_newEventFadeTime = 1.0f;
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("(Song tracks & tempo)");
+        }
+
+        if (songs.empty()) {
+            ImGui::TextDisabled("Load songs to create song events");
+        }
     }
 
     ImGui::Separator();
@@ -627,6 +653,9 @@ void TesterView::RenderMasterEvents() {
     const auto& masterBus = songManager->getMasterBus();
 
     if (ImGui::CollapsingHeader("Master Events", ImGuiTreeNodeFlags_DefaultOpen)) {
+        // Debug info
+        ImGui::Text("Master Bus Events Count: %d", static_cast<int>(masterBus.events.size()));
+
         if (masterBus.events.empty()) {
             ImGui::TextDisabled("No master events loaded");
             ImGui::Text("Load a directory with _master.json to see master events");
@@ -738,7 +767,15 @@ void TesterView::ShowCreateEventDialog() {
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
 
     if (ImGui::BeginPopupModal("Create Event", &m_showCreateEventDialog)) {
-        ImGui::Text("Create new event from current state");
+        // Show which type of event we're creating
+        if (m_eventCreationType == EventCreationType::MASTER) {
+            ImGui::Text("Create new MASTER event from current state");
+            ImGui::TextDisabled("This will affect global effects and master tempo");
+        } else {
+            ImGui::Text("Create new SONG event from current state");
+            ImGui::TextDisabled("Song: %s", m_targetSongName.c_str());
+            ImGui::TextDisabled("This will affect track volumes, effects, and song tempo");
+        }
         ImGui::Separator();
 
         ImGui::InputText("Event Name", m_newEventName, sizeof(m_newEventName));
@@ -750,19 +787,55 @@ void TesterView::ShowCreateEventDialog() {
         // Show current state that would be captured
         if (m_controller) {
             const auto& state = m_controller->getState();
-            ImGui::Text("Tracks: %d", static_cast<int>(state.getTrackCount()));
-            ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
-            ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
-            ImGui::Text("Bus Volume: %.2f", state.busVolume);
+            if (m_eventCreationType == EventCreationType::MASTER) {
+                ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
+                ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
+                ImGui::Text("Bus Volume: %.2f", state.busVolume);
+                ImGui::Text("Bus Effects: (will be captured)");
+            } else {
+                ImGui::Text("Tracks: %d", static_cast<int>(state.getTrackCount()));
+                ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
+                ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
+                ImGui::Text("Track Effects: (will be captured)");
+            }
         }
 
         ImGui::Separator();
 
         if (ImGui::Button("Create Event")) {
-            // TODO: Implement event creation
-            // This would capture current state and add it to the current song
-            ImGui::CloseCurrentPopup();
-            m_showCreateEventDialog = false;
+            if (strlen(m_newEventName) > 0) {
+                bool success = false;
+
+                if (m_eventCreationType == EventCreationType::MASTER) {
+                    success = m_controller->createMasterEvent(m_newEventName, m_newEventFadeTime);
+                    if (success) {
+                        printf("SUCCESS: Created master event '%s' with fade time %.1f\n",
+                               m_newEventName, m_newEventFadeTime);
+                    } else {
+                        printf("FAILED: Could not create master event '%s'\n", m_newEventName);
+                    }
+                } else {
+                    success = m_controller->createSongEvent(m_targetSongName, m_newEventName,
+                                                            m_newEventFadeTime);
+                    if (success) {
+                        printf(
+                            "SUCCESS: Created song event '%s' for song '%s' with fade time %.1f\n",
+                            m_newEventName, m_targetSongName.c_str(), m_newEventFadeTime);
+                    } else {
+                        printf("FAILED: Could not create song event '%s' for song '%s'\n",
+                               m_newEventName, m_targetSongName.c_str());
+                    }
+                }
+
+                if (success) {
+                    ImGui::CloseCurrentPopup();
+                    m_showCreateEventDialog = false;
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Failed to create event");
+                }
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Event name required");
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {

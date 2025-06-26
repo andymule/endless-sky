@@ -333,4 +333,146 @@ namespace AudioTester {
         LOG_INFO_COMP("SongManager", message);
     }
 
+    bool SongManager::addSongEvent(const std::string& songName, const SongEvent& event) {
+        for (auto& song : m_songs) {
+            if (song.name == songName) {
+                song.events.push_back(event);
+                logInfo("Added event '" + event.name + "' to song '" + songName + "'");
+                return true;
+            }
+        }
+        logError("Song not found: " + songName);
+        return false;
+    }
+
+    bool SongManager::addMasterEvent(const MasterEvent& event) {
+        m_masterBus.events.push_back(event);
+        logInfo("Added master event: " + event.name);
+        return true;
+    }
+
+    bool SongManager::saveSongJson(const std::string& songName) {
+        for (const auto& song : m_songs) {
+            if (song.name == songName) {
+                try {
+                    nlohmann::json json;
+                    json["name"] = song.name;
+                    json["events"] = nlohmann::json::array();
+
+                    for (const auto& event : song.events) {
+                        nlohmann::json eventJson;
+                        eventJson["name"] = event.name;
+                        eventJson["fadeTime"] = event.fadeTime;
+
+                        // Serialize state
+                        nlohmann::json stateJson;
+                        stateJson["masterTempo"] = event.state.masterTempo;
+                        stateJson["granularTempo"] = event.state.granularTempo;
+                        stateJson["tracks"] = nlohmann::json::array();
+
+                        for (const auto& track : event.state.tracks) {
+                            nlohmann::json trackJson;
+                            trackJson["file"] = track.file;
+                            trackJson["volume"] = track.volume;
+                            trackJson["effects"] = nlohmann::json::object();
+
+                            for (const auto& [effectName, effectState] : track.effects) {
+                                nlohmann::json effectJson;
+                                effectJson["parameters"] = nlohmann::json::object();
+                                for (const auto& [paramName, paramValue] : effectState.parameters) {
+                                    effectJson["parameters"][paramName] = paramValue;
+                                }
+                                trackJson["effects"][effectName] = effectJson;
+                            }
+
+                            stateJson["tracks"].push_back(trackJson);
+                        }
+
+                        eventJson["state"] = stateJson;
+                        json["events"].push_back(eventJson);
+                    }
+
+                    // Write to file
+                    auto jsonPath = song.folderPath / "_song.json";
+                    std::ofstream file(jsonPath);
+                    if (!file.is_open()) {
+                        logError("Could not open file for writing: " + jsonPath.string());
+                        return false;
+                    }
+
+                    file << json.dump(2); // Pretty print with 2-space indentation
+                    logInfo("Saved song JSON: " + jsonPath.string());
+                    return true;
+
+                } catch (const std::exception& e) {
+                    logError("Error saving song JSON: " + std::string(e.what()));
+                    return false;
+                }
+            }
+        }
+        logError("Song not found for saving: " + songName);
+        return false;
+    }
+
+    bool SongManager::saveMasterJson() {
+        try {
+            nlohmann::json json;
+            json["name"] = m_masterBus.name;
+            json["events"] = nlohmann::json::array();
+
+            for (const auto& event : m_masterBus.events) {
+                nlohmann::json eventJson;
+                eventJson["name"] = event.name;
+                eventJson["fadeTime"] = event.fadeTime;
+
+                // Serialize master state
+                nlohmann::json stateJson;
+                stateJson["masterTempo"] = event.state.masterTempo;
+                stateJson["granularTempo"] = event.state.granularTempo;
+
+                nlohmann::json busJson;
+                busJson["volume"] = event.state.volume;
+                busJson["effects"] = nlohmann::json::object();
+
+                for (const auto& [effectName, effectState] : event.state.effects) {
+                    nlohmann::json effectJson;
+                    effectJson["parameters"] = nlohmann::json::object();
+                    for (const auto& [paramName, paramValue] : effectState.parameters) {
+                        effectJson["parameters"][paramName] = paramValue;
+                    }
+                    busJson["effects"][effectName] = effectJson;
+                }
+
+                stateJson["bus"] = busJson;
+                eventJson["state"] = stateJson;
+                json["events"].push_back(eventJson);
+            }
+
+            // Write to master.json in current directory
+            // For now, assume _master.json is in the root of the loaded directory
+            auto masterPath = std::filesystem::path(getCurrentMasterDirectory()) / "_master.json";
+            std::ofstream file(masterPath);
+            if (!file.is_open()) {
+                logError("Could not open master file for writing: " + masterPath.string());
+                return false;
+            }
+
+            file << json.dump(2);
+            logInfo("Saved master JSON: " + masterPath.string());
+            return true;
+
+        } catch (const std::exception& e) {
+            logError("Error saving master JSON: " + std::string(e.what()));
+            return false;
+        }
+    }
+
+    std::string SongManager::getCurrentMasterDirectory() const {
+        // For now, use the parent directory of the first song
+        if (!m_songs.empty()) {
+            return m_songs[0].folderPath.parent_path().string();
+        }
+        return "sound_staging"; // Fallback
+    }
+
 } // namespace AudioTester
