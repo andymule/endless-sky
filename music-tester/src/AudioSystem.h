@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AudioStreamProcessor.h"
-#include "ErrorHandling.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"

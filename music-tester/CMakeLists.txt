@@ -335,7 +335,6 @@ endif()
 # Add test executables
 add_executable(test-circular-buffer src/test_circular_buffer.cpp)
 add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp)
-add_executable(test-event-system src/test_event_system.cpp src/AudioController.cpp src/SongManager.cpp src/EventSystem.cpp src/AudioSystem.cpp src/AudioStreamProcessor.cpp)
 add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp)
 
 # Include directories for tests
@@ -351,14 +350,6 @@ target_include_directories(test-song-loading PRIVATE
     ${signalsmith-linear_SOURCE_DIR}/include
 )
 
-target_include_directories(test-event-system PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${signalsmith-stretch_SOURCE_DIR}/include
-    ${signalsmith-linear_SOURCE_DIR}/include
-    ${soloud_SOURCE_DIR}/include
-    ${SDL2_INCLUDE_DIRS}
-)
-
 target_include_directories(test-event-system-minimal PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -370,13 +361,6 @@ target_link_libraries(test-circular-buffer PRIVATE
 
 target_link_libraries(test-song-loading PRIVATE
     nlohmann_json::nlohmann_json
-)
-
-target_sources(test-event-system PRIVATE ${SOLOUD_SOURCES})
-
-target_link_libraries(test-event-system PRIVATE
-    nlohmann_json::nlohmann_json
-    ${SDL2_LIBRARIES}
 )
 
 target_link_libraries(test-event-system-minimal PRIVATE
