@@ -25,6 +25,26 @@
             }
         },
         {
+            "label": "Build Music Tester (Static)",
+            "type": "shell",
+            "command": "mkdir -p build && cd build && /opt/homebrew/bin/cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON -G Ninja && ninja",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
             "label": "Build Music Tester (Debug)",
             "type": "shell",
             "command": "mkdir -p build && cd build && /opt/homebrew/bin/cmake .. -DCMAKE_BUILD_TYPE=Debug -G Ninja && ninja",
