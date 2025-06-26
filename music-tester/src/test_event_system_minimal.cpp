@@ -147,14 +147,11 @@ private:
             const auto& track = state.tracks[i];
             std::cout << "    Track " << i << " (" << track.file << "):" << std::endl;
             std::cout << "      Volume: " << track.volume << std::endl;
-            std::cout << "      Active: " << (track.active ? "yes" : "no") << std::endl;
+            std::cout << "      Volume: " << track.volume << std::endl;
 
             m_controller->setTrackVolume(i, track.volume);
-            m_controller->setTrackActive(i, track.active);
 
             for (const auto& [effectName, effectState] : track.effects) {
-                m_controller->setTrackEffectEnabled(i, effectName, effectState.enabled);
-
                 for (const auto& [paramName, paramValue] : effectState.parameters) {
                     m_controller->setTrackEffectParameter(i, effectName, paramName, paramValue);
                 }
@@ -173,8 +170,7 @@ private:
         m_controller->setBusVolume(state.volume);
 
         for (const auto& [effectName, effectState] : state.effects) {
-            m_controller->setBusEffectEnabled(effectName, effectState.enabled);
-
+            // Apply effect parameters instead of enabled state
             for (const auto& [paramName, paramValue] : effectState.parameters) {
                 m_controller->setBusEffectParameter(effectName, paramName, paramValue);
             }

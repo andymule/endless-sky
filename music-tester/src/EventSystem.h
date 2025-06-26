@@ -59,6 +59,7 @@ namespace AudioTester {
 
         // Utility
         float lerp(float a, float b, float t);
+        float easeInOut(float t); // EASE_IN_OUT easing curve
         void lerpEffectState(const EffectState& start, const EffectState& end, EffectState& result,
                              float t);
     };

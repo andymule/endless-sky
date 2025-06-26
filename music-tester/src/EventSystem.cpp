@@ -95,9 +95,10 @@ namespace AudioTester {
 
             LOG_INFO_COMP("EventSystem", "Transition completed");
         } else {
-            // Continue lerping
-            float t = m_currentTime / m_targetTime;
-            lerpStates(t);
+            // Continue lerping with EASE_IN_OUT curve
+            float rawT = m_currentTime / m_targetTime;
+            float easedT = easeInOut(rawT);
+            lerpStates(easedT);
         }
     }
 
@@ -112,8 +113,47 @@ namespace AudioTester {
         LOG_INFO_COMP("EventSystem",
                       "Starting song transition (" + std::to_string(fadeTime) + "s)");
 
-        // Capture current state
-        m_startState = captureCurrentSongState();
+        // For elegant cancelling: Always capture the current LIVE state
+        // If we're mid-transition, this gets the interpolated state, not the original start
+        if (m_inTransition && m_transitionType == TransitionType::SONG) {
+            // We're already in a song transition - capture the current interpolated state
+            float rawT = m_currentTime / m_targetTime;
+            float easedT = easeInOut(rawT);
+
+            // Create current interpolated state as new starting point
+            StateSnapshot currentState;
+            currentState.masterTempo =
+                lerp(m_startState.masterTempo, m_targetState.masterTempo, easedT);
+            currentState.granularTempo =
+                lerp(m_startState.granularTempo, m_targetState.granularTempo, easedT);
+
+            // Interpolate current track states
+            size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
+            currentState.tracks.resize(maxTracks);
+
+            for (size_t i = 0; i < maxTracks; ++i) {
+                if (i < m_startState.tracks.size() && i < m_targetState.tracks.size()) {
+                    const auto& startTrack = m_startState.tracks[i];
+                    const auto& targetTrack = m_targetState.tracks[i];
+
+                    TrackStateExtended& currentTrack = currentState.tracks[i];
+                    currentTrack.file = targetTrack.file;
+                    currentTrack.volume = lerp(startTrack.volume, targetTrack.volume, easedT);
+
+                    // For effects, use target effects (simplified for now)
+                    currentTrack.effects = targetTrack.effects;
+                } else if (i < m_targetState.tracks.size()) {
+                    currentState.tracks[i] = m_targetState.tracks[i];
+                }
+            }
+
+            m_startState = currentState;
+        } else {
+            // Not in transition or different transition type - capture fresh state
+            // This handles cross-transition (master->song) elegantly
+            m_startState = captureCurrentSongState();
+        }
+
         m_targetState = target;
 
         // Setup transition
@@ -128,8 +168,31 @@ namespace AudioTester {
         LOG_INFO_COMP("EventSystem",
                       "Starting master transition (" + std::to_string(fadeTime) + "s)");
 
-        // Capture current state
-        m_startMasterState = captureCurrentMasterState();
+        // For elegant cancelling: Always capture the current LIVE state
+        if (m_inTransition && m_transitionType == TransitionType::MASTER) {
+            // We're already in a master transition - capture the current interpolated state
+            float rawT = m_currentTime / m_targetTime;
+            float easedT = easeInOut(rawT);
+
+            // Create current interpolated state as new starting point
+            MasterBusState currentState;
+            currentState.masterTempo =
+                lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, easedT);
+            currentState.granularTempo =
+                lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, easedT);
+            currentState.volume =
+                lerp(m_startMasterState.volume, m_targetMasterState.volume, easedT);
+
+            // For effects, use target effects (simplified for now)
+            currentState.effects = m_targetMasterState.effects;
+
+            m_startMasterState = currentState;
+        } else {
+            // Not in transition or different transition type - capture fresh state
+            // This handles cross-transition (song->master) elegantly
+            m_startMasterState = captureCurrentMasterState();
+        }
+
         m_targetMasterState = target;
 
         // Setup transition
@@ -148,26 +211,47 @@ namespace AudioTester {
             lerpedState.granularTempo =
                 lerp(m_startState.granularTempo, m_targetState.granularTempo, t);
 
-            // Interpolate tracks
-            size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
-            lerpedState.tracks.resize(maxTracks);
+            // For tracks, we need to handle them by filename to ensure proper interpolation
+            // Target state defines which tracks should exist
+            lerpedState.tracks.resize(m_targetState.tracks.size());
 
-            for (size_t i = 0; i < maxTracks; ++i) {
+            for (size_t i = 0; i < m_targetState.tracks.size(); ++i) {
+                const auto& targetTrack = m_targetState.tracks[i];
                 TrackStateExtended& lerpedTrack = lerpedState.tracks[i];
 
-                if (i < m_startState.tracks.size() && i < m_targetState.tracks.size()) {
-                    // Both states have this track
-                    const TrackStateExtended& startTrack = m_startState.tracks[i];
-                    const TrackStateExtended& targetTrack = m_targetState.tracks[i];
+                // Find corresponding track in start state by filename
+                const TrackStateExtended* startTrack = nullptr;
+                for (const auto& startT : m_startState.tracks) {
+                    if (startT.file == targetTrack.file) {
+                        startTrack = &startT;
+                        break;
+                    }
+                }
 
-                    lerpedTrack.file = targetTrack.file; // Use target file
-                    lerpedTrack.volume = lerp(startTrack.volume, targetTrack.volume, t);
-                    lerpedTrack.active = targetTrack.active; // Use target active state
+                lerpedTrack.file = targetTrack.file; // Always use target filename
 
-                    // Interpolate effects
-                    for (const auto& [effectName, targetEffect] : targetTrack.effects) {
-                        auto startIt = startTrack.effects.find(effectName);
-                        if (startIt != startTrack.effects.end()) {
+                if (startTrack) {
+                    // Track exists in both states - interpolate volume
+                    lerpedTrack.volume = lerp(startTrack->volume, targetTrack.volume, t);
+                } else {
+                    // Track only exists in target - use current live volume as start
+                    // This handles the case where JSON has tracks that aren't in captured state
+                    int trackIndex = m_controller->findTrackByFilename(targetTrack.file);
+                    float currentVolume = 1.0f; // Default fallback
+                    if (trackIndex >= 0) {
+                        const auto& audioState = m_controller->getState();
+                        if (trackIndex < static_cast<int>(audioState.getTrackCount())) {
+                            currentVolume = audioState.getTrack(trackIndex).volume;
+                        }
+                    }
+                    lerpedTrack.volume = lerp(currentVolume, targetTrack.volume, t);
+                }
+
+                // Interpolate effects
+                for (const auto& [effectName, targetEffect] : targetTrack.effects) {
+                    if (startTrack) {
+                        auto startIt = startTrack->effects.find(effectName);
+                        if (startIt != startTrack->effects.end()) {
                             // Effect exists in both states
                             lerpEffectState(startIt->second, targetEffect,
                                             lerpedTrack.effects[effectName], t);
@@ -175,10 +259,10 @@ namespace AudioTester {
                             // Effect only in target state
                             lerpedTrack.effects[effectName] = targetEffect;
                         }
+                    } else {
+                        // No start track, use target effect
+                        lerpedTrack.effects[effectName] = targetEffect;
                     }
-                } else if (i < m_targetState.tracks.size()) {
-                    // Track only in target state
-                    lerpedTrack = m_targetState.tracks[i];
                 }
             }
 
@@ -226,17 +310,17 @@ namespace AudioTester {
             int trackIndex = m_controller->findTrackByFilename(track.file);
             if (trackIndex >= 0) {
                 m_controller->setTrackVolume(trackIndex, track.volume);
-                m_controller->setTrackActive(trackIndex, track.active);
 
                 // Apply effects
                 for (const auto& [effectName, effectState] : track.effects) {
-                    m_controller->setTrackEffectEnabled(trackIndex, effectName,
-                                                        effectState.enabled);
-
+                    // Apply all effect parameters first (this will auto-enable/disable based on
+                    // wet)
                     for (const auto& [paramName, paramValue] : effectState.parameters) {
                         m_controller->setTrackEffectParameter(trackIndex, effectName, paramName,
                                                               paramValue);
                     }
+                    // Note: No need to set enabled state separately - it's handled automatically
+                    // by the wet parameter logic in AudioSystem
                 }
             }
         }
@@ -255,11 +339,12 @@ namespace AudioTester {
 
         // Apply effects
         for (const auto& [effectName, effectState] : state.effects) {
-            m_controller->setBusEffectEnabled(effectName, effectState.enabled);
-
+            // Apply all effect parameters (this will auto-enable/disable based on wet)
             for (const auto& [paramName, paramValue] : effectState.parameters) {
                 m_controller->setBusEffectParameter(effectName, paramName, paramValue);
             }
+            // Note: No need to set enabled state separately - it's handled automatically
+            // by the wet parameter logic in AudioSystem
         }
     }
 
@@ -275,13 +360,13 @@ namespace AudioTester {
 
         // Capture tracks
         const auto& audioState = m_controller->getState();
+
         for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
             const auto& track = audioState.getTrack(i);
 
             TrackStateExtended extendedTrack;
             extendedTrack.file = std::filesystem::path(track.filepath).filename().string();
             extendedTrack.volume = track.volume;
-            extendedTrack.active = track.active;
 
             // Capture effects (we'll need to add this to AudioController)
             // For now, leave effects empty as we'll implement this in the next step
@@ -312,11 +397,14 @@ namespace AudioTester {
 
     float EventSystem::lerp(float a, float b, float t) { return a + (b - a) * t; }
 
+    float EventSystem::easeInOut(float t) {
+        // EASE_IN_OUT curve: slow start, fast middle, slow end
+        return t < 0.5f ? 2.0f * t * t : 1.0f - 2.0f * (1.0f - t) * (1.0f - t);
+    }
+
     void EventSystem::lerpEffectState(const EffectState& start, const EffectState& end,
                                       EffectState& result, float t) {
-        result.enabled = end.enabled; // Use target enabled state
-
-        // Interpolate parameters
+        // Interpolate parameters (enabled state is handled automatically by wet parameter)
         for (const auto& [paramName, endValue] : end.parameters) {
             auto startIt = start.parameters.find(paramName);
             if (startIt != start.parameters.end()) {

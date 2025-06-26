@@ -412,7 +412,8 @@ namespace AudioTester {
             FilterInstance instance;
             initializeFilter(instance, filterName);
             if (instance.filter) {
-                instance.enabled = true; // Enable the filter by default
+                // Auto-enable based on wet parameter for new filters
+                instance.enabled = shouldAutoEnableFilter(filterName, paramId, value);
                 trackFilters.filters[filterName] = std::move(instance);
                 it = trackFilters.filters.find(filterName);
             } else {
@@ -425,9 +426,22 @@ namespace AudioTester {
         if (paramIt != instance.parameters.end()) {
             auto& param = paramIt->second;
             if (param.value != value) {
-                // Get the voice handle for this track
+                // Auto enable/disable logic based on wet parameter
+                bool wasEnabled = instance.enabled;
+                if (isWetParameter(filterName, paramId)) {
+                    instance.enabled = (value > 0.0f); // Auto enable/disable based on wet > 0
+                } else if (!instance.enabled && value != param.value) {
+                    // If setting non-wet parameter and filter is disabled, auto-enable if wet > 0
+                    auto wetParamIt = instance.parameters.find(getWetParameterId(filterName));
+                    if (wetParamIt != instance.parameters.end() &&
+                        wetParamIt->second.value > 0.0f) {
+                        instance.enabled = true;
+                    }
+                }
+
+                // Apply parameter change
                 if (trackIndex < m_tracks.size() && m_tracks[trackIndex].isPlaying &&
-                    instance.slot >= 0) {
+                    instance.slot >= 0 && instance.enabled) {
                     SoLoud::handle voiceHandle = m_tracks[trackIndex].handle;
 
                     // For problematic filters (freeverb, robotize, lofi, flanger, bassboost), use
@@ -459,7 +473,11 @@ namespace AudioTester {
 
                 // Store the new value
                 param.value = value;
-                instance.enabled = true; // Ensure filter is enabled when parameters change
+
+                // If enabled state changed, need to reapply filters
+                if (wasEnabled != instance.enabled) {
+                    applyFiltersToTrack(trackIndex);
+                }
 
                 // For robotize, we need to call setParams() on the filter instance for Frequency
                 // and Waveform parameters to ensure real-time updates work correctly
@@ -824,7 +842,8 @@ namespace AudioTester {
             // Create filter if it doesn't exist
             FilterInstance instance;
             initializeFilter(instance, filterName);
-            instance.enabled = true;
+            // Auto-enable based on wet parameter for new filters
+            instance.enabled = shouldAutoEnableFilter(filterName, paramId, value);
             m_busFilters[filterName] = std::move(instance);
             it = m_busFilters.find(filterName);
         }
@@ -832,37 +851,63 @@ namespace AudioTester {
         auto& instance = it->second;
         auto paramIt = instance.parameters.find(paramId);
         if (paramIt != instance.parameters.end()) {
-            paramIt->second.value = value;
-            instance.enabled = true;
+            auto& param = paramIt->second;
+            if (param.value != value) {
+                // Auto enable/disable logic based on wet parameter
+                bool wasEnabled = instance.enabled;
+                if (isWetParameter(filterName, paramId)) {
+                    instance.enabled = (value > 0.0f); // Auto enable/disable based on wet > 0
+                } else if (!instance.enabled && value != param.value) {
+                    // If setting non-wet parameter and filter is disabled, auto-enable if wet > 0
+                    auto wetParamIt = instance.parameters.find(getWetParameterId(filterName));
+                    if (wetParamIt != instance.parameters.end() &&
+                        wetParamIt->second.value > 0.0f) {
+                        instance.enabled = true;
+                    }
+                }
 
-            // Apply the parameter change immediately for realtime effect
-            updateFilterInstance(instance, filterName);
+                // Store the new value
+                param.value = value;
 
-            // For robotize, we need to force bus filter reapplication for Frequency and Waveform
-            // parameters to ensure real-time updates work correctly
-            if (filterName == "robotize" && (paramId == 1 || paramId == 2)) {
-                updateBusFilterParams();
-            }
+                // Apply the parameter change immediately for realtime effect
+                if (instance.enabled) {
+                    updateFilterInstance(instance, filterName);
+                }
 
-            // If bus is playing, apply the parameter change to the voice
-            if (m_busHandle) {
-                // For problematic filters (freeverb, robotize, lofi, flanger, bassboost), use
-                // immediate parameter setting for WET parameter to override the broken
-                // initialization in SoLoud
-                if ((filterName == "freeverb" || filterName == "robotize" || filterName == "lofi" ||
-                     filterName == "flanger" || filterName == "bassboost") &&
-                    paramId == 0) {
-                    // Apply WET parameter immediately without fade for these filters
-                    m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId, value);
-                } else if (filterName == "freeverb") {
-                    // For Freeverb, apply ALL parameters immediately to force the Revmodel to
-                    // update This is needed because FreeverbFilterInstance constructor doesn't
-                    // apply parameters to Revmodel
-                    m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId, value);
-                } else {
-                    // Use normal fade for other parameters
-                    m_engine->get().fadeFilterParameter(m_busHandle, instance.slot, paramId, value,
-                                                        FILTER_PARAM_TRANSITION_TIME);
+                // For robotize, we need to force bus filter reapplication for Frequency and
+                // Waveform parameters to ensure real-time updates work correctly
+                if (filterName == "robotize" && (paramId == 1 || paramId == 2)) {
+                    updateBusFilterParams();
+                }
+
+                // If bus is playing and filter is enabled, apply the parameter change to the voice
+                if (m_busHandle && instance.enabled) {
+                    // For problematic filters (freeverb, robotize, lofi, flanger, bassboost), use
+                    // immediate parameter setting for WET parameter to override the broken
+                    // initialization in SoLoud
+                    if ((filterName == "freeverb" || filterName == "robotize" ||
+                         filterName == "lofi" || filterName == "flanger" ||
+                         filterName == "bassboost") &&
+                        paramId == 0) {
+                        // Apply WET parameter immediately without fade for these filters
+                        m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId,
+                                                           value);
+                    } else if (filterName == "freeverb") {
+                        // For Freeverb, apply ALL parameters immediately to force the Revmodel to
+                        // update This is needed because FreeverbFilterInstance constructor doesn't
+                        // apply parameters to Revmodel
+                        m_engine->get().setFilterParameter(m_busHandle, instance.slot, paramId,
+                                                           value);
+                    } else {
+                        // Use normal fade for other parameters
+                        m_engine->get().fadeFilterParameter(m_busHandle, instance.slot, paramId,
+                                                            value, FILTER_PARAM_TRANSITION_TIME);
+                    }
+                }
+
+                // If enabled state changed, need to reapply bus filters
+                if (wasEnabled != instance.enabled) {
+                    updateBusFilterParams();
                 }
             }
         }
@@ -1106,10 +1151,15 @@ namespace AudioTester {
         }
 
         // Calculate internal tape speed = userTapeSpeed * granularTempo
-        m_internalTapeSpeed = calculateInternalTapeSpeed();
+        float newInternalTapeSpeed = calculateInternalTapeSpeed();
+        float newPitchCompensation = calculatePitchCompensation();
 
-        // Calculate pitch compensation = 1.0 / granularTempo
-        m_pitchCompensation = calculatePitchCompensation();
+        // Only update and log if values actually changed
+        bool valuesChanged = (std::abs(newInternalTapeSpeed - m_internalTapeSpeed) > 0.0001f) ||
+                             (std::abs(newPitchCompensation - m_pitchCompensation) > 0.0001f);
+
+        m_internalTapeSpeed = newInternalTapeSpeed;
+        m_pitchCompensation = newPitchCompensation;
 
         // Apply internal tape speed to all currently playing tracks
         for (size_t i = 0; i < m_tracks.size(); ++i) {
@@ -1126,10 +1176,13 @@ namespace AudioTester {
             // Set pitch compensation in the AudioStreamProcessor
             m_granularProcessor->setPitchCompensation(m_pitchCompensation);
 
-            LOG_INFO("Dual tape speed update: userSpeed=" + std::to_string(m_userTapeSpeed) +
-                     ", granularTempo=" + std::to_string(m_granularTempo) +
-                     ", internalSpeed=" + std::to_string(m_internalTapeSpeed) +
-                     ", pitchComp=" + std::to_string(m_pitchCompensation));
+            // Only log when values actually change
+            if (valuesChanged) {
+                LOG_INFO("Dual tape speed update: userSpeed=" + std::to_string(m_userTapeSpeed) +
+                         ", granularTempo=" + std::to_string(m_granularTempo) +
+                         ", internalSpeed=" + std::to_string(m_internalTapeSpeed) +
+                         ", pitchComp=" + std::to_string(m_pitchCompensation));
+            }
         }
     }
 
@@ -1262,4 +1315,30 @@ namespace AudioTester {
         // Use the existing integer-based method
         return getBusFilterParameter(filterName, paramId);
     }
+
+    // Helper methods for wet-based effect automation
+    bool AudioSystem::isWetParameter(const std::string& filterName, int paramId) const {
+        // Most filters have wet parameter at index 0, except dcremoval which has no wet parameter
+        return (filterName != "dcremoval" && paramId == 0);
+    }
+
+    int AudioSystem::getWetParameterId(const std::string& filterName) const {
+        // Most filters have wet parameter at index 0, except dcremoval which has no wet parameter
+        return (filterName != "dcremoval") ? 0 : -1;
+    }
+
+    bool AudioSystem::shouldAutoEnableFilter(const std::string& filterName, int paramId,
+                                             float value) const {
+        // Auto-enable if setting wet parameter > 0, or if filter has no wet parameter
+        if (filterName == "dcremoval") {
+            return true; // DCRemoval has no wet parameter, always enable when parameters are set
+        }
+
+        if (paramId == 0) { // Wet parameter
+            return value > 0.0f;
+        }
+
+        return false; // Don't auto-enable for non-wet parameters of new filters
+    }
+
 } // namespace AudioTester

@@ -28,7 +28,6 @@ int main() {
             for (size_t i = 0; i < event.state.tracks.size(); ++i) {
                 const auto& track = event.state.tracks[i];
                 std::cout << "          [" << i << "] " << track.file << " (vol: " << track.volume
-                          << ", active: " << (track.active ? "yes" : "no")
                           << ", effects: " << track.effects.size() << ")" << std::endl;
             }
         }

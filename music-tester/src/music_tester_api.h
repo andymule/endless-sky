@@ -25,8 +25,16 @@ void musicTester_triggerSongEvent(const char* songName, const char* eventName);
 void musicTester_triggerMasterEvent(const char* eventName);
 
 /**
- * Load songs from a directory
- * @param directory Path to directory containing song folders
+ * Trigger any event (searches both songs and master events automatically)
+ * This is the recommended function for game engines - just pass the event name
+ * @param eventName Name of the event to trigger
+ */
+void musicTester_triggerEvent(const char* eventName);
+
+/**
+ * Load music from a directory (both tracks and events automatically)
+ * This will load both individual track files and song/event definitions
+ * @param directory Path to directory containing tracks and song folders
  */
 void musicTester_loadSongsFromDirectory(const char* directory);
 

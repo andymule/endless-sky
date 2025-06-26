@@ -28,8 +28,7 @@ namespace AudioTester {
         void loadMusicFromDirectory();
         bool isSupportedFile(const std::string& filepath) const;
 
-        // Song management
-        void loadSongsFromDirectory(const std::string& directory);
+        // Song management (read-only access)
         void setCurrentSong(const std::string& songName);
         const SongManager* getSongManager() const { return &m_songManager; }
 
@@ -45,7 +44,6 @@ namespace AudioTester {
         bool isPlaying() const;
 
         // Track management
-        void setTrackActive(size_t index, bool active);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
         int findTrackByFilename(const std::string& filename) const;
@@ -81,6 +79,7 @@ namespace AudioTester {
         // Event triggering (external API)
         void triggerSongEvent(const std::string& songName, const std::string& eventName);
         void triggerMasterEvent(const std::string& eventName);
+        void triggerEvent(const std::string& eventName); // Search both songs and master
         void updateEvents(float deltaTime);
 
         // State access (read-only for the view)

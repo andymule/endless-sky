@@ -242,6 +242,11 @@ namespace AudioTester {
         double getTrackCurrentTime(size_t trackIndex) const;
         bool isTrackDrifting(size_t trackIndex) const;
 
+        // Helper methods for wet-based effect automation
+        bool isWetParameter(const std::string& filterName, int paramId) const;
+        int getWetParameterId(const std::string& filterName) const;
+        bool shouldAutoEnableFilter(const std::string& filterName, int paramId, float value) const;
+
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
         std::unique_ptr<AudioStreamProcessor> m_granularProcessor;

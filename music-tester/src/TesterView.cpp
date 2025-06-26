@@ -133,16 +133,17 @@ void TesterView::RenderDirectoryInput() {
     ImGui::Text("Music Directory:");
     if (ImGui::InputText("##dir", m_dirInput, DIR_INPUT_SIZE,
                          ImGuiInputTextFlags_EnterReturnsTrue)) {
-        m_controller->loadSongsFromDirectory(m_dirInput);
+        m_controller->setMusicDirectory(m_dirInput);
     }
     ImGui::SameLine();
-    if (ImGui::Button("Load Songs")) {
-        m_controller->loadSongsFromDirectory(m_dirInput);
+    if (ImGui::Button("Load")) {
+        m_controller->setMusicDirectory(m_dirInput);
     }
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Load songs from directory (each folder = one song)");
+        ImGui::SetTooltip(
+            "Load tracks and songs from directory (automatically loads both tracks and events)");
     }
 }
 
@@ -152,13 +153,6 @@ void TesterView::RenderGlobalControls() {
     if (ImGui::Button(state.globalPlaying ? "Stop" : "Play")) {
         m_controller->toggleGlobalPlayback();
     }
-
-    // Add keyboard shortcuts help
-    ImGui::Separator();
-    ImGui::Text("Keyboard Shortcuts:");
-    ImGui::Text("  Space: Toggle Play/Pause");
-    ImGui::Text("  1-9:   Toggle tracks 1-9 (active window)");
-    ImGui::Text("  0:     Toggle track 10 (active window)");
 
     // Show which window is currently active for number keys
     const char* activeWindowName = (m_activeWindow == ActiveWindow::MAIN) ? "Main" : "Secondary";
@@ -173,18 +167,11 @@ void TesterView::RenderTrackControls() {
         const auto& track = state.getTrack(i);
         ImGui::PushID(static_cast<int>(i));
 
-        // Active checkbox
-        bool active = track.active;
-        if (ImGui::Checkbox("##active", &active)) {
-            m_controller->setTrackActive(i, active);
-        }
-        ImGui::SameLine();
-
-        // Show keyboard shortcut for track
+        // Show keyboard shortcut for track (volume control)
         std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
         ImGui::Text("[%s] %s", keyText.c_str(), track.name.c_str());
 
-        // Volume slider
+        // Volume slider (primary control for enable/disable)
         float volume = track.volume;
         if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
             m_controller->setTrackVolume(i, volume);
@@ -206,15 +193,45 @@ void TesterView::drawFilterControls(size_t trackIndex) {
     const auto& filters = audioSystem.getFilters(trackIndex);
 
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = audioSystem.isFilterEnabled(trackIndex, filterName);
-        if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            m_controller->setTrackFilterEnabled(trackIndex, filterName, enabled);
+        // Check if filter is currently enabled (based on wet parameter > 0)
+        bool effectivelyEnabled = audioSystem.isFilterEnabled(trackIndex, filterName);
+
+        // Create unique ID for this filter's expanded state
+        std::string expandedId = "expand_" + filterName + "_" + std::to_string(trackIndex);
+
+        // Get or initialize expanded state
+        static std::map<std::string, bool> expandedStates;
+        bool& isExpanded = expandedStates[expandedId];
+
+        // Show dropdown arrow with effect name and status
+        ImGui::PushID(filterName.c_str());
+
+        // Color the arrow based on effect enabled state
+        if (effectivelyEnabled) {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when enabled
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when disabled
         }
-        if (enabled) {
+
+        // Dropdown arrow (TreeNode style but manual)
+        if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
+            isExpanded = !isExpanded;
+        }
+        ImGui::PopStyleColor();
+
+        // Effect name on same line
+        ImGui::SameLine();
+        ImGui::Text("%s%s", filterName.c_str(), effectivelyEnabled ? " (ON)" : " (OFF)");
+
+        // Show parameters when expanded
+        if (isExpanded) {
+            ImGui::Indent();
+
             auto it = filters.find(filterName);
             if (it != filters.end()) {
-                // Push unique ID for this filter to ensure parameter sliders are unique
-                ImGui::PushID((filterName + std::to_string(trackIndex)).c_str());
+                // Filter exists, show all parameters
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
                     bool changed = false;
@@ -241,9 +258,27 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                         }
                         case AudioTester::ParameterType::FLOAT:
                         default: {
+                            // Highlight wet parameter for easy identification
+                            if (paramId == 0 && filterName != "dcremoval") {
+                                ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                                                      value > 0.0f
+                                                          ? ImVec4(0.2f, 0.6f, 0.2f, 0.4f)
+                                                          : ImVec4(0.6f, 0.2f, 0.2f, 0.4f));
+                            }
+
                             if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
                                                    param.max)) {
                                 changed = true;
+                            }
+
+                            if (paramId == 0 && filterName != "dcremoval") {
+                                ImGui::PopStyleColor();
+                                // Add tooltip for wet parameter
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip(
+                                        "Wet parameter: Controls effect enable/disable.\n"
+                                        "0.0 = effect disabled, >0.0 = effect enabled");
+                                }
                             }
                             break;
                         }
@@ -254,9 +289,28 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                                                               value);
                     }
                 }
-                ImGui::PopID();
+            } else if (filterName != "dcremoval") {
+                // Filter doesn't exist yet, show wet parameter to enable it
+                float wetValue = 0.0f;
+                ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
+                if (ImGui::SliderFloat("wet", &wetValue, 0.0f, 1.0f)) {
+                    m_controller->setTrackFilterParameter(trackIndex, filterName, 0, wetValue);
+                }
+                ImGui::PopStyleColor();
+            } else {
+                // DCRemoval has no wet parameter, show enable option
+                ImGui::TextDisabled("(Effect disabled - click to enable)");
+                if (ImGui::Button("Enable DCRemoval")) {
+                    // DCRemoval default parameter
+                    m_controller->setTrackFilterParameter(trackIndex, filterName, 0, 0.1f);
+                }
             }
+
+            ImGui::Unindent();
         }
+
+        ImGui::PopID();
     }
 }
 
@@ -277,15 +331,45 @@ void TesterView::RenderBusControls() {
     const auto& busFilters = audioSystem.getBusFilters();
 
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-        bool enabled = audioSystem.isBusFilterEnabled(filterName);
-        if (ImGui::Checkbox(filterName.c_str(), &enabled)) {
-            m_controller->setBusFilterEnabled(filterName, enabled);
+        // Check if filter is currently enabled (based on wet parameter > 0)
+        bool effectivelyEnabled = audioSystem.isBusFilterEnabled(filterName);
+
+        // Create unique ID for this filter's expanded state
+        std::string expandedId = "expand_bus_" + filterName;
+
+        // Get or initialize expanded state
+        static std::map<std::string, bool> expandedStates;
+        bool& isExpanded = expandedStates[expandedId];
+
+        // Show dropdown arrow with effect name and status
+        ImGui::PushID(filterName.c_str());
+
+        // Color the arrow based on effect enabled state
+        if (effectivelyEnabled) {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when enabled
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when disabled
         }
-        if (enabled) {
+
+        // Dropdown arrow (TreeNode style but manual)
+        if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
+            isExpanded = !isExpanded;
+        }
+        ImGui::PopStyleColor();
+
+        // Effect name on same line
+        ImGui::SameLine();
+        ImGui::Text("%s%s", filterName.c_str(), effectivelyEnabled ? " (ON)" : " (OFF)");
+
+        // Show parameters when expanded
+        if (isExpanded) {
+            ImGui::Indent();
+
             auto it = busFilters.find(filterName);
             if (it != busFilters.end()) {
-                // Push unique ID for this bus filter to ensure parameter sliders are unique
-                ImGui::PushID((filterName + "bus").c_str());
+                // Filter exists, show all parameters
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
                     bool changed = false;
@@ -312,9 +396,27 @@ void TesterView::RenderBusControls() {
                         }
                         case AudioTester::ParameterType::FLOAT:
                         default: {
+                            // Highlight wet parameter for easy identification
+                            if (paramId == 0 && filterName != "dcremoval") {
+                                ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                                                      value > 0.0f
+                                                          ? ImVec4(0.2f, 0.6f, 0.2f, 0.4f)
+                                                          : ImVec4(0.6f, 0.2f, 0.2f, 0.4f));
+                            }
+
                             if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
                                                    param.max)) {
                                 changed = true;
+                            }
+
+                            if (paramId == 0 && filterName != "dcremoval") {
+                                ImGui::PopStyleColor();
+                                // Add tooltip for wet parameter
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip(
+                                        "Wet parameter: Controls effect enable/disable.\n"
+                                        "0.0 = effect disabled, >0.0 = effect enabled");
+                                }
                             }
                             break;
                         }
@@ -324,9 +426,32 @@ void TesterView::RenderBusControls() {
                         m_controller->setBusFilterParameter(filterName, paramId, value);
                     }
                 }
-                ImGui::PopID();
+            } else if (filterName != "dcremoval") {
+                // Filter doesn't exist yet, show wet parameter to enable it
+
+                float wetValue = 0.0f;
+                ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
+                if (ImGui::SliderFloat("wet", &wetValue, 0.0f, 1.0f)) {
+                    m_controller->setBusFilterParameter(filterName, 0, wetValue);
+                }
+                ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
+                }
+            } else {
+                // DCRemoval has no wet parameter, show enable option
+                ImGui::TextDisabled("(Effect disabled - click to enable)");
+                if (ImGui::Button("Enable DCRemoval")) {
+                    // DCRemoval default parameter
+                    m_controller->setBusFilterParameter(filterName, 0, 0.1f);
+                }
             }
+
+            ImGui::Unindent();
         }
+
+        ImGui::PopID();
     }
 
     ImGui::End();
@@ -338,19 +463,6 @@ void TesterView::RenderControlsWindow() {
 
     // Track if this window is focused for keyboard input routing
     m_controlsWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-
-    // Keyboard Shortcuts Section
-    ImGui::Text("Keyboard Shortcuts");
-    ImGui::Separator();
-    ImGui::Text("Space:  Toggle Play/Pause");
-    ImGui::Text("1-9:    Toggle tracks 1-9 (active window)");
-    ImGui::Text("0:      Toggle track 10 (active window)");
-
-    // Show which window is currently active for number keys
-    const char* activeWindowName = (m_activeWindow == ActiveWindow::MAIN) ? "Main" : "Controls";
-    ImGui::Text("Active window: %s", activeWindowName);
-
-    ImGui::Separator();
 
     // Tempo Control Section
     ImGui::Text("Tempo Control");
@@ -437,15 +549,16 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
         return; // Invalid key
     }
 
-    // Only toggle if the track exists
+    // Only control if the track exists
     if (trackIndex < trackCount) {
         // Route to appropriate window's tracks based on active window
         switch (m_activeWindow) {
             case ActiveWindow::MAIN:
-                // Main window tracks (current implementation)
+                // Main window tracks - toggle volume between 0.0 and 1.0
                 {
                     const auto& track = state.getTrack(trackIndex);
-                    m_controller->setTrackActive(trackIndex, !track.active);
+                    float newVolume = (track.volume > 0.5f) ? 0.0f : 1.0f;
+                    m_controller->setTrackVolume(trackIndex, newVolume);
                 }
                 break;
 
@@ -603,7 +716,7 @@ void TesterView::RenderSongEvents() {
                                     const auto& track = event.state.tracks[i];
                                     ImGui::Text("  %d: %s (vol:%.2f, %s)", static_cast<int>(i),
                                                 track.file.c_str(), track.volume,
-                                                track.active ? "active" : "inactive");
+                                                track.volume > 0.0f ? "audible" : "silent");
                                 }
                                 ImGui::EndTooltip();
                             }
@@ -679,7 +792,7 @@ AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
         AudioTester::TrackStateExtended trackState;
         trackState.file = track.name; // Use name as file reference
         trackState.volume = track.volume;
-        trackState.active = track.active;
+        // Note: active field removed - tracks are always active, use volume for enable/disable
         // TODO: Capture effect states from AudioSystem
 
         snapshot.tracks.push_back(trackState);

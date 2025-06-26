@@ -53,6 +53,10 @@ namespace AudioTester {
         m_state.clearTracks();
 
         try {
+            // First load songs/events from the directory (unified loading)
+            m_songManager.loadSongsFromDirectory(m_currentDirectory);
+
+            // Then load individual track files for playback
             for (const auto& entry : std::filesystem::directory_iterator(m_currentDirectory)) {
                 if (entry.is_regular_file()) {
                     const auto& path = entry.path();
@@ -61,6 +65,10 @@ namespace AudioTester {
                         m_state.addTrack(path.filename().string(), path.string());
                         // Load into audio system
                         m_audioSystem.loadTrack(path.string());
+
+                        // Ensure track is set to loop (tracks should always loop in a song)
+                        size_t trackIndex = m_state.getTrackCount() - 1;
+                        m_audioSystem.setTrackLooping(trackIndex, true);
                     }
                 }
             }
@@ -71,11 +79,6 @@ namespace AudioTester {
 
         // Sync all tracks with audio system
         syncAllTracksToAudioSystem();
-    }
-
-    void AudioController::loadSongsFromDirectory(const std::string& directory) {
-        std::string resolvedPath = resolvePath(directory);
-        m_songManager.loadSongsFromDirectory(resolvedPath);
     }
 
     std::string AudioController::resolvePath(const std::string& relativePath) const {
@@ -136,11 +139,6 @@ namespace AudioTester {
 
         m_audioSystem.stopAllTracks(); // Use synchronized stop
         m_state.setGlobalPlaying(false);
-    }
-
-    void AudioController::setTrackActive(size_t index, bool active) {
-        m_state.setTrackActive(index, active);
-        syncTrackToAudioSystem(index);
     }
 
     void AudioController::setTrackVolume(size_t index, float volume) {
@@ -217,18 +215,16 @@ namespace AudioTester {
         }
 
         const auto& track = m_state.getTrack(index);
-        // Apply volume based on active state
-        float effectiveVolume = track.active ? track.volume : 0.0f;
-        m_audioSystem.setTrackVolume(index, effectiveVolume);
+        // Apply volume directly - no active state check needed
+        m_audioSystem.setTrackVolume(index, track.volume);
     }
 
     void AudioController::syncAllTracksToAudioSystem() {
         // Optimized: sync all tracks directly without method call overhead
         for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
             const auto& track = m_state.getTrack(i);
-            // Apply volume based on active state
-            float effectiveVolume = track.active ? track.volume : 0.0f;
-            m_audioSystem.setTrackVolume(i, effectiveVolume);
+            // Apply volume directly - no active state check needed
+            m_audioSystem.setTrackVolume(i, track.volume);
         }
     }
 
@@ -278,6 +274,31 @@ namespace AudioTester {
 
     void AudioController::triggerMasterEvent(const std::string& eventName) {
         m_eventSystem->triggerMasterEvent(eventName);
+    }
+
+    void AudioController::triggerEvent(const std::string& eventName) {
+        // First, try to find the event in master events
+        const auto& masterBus = m_songManager.getMasterBus();
+        for (const auto& event : masterBus.events) {
+            if (event.name == eventName) {
+                triggerMasterEvent(eventName);
+                return;
+            }
+        }
+
+        // If not found in master, search all loaded songs
+        const auto& songs = m_songManager.getSongs();
+        for (const auto& song : songs) {
+            for (const auto& event : song.events) {
+                if (event.name == eventName) {
+                    triggerSongEvent(song.name, eventName);
+                    return;
+                }
+            }
+        }
+
+        // Event not found anywhere
+        LOG_ERROR_COMP("AudioController", "Event not found: " + eventName);
     }
 
 } // namespace AudioTester

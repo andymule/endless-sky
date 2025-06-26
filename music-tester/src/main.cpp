@@ -35,10 +35,17 @@ void musicTester_triggerMasterEvent(const char* eventName) {
     }
 }
 
+// Searches both songs and master events for the event name
+void musicTester_triggerEvent(const char* eventName) {
+    if (g_controller) {
+        g_controller->triggerEvent(eventName);
+    }
+}
+
 // Additional utility functions
 void musicTester_loadSongsFromDirectory(const char* directory) {
     if (g_controller) {
-        g_controller->loadSongsFromDirectory(directory);
+        g_controller->setMusicDirectory(directory);
     }
 }
 }

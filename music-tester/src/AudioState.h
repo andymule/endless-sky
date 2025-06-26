@@ -10,7 +10,6 @@ namespace AudioTester {
 
     // Effect state for complete automation
     struct EffectState {
-        bool enabled = false;
         std::map<std::string, float> parameters;
     };
 
@@ -18,7 +17,6 @@ namespace AudioTester {
     struct TrackStateExtended {
         std::string file; // Track filename
         float volume = 1.0f;
-        bool active = true;
         std::map<std::string, EffectState> effects;
     };
 
@@ -70,7 +68,6 @@ namespace AudioTester {
             std::string name;
             std::string filepath;
             float volume = 1.0f;
-            bool active = false;
             bool looping = true;
             bool isPlaying = false;
         };
@@ -88,7 +85,6 @@ namespace AudioTester {
             TrackState track;
             track.name = name;
             track.filepath = filepath;
-            track.active = true; // Default to enabled
             tracks.push_back(track);
             notifyChanged();
         }
@@ -102,13 +98,6 @@ namespace AudioTester {
         void setTrackVolume(size_t index, float volume) {
             if (index < tracks.size()) {
                 tracks[index].volume = volume;
-                notifyChanged();
-            }
-        }
-
-        void setTrackActive(size_t index, bool active) {
-            if (index < tracks.size()) {
-                tracks[index].active = active;
                 notifyChanged();
             }
         }

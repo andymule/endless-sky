@@ -230,20 +230,18 @@ namespace AudioTester {
 
     bool SongManager::parseEffectState(const nlohmann::json& json, EffectState& effect) {
         try {
-            effect.enabled = json.value("enabled", false);
-
             if (json.contains("parameters") && json["parameters"].is_object()) {
                 effect.parameters.clear();
                 for (const auto& [paramName, paramValue] : json["parameters"].items()) {
                     if (paramValue.is_number()) {
-                        effect.parameters[paramName] = paramValue.get<float>();
+                        float value = paramValue.get<float>();
+                        effect.parameters[paramName] = value;
                     }
                 }
             }
-
             return true;
         } catch (const std::exception& e) {
-            logError("Error parsing effect state: " + std::string(e.what()));
+            logError("Failed to parse effect state: " + std::string(e.what()));
             return false;
         }
     }
@@ -252,7 +250,7 @@ namespace AudioTester {
         try {
             track.file = json.value("file", "");
             track.volume = json.value("volume", 1.0f);
-            track.active = json.value("active", true);
+            // Note: active field removed - tracks are always active, use volume for enable/disable
 
             if (json.contains("effects") && json["effects"].is_object()) {
                 track.effects.clear();
