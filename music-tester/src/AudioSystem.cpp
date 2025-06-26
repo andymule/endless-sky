@@ -460,6 +460,18 @@ namespace AudioTester {
                 // Store the new value
                 param.value = value;
                 instance.enabled = true; // Ensure filter is enabled when parameters change
+
+                // For robotize, we need to call setParams() on the filter instance for Frequency
+                // and Waveform parameters to ensure real-time updates work correctly
+                if (filterName == "robotize" && (paramId == 1 || paramId == 2)) {
+                    updateFilterInstance(instance, filterName);
+
+                    // Force track restart to apply the new parameters to the actual SoLoud filter
+                    // instance
+                    if (trackIndex < m_tracks.size() && m_tracks[trackIndex].isPlaying) {
+                        applyFiltersToTrack(trackIndex);
+                    }
+                }
             }
         }
     }
@@ -826,6 +838,12 @@ namespace AudioTester {
             // Apply the parameter change immediately for realtime effect
             updateFilterInstance(instance, filterName);
 
+            // For robotize, we need to force bus filter reapplication for Frequency and Waveform
+            // parameters to ensure real-time updates work correctly
+            if (filterName == "robotize" && (paramId == 1 || paramId == 2)) {
+                updateBusFilterParams();
+            }
+
             // If bus is playing, apply the parameter change to the voice
             if (m_busHandle) {
                 // For problematic filters (freeverb, robotize, lofi, flanger, bassboost), use
@@ -1121,5 +1139,127 @@ namespace AudioTester {
 
     float AudioSystem::calculatePitchCompensation() const {
         return (m_granularTempo != 0.0f) ? (1.0f / m_granularTempo) : 1.0f;
+    }
+
+    void AudioSystem::setFilterParameterByName(size_t trackIndex, const std::string& filterName,
+                                               const std::string& paramName, float value) {
+        if (!m_isInitialized || trackIndex >= m_trackFilters.size()) {
+            return;
+        }
+
+        auto& trackFilters = m_trackFilters[trackIndex];
+        auto it = trackFilters.filters.find(filterName);
+        if (it == trackFilters.filters.end()) {
+            // Initialize the filter if it doesn't exist
+            FilterInstance instance;
+            initializeFilter(instance, filterName);
+            if (instance.filter) {
+                instance.enabled = true; // Enable the filter by default
+                trackFilters.filters[filterName] = std::move(instance);
+                it = trackFilters.filters.find(filterName);
+            } else {
+                return;
+            }
+        }
+
+        auto& filterInstance = it->second;
+
+        // Use FilterManager to validate and get parameter ID
+        if (!m_filterManager.isValidParameter(filterName, paramName, value)) {
+            LOG_ERROR("Invalid parameter value: " + filterName + "." + paramName + " = " +
+                      std::to_string(value));
+            return;
+        }
+
+        int paramId = m_filterManager.getParameterId(filterName, paramName);
+        if (paramId == -1) {
+            LOG_ERROR("Invalid parameter: " + filterName + "." + paramName);
+            return;
+        }
+
+        // Use the existing integer-based method
+        setFilterParameter(trackIndex, filterName, paramId, value);
+    }
+
+    float AudioSystem::getFilterParameterByName(size_t trackIndex, const std::string& filterName,
+                                                const std::string& paramName) const {
+        if (!m_isInitialized || trackIndex >= m_trackFilters.size()) {
+            return 0.0f;
+        }
+
+        const auto& trackFilters = m_trackFilters[trackIndex];
+        auto it = trackFilters.filters.find(filterName);
+        if (it == trackFilters.filters.end()) {
+            return 0.0f;
+        }
+
+        // Use FilterManager to get parameter ID
+        int paramId = m_filterManager.getParameterId(filterName, paramName);
+        if (paramId == -1) {
+            return 0.0f;
+        }
+
+        // Use the existing integer-based method
+        return getFilterParameter(trackIndex, filterName, paramId);
+    }
+
+    void AudioSystem::setBusFilterParameterByName(const std::string& filterName,
+                                                  const std::string& paramName, float value) {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        auto it = m_busFilters.find(filterName);
+        if (it == m_busFilters.end()) {
+            // Initialize the filter if it doesn't exist
+            FilterInstance instance;
+            initializeFilter(instance, filterName);
+            if (instance.filter) {
+                instance.enabled = true; // Enable the filter by default
+                m_busFilters[filterName] = std::move(instance);
+                it = m_busFilters.find(filterName);
+            } else {
+                return;
+            }
+        }
+
+        auto& filterInstance = it->second;
+
+        // Use FilterManager to validate and get parameter ID
+        if (!m_filterManager.isValidParameter(filterName, paramName, value)) {
+            LOG_ERROR("Invalid parameter value: " + filterName + "." + paramName + " = " +
+                      std::to_string(value));
+            return;
+        }
+
+        int paramId = m_filterManager.getParameterId(filterName, paramName);
+        if (paramId == -1) {
+            LOG_ERROR("Invalid parameter: " + filterName + "." + paramName);
+            return;
+        }
+
+        // Use the existing integer-based method
+        setBusFilterParameter(filterName, paramId, value);
+    }
+
+    float AudioSystem::getBusFilterParameterByName(const std::string& filterName,
+                                                   const std::string& paramName) const {
+        if (!m_isInitialized) {
+            return 0.0f;
+        }
+
+        auto it = m_busFilters.find(filterName);
+        if (it == m_busFilters.end()) {
+            return 0.0f;
+        }
+
+        // Use FilterManager to get parameter ID
+        int paramId = m_filterManager.getParameterId(filterName, paramName);
+        if (paramId == -1) {
+            return 0.0f;
+        }
+
+        // Use the existing integer-based method
+        return getBusFilterParameter(filterName, paramId);
     }
 } // namespace AudioTester

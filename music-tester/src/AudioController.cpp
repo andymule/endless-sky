@@ -195,29 +195,10 @@ namespace AudioTester {
         setTrackFilterEnabled(trackIndex, effectName, enabled);
     }
 
-    namespace {
-        // Helper to map effect parameter names to parameter IDs
-        int mapEffectParamNameToId(const std::string& /*effectName*/,
-                                   const std::string& paramName) {
-            if (paramName == "boost" || paramName == "delay" || paramName == "samplerate" ||
-                paramName == "wet" || paramName == "freq" || paramName == "amount")
-                return 0;
-            if (paramName == "decay" || paramName == "roomsize" || paramName == "bitdepth" ||
-                paramName == "wave")
-                return 1;
-            if (paramName == "filter" || paramName == "damp")
-                return 2;
-            if (paramName == "width")
-                return 3;
-            // Default fallback
-            return 0;
-        }
-    } // namespace
-
     void AudioController::setTrackEffectParameter(size_t trackIndex, const std::string& effectName,
                                                   const std::string& paramName, float value) {
-        int paramId = mapEffectParamNameToId(effectName, paramName);
-        setTrackFilterParameter(trackIndex, effectName, paramId, value);
+        // Use the new FilterManager-based method instead of local parameter mapping
+        m_audioSystem.setFilterParameterByName(trackIndex, effectName, paramName, value);
     }
 
     void AudioController::setBusEffectEnabled(const std::string& effectName, bool enabled) {
@@ -226,8 +207,8 @@ namespace AudioTester {
 
     void AudioController::setBusEffectParameter(const std::string& effectName,
                                                 const std::string& paramName, float value) {
-        int paramId = mapEffectParamNameToId(effectName, paramName);
-        setBusFilterParameter(effectName, paramId, value);
+        // Use the new FilterManager-based method instead of local parameter mapping
+        m_audioSystem.setBusFilterParameterByName(effectName, paramName, value);
     }
 
     void AudioController::syncTrackToAudioSystem(size_t index) {

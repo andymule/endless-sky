@@ -1,6 +1,9 @@
 #pragma once
 
+#include "AudioState.h"
 #include "AudioStreamProcessor.h"
+#include "FilterManager.h"
+#include "Logger.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
@@ -202,17 +205,25 @@ namespace AudioTester {
         void removeFilterFromTrack(size_t trackIndex, const std::string& filterName);
         void setFilterParameter(size_t trackIndex, const std::string& filterName, int paramId,
                                 float value);
+        void setFilterParameterByName(size_t trackIndex, const std::string& filterName,
+                                      const std::string& paramName, float value);
         void setFilterEnabled(size_t trackIndex, const std::string& filterName, bool enabled);
         bool isFilterEnabled(size_t trackIndex, const std::string& filterName) const;
         float getFilterParameter(size_t trackIndex, const std::string& filterName,
                                  int paramId) const;
+        float getFilterParameterByName(size_t trackIndex, const std::string& filterName,
+                                       const std::string& paramName) const;
         const std::unordered_map<std::string, FilterInstance>& getFilters(size_t trackIndex) const;
 
         // Bus filter management
         void setBusFilterEnabled(const std::string& filterName, bool enabled);
         bool isBusFilterEnabled(const std::string& filterName) const;
         void setBusFilterParameter(const std::string& filterName, int paramId, float value);
+        void setBusFilterParameterByName(const std::string& filterName,
+                                         const std::string& paramName, float value);
         float getBusFilterParameter(const std::string& filterName, int paramId) const;
+        float getBusFilterParameterByName(const std::string& filterName,
+                                          const std::string& paramName) const;
         const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
         // Static members
@@ -235,6 +246,7 @@ namespace AudioTester {
         std::unique_ptr<AudioBus> m_masterBus;
         std::unique_ptr<AudioStreamProcessor> m_granularProcessor;
         std::unique_ptr<GranularInterceptFilter> m_granularFilter;
+        FilterManager m_filterManager;
         std::vector<TrackInfo> m_tracks;
         std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;

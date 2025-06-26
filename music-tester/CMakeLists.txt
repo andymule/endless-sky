@@ -74,6 +74,7 @@ set(MUSIC_TESTER_SOURCES
     src/SongManager.cpp
     src/EventSystem.cpp
     src/Logger.cpp
+    src/FilterManager.cpp
 )
 
 # Set up headers for music-tester
@@ -88,6 +89,7 @@ set(MUSIC_TESTER_HEADERS
     src/SongManager.h
     src/EventSystem.h
     src/Logger.h
+    src/FilterManager.h
 )
 
 # Add the executable target
@@ -334,10 +336,10 @@ endif()
 
 # The OAML-related definition has been removed
 
-# Add test executables
+# Test executables
+add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp src/Logger.cpp)
 add_executable(test-circular-buffer src/test_circular_buffer.cpp)
 add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp src/Logger.cpp)
-add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp src/Logger.cpp)
 
 # Include directories for tests
 target_include_directories(test-circular-buffer PRIVATE
