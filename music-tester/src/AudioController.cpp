@@ -59,7 +59,7 @@ namespace AudioTester {
                         // Add to state
                         m_state.addTrack(path.filename().string(), path.string());
                         // Load into audio system
-                        m_audioSystem.loadAudioFile(path.string());
+                        m_audioSystem.loadTrack(path.string());
                     }
                 }
             }
@@ -100,8 +100,15 @@ namespace AudioTester {
     bool AudioController::isSupportedFile(const std::string& filepath) const {
         std::filesystem::path path(filepath);
         std::string ext = path.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        return AudioSystem::isSupportedFileExtension(ext);
+
+        // More efficient case-insensitive comparison for .ogg extension
+        if (ext.length() == 4 && (ext[0] == '.' || ext[0] == 'O' || ext[0] == 'o') &&
+            (ext[1] == 'o' || ext[1] == 'O') && (ext[2] == 'g' || ext[2] == 'G') &&
+            (ext[3] == 'g' || ext[3] == 'G')) {
+            return true;
+        }
+
+        return false;
     }
 
     void AudioController::toggleGlobalPlayback() {

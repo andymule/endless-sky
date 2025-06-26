@@ -163,13 +163,13 @@ namespace AudioTester {
         void cleanup();
 
         // Track management
-        void loadAudioFile(const std::string& path);
-        void playAllTracks(); // Play all tracks with sync
-        void stopAllTracks(); // Stop all tracks
+        void loadTrack(const std::string& path);
         void playTrack(size_t index);
         void stopTrack(size_t index);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
+        void playAllTracks(); // Play all tracks with sync
+        void stopAllTracks(); // Stop all tracks
 
         // Synchronization
         void updateSync(); // Call this regularly to maintain sync
@@ -217,7 +217,6 @@ namespace AudioTester {
 
         // Static members
         static const std::vector<std::string> AVAILABLE_FILTERS;
-        static bool isSupportedFileExtension(const std::string& ext);
 
     private:
         void applyFiltersToTrack(size_t trackIndex);

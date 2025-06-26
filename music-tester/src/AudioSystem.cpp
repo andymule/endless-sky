@@ -1,4 +1,5 @@
 #include "AudioSystem.h"
+#include "Logger.h"
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -38,7 +39,7 @@ namespace AudioTester {
             return true;
 
         if (!m_engine->initialize()) {
-            std::cerr << "Failed to initialize SoLoud" << std::endl;
+            LOG_ERROR("Failed to initialize SoLoud");
             return false;
         }
 
@@ -51,10 +52,10 @@ namespace AudioTester {
         // Initialize granular tempo processor
         m_granularProcessor = std::make_unique<AudioStreamProcessor>();
         if (!m_granularProcessor->initialize(44100, 2, 3.0, 2.0)) {
-            std::cerr << "Failed to initialize granular processor in AudioSystem" << std::endl;
+            LOG_ERROR("Failed to initialize granular processor in AudioSystem");
             // Don't fail completely - granular tempo just won't be available
         } else if (!m_granularProcessor->start()) {
-            std::cerr << "Failed to start granular processor in AudioSystem" << std::endl;
+            LOG_ERROR("Failed to start granular processor in AudioSystem");
             // Don't fail completely - granular tempo just won't be available
         }
 
@@ -79,17 +80,26 @@ namespace AudioTester {
         }
     }
 
-    void AudioSystem::loadAudioFile(const std::string& path) {
+    void AudioSystem::loadTrack(const std::string& path) {
         if (!m_isInitialized) {
             return;
         }
 
         std::filesystem::path filePath(path);
         std::string extension = filePath.extension().string();
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-        if (!isSupportedFileExtension(extension)) {
-            std::cerr << "Unsupported file format: " << extension << std::endl;
+        // More efficient case-insensitive comparison for .ogg extension
+        bool isSupported = false;
+        if (extension.length() == 4 &&
+            (extension[0] == '.' || extension[0] == 'O' || extension[0] == 'o') &&
+            (extension[1] == 'o' || extension[1] == 'O') &&
+            (extension[2] == 'g' || extension[2] == 'G') &&
+            (extension[3] == 'g' || extension[3] == 'G')) {
+            isSupported = true;
+        }
+
+        if (!isSupported) {
+            LOG_ERROR("Unsupported file format: " + extension);
             return;
         }
 
@@ -99,14 +109,13 @@ namespace AudioTester {
         trackInfo.wav = std::make_unique<SyncWav>();
         SoLoud::result result = trackInfo.wav->load(path.c_str());
         if (result != SoLoud::SO_NO_ERROR) {
-            std::cerr << "Failed to load: " << path << " (error: " << result << ")" << std::endl;
+            LOG_ERROR("Failed to load: " + path + " (error: " + std::to_string(result) + ")");
             return;
         }
 
         trackInfo.duration = trackInfo.wav->getLength();
         trackInfo.wav->setLooping(true);
-        std::cout << "Loaded: " << path << " (duration: " << trackInfo.duration << "s)"
-                  << std::endl;
+        LOG_INFO("Loaded: " + path + " (duration: " + std::to_string(trackInfo.duration) + "s)");
 
         m_tracks.push_back(std::move(trackInfo));
         m_trackFilters.resize(m_tracks.size());
@@ -218,13 +227,11 @@ namespace AudioTester {
             if (enabled) {
                 // Apply granular filter to master bus to intercept audio
                 m_masterBus->get().setFilter(0, m_granularFilter.get());
-                std::cout << "Granular tempo processing enabled - filter applied to master bus"
-                          << std::endl;
+                LOG_INFO("Granular tempo processing enabled - filter applied to master bus");
             } else {
                 // Remove granular filter from master bus
                 m_masterBus->get().setFilter(0, nullptr);
-                std::cout << "Granular tempo processing disabled - filter removed from master bus"
-                          << std::endl;
+                LOG_INFO("Granular tempo processing disabled - filter removed from master bus");
             }
         }
     }
@@ -306,8 +313,8 @@ namespace AudioTester {
         // Optional: print debug info occasionally
         static int debugCounter = 0;
         if (++debugCounter % 1000 == 0) { // Every ~23 seconds at 44.1kHz
-            std::cout << "Granular test: fed " << fed << " samples, read " << read
-                      << " samples, granularTempo " << m_granularTempo << std::endl;
+            LOG_INFO("Granular test: fed " + std::to_string(fed) + " samples, read " +
+                     std::to_string(read) + ", granularTempo " + std::to_string(m_granularTempo));
         }
     }
 
@@ -919,8 +926,6 @@ namespace AudioTester {
         }
     }
 
-    bool AudioSystem::isSupportedFileExtension(const std::string& ext) { return ext == ".ogg"; }
-
     // Synchronization methods
     void AudioSystem::calculateMasterDuration() {
         if (m_tracks.empty()) {
@@ -943,8 +948,8 @@ namespace AudioTester {
         m_syncState.masterDuration = shortestDuration;
         m_syncState.masterTrackIndex = shortestIndex;
 
-        std::cout << "Master duration set to: " << m_syncState.masterDuration << "s (track "
-                  << shortestIndex << ")" << std::endl;
+        LOG_INFO("Master duration set to: " + std::to_string(m_syncState.masterDuration) +
+                 "s (track " + std::to_string(shortestIndex) + ")");
     }
 
     void AudioSystem::playAllTracks() {
@@ -964,8 +969,7 @@ namespace AudioTester {
         m_syncState.globalTime = 0.0;
         m_syncState.lastSyncCheck = 0.0;
 
-        std::cout << "Started synchronized playback of " << m_tracks.size() << " tracks"
-                  << std::endl;
+        LOG_INFO("Started synchronized playback of " + std::to_string(m_tracks.size()) + " tracks");
     }
 
     void AudioSystem::stopAllTracks() {
@@ -1011,7 +1015,7 @@ namespace AudioTester {
             }
 
             if (m_tracks[i].isPlaying && isTrackDrifting(i)) {
-                std::cout << "Track " << i << " drifting, correcting..." << std::endl;
+                LOG_INFO("Track " + std::to_string(i) + " drifting, correcting...");
                 correctTrackSync(i, m_syncState.globalTime);
             }
         }
@@ -1031,8 +1035,8 @@ namespace AudioTester {
             // Use our custom seek method for accurate positioning
             m_engine->get().seek(m_tracks[trackIndex].handle, targetTime);
             m_tracks[trackIndex].expectedPosition = targetTime;
-            std::cout << "Track " << trackIndex << " synced: " << timeDiff << "s correction"
-                      << std::endl;
+            LOG_INFO("Track " + std::to_string(trackIndex) +
+                     " synced: " + std::to_string(timeDiff) + "s correction");
         }
     }
 
@@ -1104,10 +1108,10 @@ namespace AudioTester {
             // Set pitch compensation in the AudioStreamProcessor
             m_granularProcessor->setPitchCompensation(m_pitchCompensation);
 
-            std::cout << "Dual tape speed update: userSpeed=" << m_userTapeSpeed
-                      << ", granularTempo=" << m_granularTempo
-                      << ", internalSpeed=" << m_internalTapeSpeed
-                      << ", pitchComp=" << m_pitchCompensation << std::endl;
+            LOG_INFO("Dual tape speed update: userSpeed=" + std::to_string(m_userTapeSpeed) +
+                     ", granularTempo=" + std::to_string(m_granularTempo) +
+                     ", internalSpeed=" + std::to_string(m_internalTapeSpeed) +
+                     ", pitchComp=" + std::to_string(m_pitchCompensation));
         }
     }
 
