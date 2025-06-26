@@ -475,4 +475,40 @@ namespace AudioTester {
         return "sound_staging"; // Fallback
     }
 
+    bool SongManager::deleteSongEvent(const std::string& songName, const std::string& eventName) {
+        for (auto& song : m_songs) {
+            if (song.name == songName) {
+                auto it = std::find_if(
+                    song.events.begin(), song.events.end(),
+                    [&eventName](const SongEvent& event) { return event.name == eventName; });
+
+                if (it != song.events.end()) {
+                    song.events.erase(it);
+                    logInfo("Deleted event '" + eventName + "' from song '" + songName + "'");
+                    return saveSongJson(songName); // Save after deletion
+                } else {
+                    logError("Event not found in song '" + songName + "': " + eventName);
+                    return false;
+                }
+            }
+        }
+        logError("Song not found: " + songName);
+        return false;
+    }
+
+    bool SongManager::deleteMasterEvent(const std::string& eventName) {
+        auto it = std::find_if(
+            m_masterBus.events.begin(), m_masterBus.events.end(),
+            [&eventName](const MasterEvent& event) { return event.name == eventName; });
+
+        if (it != m_masterBus.events.end()) {
+            m_masterBus.events.erase(it);
+            logInfo("Deleted master event: " + eventName);
+            return saveMasterJson(); // Save after deletion
+        } else {
+            logError("Master event not found: " + eventName);
+            return false;
+        }
+    }
+
 } // namespace AudioTester

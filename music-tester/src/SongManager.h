@@ -35,6 +35,10 @@ namespace AudioTester {
         bool saveSongJson(const std::string& songName);
         bool saveMasterJson();
 
+        // Event deletion
+        bool deleteSongEvent(const std::string& songName, const std::string& eventName);
+        bool deleteMasterEvent(const std::string& eventName);
+
         // Clear all loaded data
         void clear();
 

@@ -3,6 +3,8 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
+#include <chrono>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -153,10 +155,6 @@ void TesterView::RenderGlobalControls() {
     if (ImGui::Button(state.globalPlaying ? "Stop" : "Play")) {
         m_controller->toggleGlobalPlayback();
     }
-
-    // Show which window is currently active for number keys
-    const char* activeWindowName = (m_activeWindow == ActiveWindow::MAIN) ? "Main" : "Secondary";
-    ImGui::Text("Active window: %s", activeWindowName);
 }
 
 void TesterView::RenderTrackControls() {
@@ -670,9 +668,9 @@ void TesterView::RenderMasterEvents() {
                     m_controller->triggerMasterEvent(event.name);
                 }
                 ImGui::SameLine();
-                ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
 
-                // Show event details in a tooltip
+                // Event text with tooltip
+                ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
                     ImGui::Text("Master Event: %s", event.name.c_str());
@@ -682,6 +680,14 @@ void TesterView::RenderMasterEvents() {
                     ImGui::Text("Volume: %.2f", event.state.volume);
                     ImGui::Text("Effects: %d", static_cast<int>(event.state.effects.size()));
                     ImGui::EndTooltip();
+                }
+
+                // Delete button (separate, no interference with event tooltip)
+                ImGui::SameLine();
+                std::string deleteId = "master_" + event.name;
+                if (RenderDeleteButton(deleteId, event.name.c_str())) {
+                    // Event deletion confirmed
+                    m_controller->deleteMasterEvent(event.name);
                 }
 
                 ImGui::PopID();
@@ -728,9 +734,9 @@ void TesterView::RenderSongEvents() {
                                 m_controller->triggerSongEvent(song.name, event.name);
                             }
                             ImGui::SameLine();
-                            ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
 
-                            // Show event details in a tooltip
+                            // Event text with tooltip
+                            ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
                             if (ImGui::IsItemHovered()) {
                                 ImGui::BeginTooltip();
                                 ImGui::Text("Event: %s", event.name.c_str());
@@ -748,6 +754,14 @@ void TesterView::RenderSongEvents() {
                                                 track.volume > 0.0f ? "audible" : "silent");
                                 }
                                 ImGui::EndTooltip();
+                            }
+
+                            // Delete button (separate, no interference with event tooltip)
+                            ImGui::SameLine();
+                            std::string deleteId = "song_" + song.name + "_" + event.name;
+                            if (RenderDeleteButton(deleteId, event.name.c_str())) {
+                                // Event deletion confirmed
+                                m_controller->deleteSongEvent(song.name, event.name);
                             }
 
                             ImGui::PopID();
@@ -872,6 +886,110 @@ AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
     }
 
     return snapshot;
+}
+
+bool TesterView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
+    ImGui::PushID(("delete_" + eventId).c_str());
+
+    // Check if this is the button being held
+    bool isThisButton = (m_deleteHoldState.eventId == eventId);
+
+    // Set up red text color for X, but transparent background
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.2f, 0.2f, 1.0f)); // Red text
+    ImGui::PushStyleColor(ImGuiCol_Button,
+                          ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent background
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                          ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent hover
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                          ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent active
+
+    // Render the X button
+    bool buttonPressed = ImGui::Button("X", ImVec2(20, 20));
+
+    // Get button position for drawing progress circle
+    ImVec2 buttonMin = ImGui::GetItemRectMin();
+    ImVec2 buttonMax = ImGui::GetItemRectMax();
+    ImVec2 center = ImVec2((buttonMin.x + buttonMax.x) * 0.5f, (buttonMin.y + buttonMax.y) * 0.5f);
+
+    // Handle mouse interaction
+    bool isHovered = ImGui::IsItemHovered();
+    bool isPressed = ImGui::IsItemActive();
+
+    // Calculate delta time using ImGui's built-in delta time
+    float deltaTime = ImGui::GetIO().DeltaTime;
+
+    if (isPressed && isHovered) {
+        if (!m_deleteHoldState.isHolding || !isThisButton) {
+            // Start holding
+            m_deleteHoldState.eventId = eventId;
+            m_deleteHoldState.holdTime = 0.0f;
+            m_deleteHoldState.isHolding = true;
+        } else {
+            // Continue holding
+            m_deleteHoldState.holdTime += deltaTime;
+        }
+    } else {
+        // Released or not hovering
+        if (isThisButton) {
+            m_deleteHoldState.isHolding = false;
+            m_deleteHoldState.holdTime = 0.0f;
+            m_deleteHoldState.eventId = "";
+        }
+    }
+
+    // Draw progress circle if holding
+    if (isThisButton && m_deleteHoldState.isHolding) {
+        float progress = m_deleteHoldState.holdTime / m_deleteHoldState.HOLD_DURATION;
+        progress = std::min(progress, 1.0f);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        float radius = 9.0f;
+
+        // Draw background circle (light red)
+        ImU32 bgColor = IM_COL32(255, 150, 150, 80);
+        drawList->AddCircleFilled(center, radius, bgColor);
+
+        // Draw progress pie slice
+        if (progress > 0.0f) {
+            ImU32 progressColor = IM_COL32(255, 80, 80, 180);
+            float startAngle = -M_PI * 0.5f; // Start at top
+            float endAngle = startAngle + (2.0f * M_PI * progress);
+
+            // Draw pie slice
+            ImVec2 points[32];
+            int numPoints = (int)(progress * 30) + 2; // More points for smoother circle
+            points[0] = center;                       // Center point
+
+            for (int i = 1; i < numPoints; i++) {
+                float angle = startAngle + (endAngle - startAngle) * (i - 1) / (numPoints - 2);
+                points[i] =
+                    ImVec2(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius);
+            }
+
+            drawList->AddConvexPolyFilled(points, numPoints, progressColor);
+        }
+
+        // Check if hold is complete
+        if (progress >= 1.0f) {
+            // Reset state
+            m_deleteHoldState.isHolding = false;
+            m_deleteHoldState.holdTime = 0.0f;
+            m_deleteHoldState.eventId = "";
+
+            ImGui::PopStyleColor(4);
+            ImGui::PopID();
+            return true; // Delete should happen
+        }
+    }
+
+    // Show tooltip on hover
+    if (isHovered) {
+        ImGui::SetTooltip("Hold for 1 second to delete \"%s\"", eventName);
+    }
+
+    ImGui::PopStyleColor(4);
+    ImGui::PopID();
+    return false; // No deletion
 }
 
 void TesterView::cleanup() {

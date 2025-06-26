@@ -100,6 +100,10 @@ namespace AudioTester {
                              float fadeTime);
         bool createMasterEvent(const std::string& eventName, float fadeTime);
 
+        // Event deletion methods
+        bool deleteSongEvent(const std::string& songName, const std::string& eventName);
+        bool deleteMasterEvent(const std::string& eventName);
+
     private:
         void syncTrackToAudioSystem(size_t index);
         void syncAllTracksToAudioSystem();

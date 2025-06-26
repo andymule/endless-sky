@@ -64,6 +64,9 @@ private:
     void ShowCreateEventDialog();
     AudioTester::StateSnapshot CaptureCurrentState();
 
+    // Delete button helper
+    bool RenderDeleteButton(const std::string& eventId, const char* eventName);
+
     // Input handling helpers
     void handleNumberKeyPress(int keyNumber);
 
@@ -89,6 +92,15 @@ private:
     enum class EventCreationType { MASTER, SONG };
     EventCreationType m_eventCreationType = EventCreationType::MASTER;
     std::string m_targetSongName = ""; // For song events
+
+    // Hold-to-delete state
+    struct DeleteHoldState {
+        std::string eventId = ""; // "master_eventName" or "song_songName_eventName"
+        float holdTime = 0.0f;
+        bool isHolding = false;
+        static constexpr float HOLD_DURATION = 1.0f; // 1 second
+    };
+    DeleteHoldState m_deleteHoldState;
 
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;

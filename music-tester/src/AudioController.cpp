@@ -379,4 +379,16 @@ namespace AudioTester {
         }
     }
 
+    bool AudioController::deleteSongEvent(const std::string& songName,
+                                          const std::string& eventName) {
+        LOG_INFO_COMP("AudioController",
+                      "Deleting song event: " + eventName + " from song: " + songName);
+        return m_songManager.deleteSongEvent(songName, eventName);
+    }
+
+    bool AudioController::deleteMasterEvent(const std::string& eventName) {
+        LOG_INFO_COMP("AudioController", "Deleting master event: " + eventName);
+        return m_songManager.deleteMasterEvent(eventName);
+    }
+
 } // namespace AudioTester
