@@ -1,7 +1,8 @@
-add_definitions(-DWITH_SDL2_STATIC)
-
 cmake_minimum_required(VERSION 3.24)
 project(music-tester VERSION 0.1.0)
+
+# Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
+option(BUNDLE_SDL2 "Bundle SDL2 dylib with the application for distribution" ON)
 
 # Generate compile_commands.json for better IntelliSense
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -24,6 +25,35 @@ else()
     add_compile_options(-Wno-unused-variable)
 endif()
 
+# SDL2 bundling configuration
+if(BUNDLE_SDL2)
+    message(STATUS "Building with SDL2 bundling for self-contained distribution")
+    
+    # Get Homebrew prefix for library paths
+    execute_process(
+        COMMAND brew --prefix
+        OUTPUT_VARIABLE BREW_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    
+    # Find SDL2 dylib to bundle
+    find_library(SDL2_DYLIB
+        NAMES libSDL2-2.0.0.dylib SDL2-2.0.0.dylib
+        PATHS ${BREW_PREFIX}/lib
+        NO_DEFAULT_PATH
+    )
+    
+    if(SDL2_DYLIB)
+        message(STATUS "Found SDL2 dylib to bundle: ${SDL2_DYLIB}")
+        set(SDL2_LIBRARIES ${SDL2_DYLIB})
+    else()
+        message(WARNING "SDL2 dylib not found, falling back to system linking")
+        set(BUNDLE_SDL2 OFF)
+    endif()
+else()
+    message(STATUS "Using system SDL2 linking")
+endif()
+
 # Add ImGui and SoLoud specific definitions
 add_definitions(
     -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
@@ -31,6 +61,7 @@ add_definitions(
     -DIMGUI_IMPL_OPENGL_LOADER_GL3W
     -DIMGUI_IMPL_OPENGL_USE_DESKTOP_GL
     -DSOLOUD_STATIC
+    -DWITH_SDL2_STATIC
 )
 
 # Set up sources for music-tester
@@ -140,22 +171,21 @@ set(SOLOUD_SOURCES
 
 target_sources(music-tester PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
 
-# Get Homebrew prefix for library paths
-execute_process(
-    COMMAND brew --prefix
-    OUTPUT_VARIABLE BREW_PREFIX
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
 # Find SDL2 - prefer pkg-config to avoid framework issues
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED sdl2)
+if(BUNDLE_SDL2 AND SDL2_DYLIB)
+    # For bundled builds, we already found SDL2 above
+    set(SDL2_FOUND TRUE)
+    set(SDL2_INCLUDE_DIRS ${BREW_PREFIX}/include/SDL2)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SDL2 REQUIRED sdl2)
 
-# If pkg-config fails, fall back to traditional find_package
-if(NOT SDL2_FOUND)
-    find_package(SDL2 REQUIRED)
+    # If pkg-config fails, fall back to traditional find_package
     if(NOT SDL2_FOUND)
-        message(FATAL_ERROR "SDL2 not found.")
+        find_package(SDL2 REQUIRED)
+        if(NOT SDL2_FOUND)
+            message(FATAL_ERROR "SDL2 not found.")
+        endif()
     endif()
 endif()
 
@@ -190,6 +220,22 @@ target_include_directories(music-tester PRIVATE
     ${JPEG_INCLUDE_DIRS}
     ${OPENAL_INCLUDE_DIR}
 )
+
+# Add SDL2, PNG, JPEG include directories
+if(BUNDLE_SDL2 AND SDL2_DYLIB)
+    # For bundled builds, add Homebrew include paths
+    target_include_directories(music-tester PRIVATE
+        ${BREW_PREFIX}/include
+        ${BREW_PREFIX}/include/SDL2
+    )
+else()
+    # For system builds, use pkg-config paths
+    target_include_directories(music-tester PRIVATE
+        ${SDL2_INCLUDE_DIRS}
+        ${PNG_INCLUDE_DIRS}
+        ${JPEG_INCLUDE_DIRS}
+    )
+endif()
 
 # Handle minizip using vcpkg
 if(DEFINED unofficial-minizip_DIR)
@@ -263,12 +309,33 @@ add_custom_command(TARGET music-tester POST_BUILD
     COMMENT "Copying sound_staging directory to build directory"
 )
 
+# Bundle SDL2 dylib if requested
+if(BUNDLE_SDL2 AND SDL2_DYLIB)
+    add_custom_command(TARGET music-tester POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy "${SDL2_DYLIB}" "$<TARGET_FILE_DIR:music-tester>/"
+        COMMAND ${CMAKE_COMMAND} -E echo "Bundled SDL2 dylib: $<TARGET_FILE_DIR:music-tester>/libSDL2-2.0.0.dylib"
+        COMMENT "Bundling SDL2 dylib with application"
+    )
+    
+    # Set up @rpath to find the bundled SDL2
+    set_target_properties(music-tester PROPERTIES
+        BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH "@executable_path"
+    )
+    
+    # Update the binary to use @rpath for SDL2
+    add_custom_command(TARGET music-tester POST_BUILD
+        COMMAND install_name_tool -change "${SDL2_DYLIB}" "@rpath/libSDL2-2.0.0.dylib" "$<TARGET_FILE:music-tester>"
+        COMMENT "Updating SDL2 library path to use @rpath"
+    )
+endif()
+
 # The OAML-related definition has been removed
 
 # Add test executables
 add_executable(test-circular-buffer src/test_circular_buffer.cpp)
 add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp)
-add_executable(test-event-system src/test_event_system.cpp src/AudioController.cpp src/SongManager.cpp src/EventSystem.cpp src/AudioSystem.cpp)
+add_executable(test-event-system src/test_event_system.cpp src/AudioController.cpp src/SongManager.cpp src/EventSystem.cpp src/AudioSystem.cpp src/AudioStreamProcessor.cpp)
 add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp)
 
 # Include directories for tests
@@ -317,5 +384,13 @@ target_link_libraries(test-event-system-minimal PRIVATE
 )
 
 # Find Threads package for std::thread support
-find_package(Threads REQUIRED)
-target_link_libraries(test-circular-buffer PRIVATE Threads::Threads) 
+find_package(Threads)
+if(Threads_FOUND)
+    target_link_libraries(test-circular-buffer PRIVATE Threads::Threads)
+else()
+    message(WARNING "Threads package not found - some features may be limited")
+    # On macOS, pthread is usually available without explicit linking
+    if(APPLE)
+        target_link_libraries(test-circular-buffer PRIVATE pthread)
+    endif()
+endif() 

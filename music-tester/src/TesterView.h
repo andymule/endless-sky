@@ -3,6 +3,7 @@
 #include "AudioController.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
+#include <filesystem>
 #include <string>
 
 // Pure View class that only handles UI rendering
@@ -18,7 +19,24 @@ public:
     void SetRunning(bool running) { m_isRunning = running; }
 
     // Set the controller (dependency injection)
-    void SetController(AudioTester::AudioController* controller) { m_controller = controller; }
+    void SetController(AudioTester::AudioController* controller) {
+        m_controller = controller;
+
+        // Update the directory input with the current directory from controller
+        if (m_controller) {
+            const std::string& currentDir = m_controller->getCurrentDirectory();
+            if (!currentDir.empty()) {
+                // Extract just the directory name for display
+                std::filesystem::path path(currentDir);
+                std::string dirName = path.filename().string();
+                if (dirName.empty()) {
+                    dirName = path.string(); // Use full path if no filename
+                }
+                strncpy(m_dirInput, dirName.c_str(), DIR_INPUT_SIZE);
+                m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+            }
+        }
+    }
 
     // Window management for multi-window support
     enum class ActiveWindow { MAIN = 0, SECONDARY = 1 };

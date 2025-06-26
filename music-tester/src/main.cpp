@@ -1,4 +1,10 @@
+#include <filesystem>
 #include <iostream>
+
+// macOS specific includes
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 // Dear ImGui includes
 #include "imgui.h"
@@ -10,7 +16,29 @@
 #include "AudioController.h"
 #include "TesterView.h"
 
+// Get the directory where the executable is located
+std::string getExecutableDirectory() {
+// On macOS, we can use _NSGetExecutablePath
+#ifdef __APPLE__
+    char path[1024];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        std::filesystem::path exePath(path);
+        return exePath.parent_path().string();
+    }
+#else
+    // For other platforms, we could use argv[0] or other methods
+    // For now, fall back to current working directory
+#endif
+
+    return std::filesystem::current_path().string();
+}
+
 int main() {
+    // Get the executable directory for proper path resolution
+    std::string exeDir = getExecutableDirectory();
+    std::cout << "Executable directory: " << exeDir << std::endl;
+
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
@@ -63,8 +91,8 @@ int main() {
     // Wire up the MVC architecture
     view.SetController(&controller);
 
-    // Initialize components
-    if (!controller.initialize()) {
+    // Initialize components with executable directory
+    if (!controller.initialize(exeDir)) {
         std::cerr << "Failed to initialize AudioController" << std::endl;
         return 1;
     }

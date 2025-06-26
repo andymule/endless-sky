@@ -17,7 +17,7 @@ namespace AudioTester {
         ~AudioController() = default;
 
         // Initialization
-        bool initialize();
+        bool initialize(const std::string& executableDirectory = "");
         void cleanup();
 
         // Directory and file management
@@ -95,11 +95,13 @@ namespace AudioTester {
     private:
         void syncTrackToAudioSystem(size_t index);
         void syncAllTracksToAudioSystem();
+        std::string resolvePath(const std::string& relativePath) const;
 
         AudioState m_state;
         AudioSystem m_audioSystem;
         SongManager m_songManager;
         EventSystem m_eventSystem;
+        std::string m_executableDirectory;
         std::string m_currentDirectory;
         std::string m_currentSongName;
         bool m_isInitialized = false;

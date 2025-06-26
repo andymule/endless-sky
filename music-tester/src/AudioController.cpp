@@ -4,11 +4,19 @@
 
 namespace AudioTester {
 
-    AudioController::AudioController() : m_eventSystem(this), m_currentDirectory("sound_staging") {}
+    AudioController::AudioController() : m_eventSystem(this) {}
 
-    bool AudioController::initialize() {
+    bool AudioController::initialize(const std::string& executableDirectory) {
         if (m_isInitialized) {
             return true;
+        }
+
+        // Store executable directory for path resolution
+        m_executableDirectory = executableDirectory;
+
+        // Set default music directory relative to executable
+        if (m_currentDirectory.empty()) {
+            m_currentDirectory = resolvePath("sound_staging");
         }
 
         if (!m_audioSystem.initialize()) {
@@ -31,7 +39,7 @@ namespace AudioTester {
     }
 
     void AudioController::setMusicDirectory(const std::string& directory) {
-        m_currentDirectory = directory;
+        m_currentDirectory = resolvePath(directory);
         loadMusicFromDirectory();
     }
 
@@ -63,7 +71,23 @@ namespace AudioTester {
     }
 
     void AudioController::loadSongsFromDirectory(const std::string& directory) {
-        m_songManager.loadSongsFromDirectory(directory);
+        std::string resolvedPath = resolvePath(directory);
+        m_songManager.loadSongsFromDirectory(resolvedPath);
+    }
+
+    std::string AudioController::resolvePath(const std::string& relativePath) const {
+        // If it's already an absolute path, return as-is
+        if (std::filesystem::path(relativePath).is_absolute()) {
+            return relativePath;
+        }
+
+        // If we have an executable directory, resolve relative to it
+        if (!m_executableDirectory.empty()) {
+            return (std::filesystem::path(m_executableDirectory) / relativePath).string();
+        }
+
+        // Otherwise, resolve relative to current working directory
+        return (std::filesystem::current_path() / relativePath).string();
     }
 
     void AudioController::setCurrentSong(const std::string& songName) {

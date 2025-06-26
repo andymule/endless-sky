@@ -4,6 +4,7 @@ set -e
 # Parse command line arguments
 BUILD_TYPE="Release"
 CLEAN_BUILD=false
+BUNDLE_SDL2=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -19,11 +20,22 @@ while [[ $# -gt 0 ]]; do
             BUILD_TYPE="Release"
             shift
             ;;
+        bundle)
+            BUNDLE_SDL2=true
+            shift
+            ;;
         *)
-            echo "Usage: $0 [clean] [debug|release]"
+            echo "Usage: $0 [clean] [debug|release] [bundle]"
             echo "  clean   - Clean build directory before building"
             echo "  debug   - Build in Debug mode (default: Release)"
             echo "  release - Build in Release mode"
+            echo "  bundle  - Build with SDL2 bundling (self-contained binary)"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Normal release build"
+            echo "  $0 bundle             # Bundled release build"
+            echo "  $0 clean bundle       # Clean bundled build"
+            echo "  $0 debug bundle       # Debug bundled build"
             exit 1
             ;;
     esac
@@ -33,6 +45,11 @@ done
 ARCH=$(uname -m)
 echo "Detected architecture: $ARCH"
 echo "Build type: $BUILD_TYPE"
+if [ "$BUNDLE_SDL2" = true ]; then
+    echo "SDL2 bundling: ENABLED (self-contained binary)"
+else
+    echo "SDL2 bundling: DISABLED (requires system SDL2)"
+fi
 
 # Get Homebrew prefix for library paths
 BREW_PREFIX=$(brew --prefix)
@@ -198,6 +215,11 @@ if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$CL
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     )
     
+    # Add bundle option if requested
+    if [ "$BUNDLE_SDL2" = true ]; then
+        CMAKE_ARGS+=(-DBUNDLE_SDL2=ON)
+    fi
+    
     # Use explicit CMake path to ensure correct version (CMake 3.24+ required)
     CMAKE_BIN="/opt/homebrew/bin/cmake"
     if [ ! -x "$CMAKE_BIN" ]; then
@@ -222,11 +244,26 @@ fi
 
 echo "Build complete!"
 echo ""
-echo "You can run the music-tester with:"
-echo "cd build && ./music-tester"
+if [ "$BUNDLE_SDL2" = true ]; then
+    echo "✅ Bundled build complete! The binary includes SDL2 and is portable to other macOS systems."
+    echo ""
+    echo "You can run the music-tester with:"
+    echo "cd build && ./music-tester"
+    echo ""
+    echo "The binary can be distributed to other macOS 10.15+ systems without requiring SDL2 installation."
+    echo "System frameworks (OpenAL, OpenGL, etc.) are still required but are always available on macOS."
+else
+    echo "You can run the music-tester with:"
+    echo "cd build && ./music-tester"
+    echo ""
+    echo "Note: This build requires SDL2 to be installed on the target system."
+fi
 echo ""
 echo "To clean and rebuild, run:"
 echo "./build-macos.sh clean"
 echo ""
 echo "To build in debug mode, run:"
-echo "./build-macos.sh debug" 
+echo "./build-macos.sh debug"
+echo ""
+echo "To build a bundled binary, run:"
+echo "./build-macos.sh bundle" 

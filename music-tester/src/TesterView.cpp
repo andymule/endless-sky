@@ -3,10 +3,11 @@
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 TesterView::TesterView() {
-    // Initialize UI with default directory
+    // Initialize UI with default directory - will be updated when controller is set
     strncpy(m_dirInput, "sound_staging", DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
 
