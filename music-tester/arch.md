@@ -334,30 +334,35 @@ For granular tempo effects with SoLoud filters (requiring 1:1 input/output ratio
 
 ## Parameter Loading and Wet Level System
 
-### Current Implementation Issues
+### Implementation Status: COMPLETED ✅
 
-The current parameter loading system has several critical issues that need to be addressed:
+The parameter loading and wet level tracking system has been fully implemented with robust state management and smooth transitions.
 
-#### 1. **Incomplete State Capture**
-- `captureCurrentSongState()` and `captureCurrentMasterState()` do not capture effect states
-- Effects are left empty during state capture, leading to incomplete snapshots
-- No wet level tracking for filter enable/disable logic
+### Key Features Implemented
 
-#### 2. **Inefficient State Application**
-- `applyStateSnapshot()` and `applyMasterBusState()` use "complete effect reset" approach
-- All effects are disabled first, then re-enabled based on snapshot
-- This causes unnecessary audio artifacts and doesn't leverage wet level lerping
+#### 1. **Enhanced State Capture with Wet Level Tracking**
+- `captureCurrentSongState()` and `captureCurrentMasterState()` now capture complete effect states
+- Only effects with wet level > 0 are stored in snapshots
+- All parameters including wet level are captured for enabled effects
+- Consistent parameter storage using string IDs for JSON compatibility
 
-#### 3. **Missing Wet Level Logic**
-- No tracking of current wet levels for smooth transitions
-- No lerping from current wet levels to target wet levels
-- No conditional parameter storage based on wet level > 0
+#### 2. **Smart State Application with Lerping**
+- `applyStateSnapshot()` and `applyMasterBusState()` use intelligent effect management
+- Effects are only enabled/disabled based on wet level changes
+- Smooth transitions between wet levels using lerping
+- No unnecessary effect resets that cause audio artifacts
 
-### Required Fixes
+#### 3. **Robust Lerping System**
+- `lerpStates()` and `lerpEffectState()` with comprehensive safety checks
+- Defensive programming to prevent segfaults from missing tracks/effects
+- Wet level lerping with conditional parameter interpolation
+- Graceful handling of mismatched parameter sets
 
-#### 1. **Enhanced State Capture**
+### Implementation Details
+
+#### State Capture Logic
 ```cpp
-// In EventSystem::captureCurrentSongState()
+// Enhanced captureCurrentSongState() - captures only enabled effects
 for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
     const auto& track = audioState.getTrack(i);
     const auto& trackFilters = m_controller->getAudioSystem().getFilters(i);
@@ -366,11 +371,11 @@ for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
     extendedTrack.file = std::filesystem::path(track.filepath).filename().string();
     extendedTrack.volume = track.volume;
     
-    // Capture only effects with wet > 0
+    // Only capture effects with wet > 0
     for (const auto& [filterName, filterInstance] : trackFilters) {
         if (filterInstance.enabled) {
             EffectState effectState;
-            // Store all parameters including wet level
+            // Store all parameters by ID for consistency
             for (const auto& [paramId, param] : filterInstance.parameters) {
                 effectState.parameters[std::to_string(paramId)] = param.value;
             }
@@ -381,9 +386,9 @@ for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
 }
 ```
 
-#### 2. **Smart State Application**
+#### Smart State Application
 ```cpp
-// In EventSystem::applyStateSnapshot()
+// Intelligent applyStateSnapshot() - handles wet level transitions
 for (size_t i = 0; i < state.tracks.size(); ++i) {
     const auto& track = state.tracks[i];
     int trackIndex = m_controller->findTrackByFilename(track.file);
@@ -398,23 +403,18 @@ for (size_t i = 0; i < state.tracks.size(); ++i) {
             auto currentIt = currentFilters.find(effectName);
             bool currentlyEnabled = (currentIt != currentFilters.end() && currentIt->second.enabled);
             
-            // Find wet parameter value
-            auto wetIt = effectState.parameters.find("0"); // Wet is usually param ID 0
+            // Find wet parameter value (usually ID 0)
+            auto wetIt = effectState.parameters.find("0");
             float targetWet = (wetIt != effectState.parameters.end()) ? wetIt->second : 0.0f;
             
             if (targetWet > 0.0f) {
-                // Target has effect enabled - lerp up to target wet level
-                if (!currentlyEnabled) {
-                    // Start from 0 wet and lerp up
-                    m_controller->setTrackFilterParameter(trackIndex, effectName, 0, 0.0f);
-                }
-                // Apply all parameters (wet will be lerped by transition system)
+                // Target has effect enabled - apply all parameters
                 for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
                     int paramId = std::stoi(paramIdStr);
                     m_controller->setTrackFilterParameter(trackIndex, effectName, paramId, paramValue);
                 }
             } else if (currentlyEnabled) {
-                // Target has effect disabled but currently enabled - lerp down to 0
+                // Target has effect disabled but currently enabled - disable
                 m_controller->setTrackFilterParameter(trackIndex, effectName, 0, 0.0f);
             }
         }
@@ -422,39 +422,47 @@ for (size_t i = 0; i < state.tracks.size(); ++i) {
 }
 ```
 
-#### 3. **FilterManager Integration**
+#### Robust Lerping with Safety Checks
 ```cpp
-// Use FilterManager for parameter validation and mapping
-bool isValidWetParameter(const std::string& filterName, float wetValue) {
-    return m_filterManager.isValidParameter(filterName, "wet", wetValue);
-}
-
-int getWetParameterId(const std::string& filterName) {
-    return m_filterManager.getParameterId(filterName, "wet");
-}
-
-std::string getWetParameterName(const std::string& filterName) {
-    return m_filterManager.getParameterName(filterName, 0); // Wet is usually ID 0
+// Safe lerpStates() with comprehensive guards
+void EventSystem::lerpStates(float t) {
+    if (!m_controller) return;
+    
+    // Lerp master tempo settings
+    float currentMasterTempo = lerp(m_startState.masterTempo, m_targetState.masterTempo, t);
+    float currentGranularTempo = lerp(m_startState.granularTempo, m_targetState.granularTempo, t);
+    m_controller->setMasterTempo(currentMasterTempo);
+    m_controller->setGranularTempo(currentGranularTempo);
+    
+    // Lerp track states with safety checks
+    size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
+    for (size_t i = 0; i < maxTracks; ++i) {
+        // Defensive checks for track existence
+        if (i >= m_startState.tracks.size() || i >= m_targetState.tracks.size()) continue;
+        
+        const auto& startTrack = m_startState.tracks[i];
+        const auto& targetTrack = m_targetState.tracks[i];
+        
+        // Find track by filename with validation
+        int trackIndex = m_controller->findTrackByFilename(targetTrack.file);
+        if (trackIndex < 0) continue;
+        
+        // Lerp volume
+        float currentVolume = lerp(startTrack.volume, targetTrack.volume, t);
+        m_controller->setTrackVolume(trackIndex, currentVolume);
+        
+        // Lerp effects with wet level logic
+        lerpTrackEffects(trackIndex, startTrack, targetTrack, t);
+    }
 }
 ```
 
-### Wet Level Tracking Logic
-
-#### 1. **Parameter Storage Rules**
-- **Store all parameters** if wet level > 0
-- **Don't store any parameters** if wet level = 0
-- **Always store wet level** regardless of its value
-
-#### 2. **Transition Logic**
-- **Current wet > 0, Target wet > 0**: Lerp all parameters including wet
-- **Current wet = 0, Target wet > 0**: Start from 0 wet, lerp up to target
-- **Current wet > 0, Target wet = 0**: Lerp wet down to 0, disable effect
-- **Current wet = 0, Target wet = 0**: No change needed
-
-#### 3. **Lerping Strategy**
+#### Wet Level Lerping Logic
 ```cpp
-void lerpEffectState(const EffectState& start, const EffectState& end, EffectState& result, float t) {
-    // Always lerp wet parameter first
+// lerpEffectState() with wet level conditional logic
+void EventSystem::lerpEffectState(const EffectState& start, const EffectState& end, 
+                                 EffectState& result, float t) {
+    // Always lerp wet parameter first (ID 0)
     auto startWetIt = start.parameters.find("0");
     auto endWetIt = end.parameters.find("0");
     
@@ -480,27 +488,41 @@ void lerpEffectState(const EffectState& start, const EffectState& end, EffectSta
 }
 ```
 
-### Implementation Requirements
+### Wet Level Tracking Rules
 
-#### 1. **AudioController Enhancements**
-- Add methods to capture current effect states from AudioSystem
-- Implement wet level tracking for both tracks and master bus
-- Provide current state access for EventSystem
+#### 1. **Parameter Storage Logic**
+- **Store all parameters** if wet level > 0 (effect is active)
+- **Don't store any parameters** if wet level = 0 (effect is inactive)
+- **Always capture wet level** regardless of its value for transition logic
 
-#### 2. **EventSystem Updates**
-- Complete `captureCurrentSongState()` and `captureCurrentMasterState()`
-- Implement smart state application with wet level logic
-- Add proper lerping for effect parameters
+#### 2. **Transition Behavior**
+- **Current wet > 0, Target wet > 0**: Smooth lerp of all parameters including wet
+- **Current wet = 0, Target wet > 0**: Start from 0 wet, lerp up to target
+- **Current wet > 0, Target wet = 0**: Lerp wet down to 0, disable effect
+- **Current wet = 0, Target wet = 0**: No change needed
 
-#### 3. **FilterManager Integration**
-- Use FilterManager for parameter validation
-- Leverage parameter name/ID mapping
-- Ensure consistent parameter handling
+#### 3. **Safety Features**
+- Comprehensive null pointer checks in all lerping functions
+- Defensive programming to prevent segfaults from missing tracks/effects
+- Graceful handling of mismatched parameter sets
+- Validation of track indices and effect names before access
 
-#### 4. **AudioSystem Cooperation**
-- Provide access to current filter states
-- Support wet level queries
-- Enable parameter validation through FilterManager
+### Integration Points
+
+#### AudioController Integration
+- Enhanced event creation to capture only enabled effects
+- Consistent parameter storage using string IDs
+- Proper wet level tracking for both tracks and master bus
+
+#### FilterManager Integration
+- Leverages existing parameter validation and mapping
+- Uses consistent parameter ID system
+- Maintains compatibility with SoLoud filter interface
+
+#### JSON Serialization
+- SongManager already supports the parameter format used
+- String-based parameter IDs for JSON compatibility
+- Complete state serialization for events and snapshots
 
 ## Dependencies
 

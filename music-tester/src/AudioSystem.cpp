@@ -408,17 +408,16 @@ namespace AudioTester {
         auto& trackFilters = m_trackFilters[trackIndex];
         auto it = trackFilters.filters.find(filterName);
         if (it == trackFilters.filters.end()) {
-            // Initialize the filter if it doesn't exist
             FilterInstance instance;
             initializeFilter(instance, filterName);
-            if (instance.filter) {
-                // Auto-enable based on wet parameter for new filters
-                instance.enabled = shouldAutoEnableFilter(filterName, paramId, value);
-                trackFilters.filters[filterName] = std::move(instance);
-                it = trackFilters.filters.find(filterName);
-            } else {
-                return;
+            // Always start with wet = 0.0 for new filters
+            int wetId = getWetParameterId(filterName);
+            if (wetId >= 0) {
+                instance.parameters[wetId].value = 0.0f;
             }
+            instance.enabled = false; // Not enabled until wet > 0
+            trackFilters.filters[filterName] = std::move(instance);
+            it = trackFilters.filters.find(filterName);
         }
 
         auto& instance = it->second;
@@ -820,9 +819,13 @@ namespace AudioTester {
             if (enabled) {
                 FilterInstance instance;
                 initializeFilter(instance, filterName);
-                instance.enabled = true;
+                int wetId = getWetParameterId(filterName);
+                if (wetId >= 0) {
+                    instance.parameters[wetId].value = 0.0f;
+                }
+                instance.enabled = false;
                 m_busFilters[filterName] = std::move(instance);
-                updateBusFilterParams();
+                it = m_busFilters.find(filterName);
             }
         } else {
             it->second.enabled = enabled;
@@ -839,11 +842,13 @@ namespace AudioTester {
                                             float value) {
         auto it = m_busFilters.find(filterName);
         if (it == m_busFilters.end()) {
-            // Create filter if it doesn't exist
             FilterInstance instance;
             initializeFilter(instance, filterName);
-            // Auto-enable based on wet parameter for new filters
-            instance.enabled = shouldAutoEnableFilter(filterName, paramId, value);
+            int wetId = getWetParameterId(filterName);
+            if (wetId >= 0) {
+                instance.parameters[wetId].value = 0.0f;
+            }
+            instance.enabled = false;
             m_busFilters[filterName] = std::move(instance);
             it = m_busFilters.find(filterName);
         }

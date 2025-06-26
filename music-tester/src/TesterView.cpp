@@ -188,6 +188,8 @@ void TesterView::RenderTrackControls() {
 
 void TesterView::drawFilterControls(size_t trackIndex) {
     const auto& audioSystem = m_controller->getAudioSystem();
+
+    // Get fresh filter state on every frame to ensure UI sync
     const auto& filters = audioSystem.getFilters(trackIndex);
 
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
@@ -227,8 +229,12 @@ void TesterView::drawFilterControls(size_t trackIndex) {
         if (isExpanded) {
             ImGui::Indent();
 
-            auto it = filters.find(filterName);
-            if (it != filters.end()) {
+            // Get fresh filter state after any potential changes
+            const auto& currentFilters = audioSystem.getFilters(trackIndex);
+            auto it = currentFilters.find(filterName);
+            bool filterExists = (it != currentFilters.end());
+
+            if (filterExists) {
                 // Filter exists, show all parameters
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
@@ -288,7 +294,6 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                     }
                 }
             } else if (filterName != "dcremoval") {
-                // Filter doesn't exist yet, show wet parameter to enable it
                 float wetValue = 0.0f;
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,
                                       ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
@@ -296,6 +301,9 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                     m_controller->setTrackFilterParameter(trackIndex, filterName, 0, wetValue);
                 }
                 ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
+                }
             } else {
                 // DCRemoval has no wet parameter, show enable option
                 ImGui::TextDisabled("(Effect disabled - click to enable)");
@@ -365,8 +373,12 @@ void TesterView::RenderBusControls() {
         if (isExpanded) {
             ImGui::Indent();
 
-            auto it = busFilters.find(filterName);
-            if (it != busFilters.end()) {
+            // Get fresh filter state after any potential changes
+            const auto& currentBusFilters = audioSystem.getBusFilters();
+            auto it = currentBusFilters.find(filterName);
+            bool filterExists = (it != currentBusFilters.end());
+
+            if (filterExists) {
                 // Filter exists, show all parameters
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
@@ -425,8 +437,6 @@ void TesterView::RenderBusControls() {
                     }
                 }
             } else if (filterName != "dcremoval") {
-                // Filter doesn't exist yet, show wet parameter to enable it
-
                 float wetValue = 0.0f;
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,
                                       ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
