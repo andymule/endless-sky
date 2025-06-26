@@ -18,6 +18,31 @@
 #include "Logger.h"
 #include "TesterView.h"
 
+// Global controller instance for external API
+static AudioTester::AudioController* g_controller = nullptr;
+
+// External C API for game engine integration
+extern "C" {
+void musicTester_triggerSongEvent(const char* songName, const char* eventName) {
+    if (g_controller) {
+        g_controller->triggerSongEvent(songName, eventName);
+    }
+}
+
+void musicTester_triggerMasterEvent(const char* eventName) {
+    if (g_controller) {
+        g_controller->triggerMasterEvent(eventName);
+    }
+}
+
+// Additional utility functions
+void musicTester_loadSongsFromDirectory(const char* directory) {
+    if (g_controller) {
+        g_controller->loadSongsFromDirectory(directory);
+    }
+}
+}
+
 // Get the directory where the executable is located
 std::string getExecutableDirectory() {
 // On macOS, we can use _NSGetExecutablePath
@@ -89,6 +114,9 @@ int main() {
     AudioTester::AudioController controller;
     TesterView view;
 
+    // Store global controller reference for external API
+    g_controller = &controller;
+
     // Wire up the MVC architecture
     view.SetController(&controller);
 
@@ -103,8 +131,16 @@ int main() {
         return 1;
     }
 
+    // Initialize timing for deltaTime calculation
+    Uint32 lastTime = SDL_GetTicks();
+
     // Main loop
     while (view.IsRunning()) {
+        // Calculate deltaTime
+        Uint32 currentTime = SDL_GetTicks();
+        float deltaTime = (currentTime - lastTime) / 1000.0f; // Convert to seconds
+        lastTime = currentTime;
+
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             view.ProcessEvents(event);
@@ -115,10 +151,14 @@ int main() {
         // Update synchronization (call this regularly to prevent drift)
         controller.updateSync();
 
+        // Update event system transitions
+        controller.updateEvents(deltaTime);
+
         view.Render();
     }
 
     // Cleanup
+    g_controller = nullptr; // Clear global reference
     controller.cleanup();
 
     SDL_GL_DeleteContext(glContext);

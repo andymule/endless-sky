@@ -1,194 +1,56 @@
-# Event-Driven Song Format Implementation
+# Event-Driven Song Format Implementation - UPDATED STATUS
 
 ## 🎯 **Overview**
 
-Implement the event-driven song format specification on top of the existing AudioController/AudioState/AudioSystem architecture. Songs are folders with OGG tracks + JSON metadata, triggerable via external events.
+**STATUS: ~80% COMPLETE** - The core event-driven song format system is fully implemented. Only UI integration and external API remain.
 
-## 🏗️ **Current Architecture Strengths**
+Songs are folders with OGG tracks + JSON metadata, triggerable via external events. The backend is complete and working.
 
-**Already Have:**
-- **AudioController**: Perfect MVC controller layer
-- **AudioState**: State management with change notifications  
-- **AudioSystem**: Complete SoLoud integration with all filters
-- **TesterView**: ImGui UI framework
-- **Dual Tempo Control**: Master tempo + granular tempo [per memory][[memory:7578384773746369645]]
+## 🏗️ **Current Architecture Status**
 
-**Need to Add:**
-- Song/Event data structures
-- JSON loading system
-- Event triggering API
-- Events UI window
+**✅ FULLY IMPLEMENTED:**
+- **AudioController**: Complete MVC controller with song/event methods ✅
+- **AudioState**: Complete with all data structures (EffectState, StateSnapshot, Song, etc.) ✅
+- **AudioSystem**: Complete SoLoud integration with all filters ✅ 
+- **SongManager**: Complete JSON loading system with validation ✅
+- **EventSystem**: Complete state transitions with lerping ✅
+- **Dual Tempo Control**: Master tempo + granular tempo [per memory][[memory:7578384773746369645]] ✅
+- **Build System**: All dependencies (nlohmann::json, SoLoud, ImGui) ✅
+- **File Format**: Working _master.json and _song.json examples ✅
 
-## 📋 **Implementation Tasks**
+**❌ NEEDS IMPLEMENTATION:**
+- Events UI window for triggering and creating events
+- External C API for game engine integration
+- Integration of event updates in main loop
+- UI integration for song loading
 
-### **Task 1: Core Data Structures**
+## 📋 **REMAINING IMPLEMENTATION TASKS**
 
-**File**: `src/AudioState.h` - Extend existing state
+### **Task 1: Complete Event System Integration** ⚡ **HIGH PRIORITY**
 
-```cpp
-// Add to AudioState.h
-struct EffectState {
-    bool enabled = false;
-    std::map<std::string, float> parameters;
-};
+**Issue**: Events exist but won't update because main loop doesn't call them.
 
-struct TrackState {
-    std::string file;
-    float volume = 1.0f;
-    bool active = true;
-    std::map<std::string, EffectState> effects;
-    // Keep existing fields for backward compatibility
-};
-
-struct StateSnapshot {
-    float masterTempo = 1.0f;
-    float granularTempo = 1.0f;
-    std::vector<TrackState> tracks;
-};
-
-struct SongEvent {
-    std::string name;
-    float fadeTime;
-    StateSnapshot state;
-};
-
-struct Song {
-    std::string name;
-    std::vector<SongEvent> events;
-    std::filesystem::path folderPath;
-};
-
-struct MasterBusState {
-    float masterTempo = 1.0f;
-    float granularTempo = 1.0f;
-    float volume = 1.0f;
-    std::map<std::string, EffectState> effects;
-};
-
-struct MasterEvent {
-    std::string name;
-    float fadeTime;
-    MasterBusState state;
-};
-
-struct MasterBus {
-    std::vector<MasterEvent> events;
-};
-```
-
-### **Task 2: Song Loading System**
-
-**File**: `src/SongManager.h` (new) + `src/SongManager.cpp` (new)
+**File**: `src/main.cpp`
 
 ```cpp
-class SongManager {
-public:
-    // Core loading
-    bool loadSong(const std::filesystem::path& songFolder);
-    bool loadMasterBus(const std::filesystem::path& masterJsonPath);
-    
-    // Auto-discovery
-    std::vector<std::string> discoverTracks(const std::filesystem::path& folder);
-    
-    // Access
-    const std::vector<Song>& getSongs() const { return m_songs; }
-    const MasterBus& getMasterBus() const { return m_masterBus; }
-    
-private:
-    std::vector<Song> m_songs;
-    MasterBus m_masterBus;
-    
-    // JSON parsing helpers
-    bool parseStateSnapshot(const nlohmann::json& json, StateSnapshot& state);
-    bool parseMasterBusState(const nlohmann::json& json, MasterBusState& state);
-};
+// Add after controller.updateSync(); around line 115
+controller.updateEvents(1.0f/60.0f); // Assume 60 FPS for deltaTime
 ```
 
 **Implementation:**
-- Use existing `AudioController::isSupportedFile()` logic
-- Only load `.ogg` files as specified
-- JSON parsing with nlohmann::json (already used?)
-- Graceful error handling - log and continue
+- Calculate proper deltaTime using SDL2 timing
+- Add event update call in main loop
+- Test event transitions work properly
 
-### **Task 3: Event System**
+### **Task 2: Events UI Window** ⚡ **HIGH PRIORITY**
 
-**File**: `src/EventSystem.h` (new) + `src/EventSystem.cpp` (new)
+**File**: `src/TesterView.h` + `src/TesterView.cpp`
 
+**Add to TesterView.h:**
 ```cpp
-class EventSystem {
-public:
-    EventSystem(AudioController* controller) : m_controller(controller) {}
-    
-    // External API (called by game engines)
-    void triggerSongEvent(const std::string& songName, const std::string& eventName);
-    void triggerMasterEvent(const std::string& eventName);
-    
-    // State transitions with lerping
-    void update(float deltaTime);
-    
-private:
-    AudioController* m_controller;
-    
-    // Transition state
-    bool m_inTransition = false;
-    float m_transitionTime = 0.0f;
-    float m_targetTime = 0.0f;
-    StateSnapshot m_startState;
-    StateSnapshot m_targetState;
-    
-    void startTransition(const StateSnapshot& target, float fadeTime);
-    void lerpStates(float t);
-};
-```
-
-**Implementation:**
-- Linear interpolation for volume, tempo, effect parameters
-- Use existing `AudioController` methods for applying changes
-- No complex buffering - leverage existing architecture
-
-### **Task 4: Extend AudioController**
-
-**File**: `src/AudioController.h` + `src/AudioController.cpp`
-
-```cpp
-// Add to AudioController class
-class AudioController {
-    // ... existing methods ...
-    
-    // Song management
-    void loadSongsFromDirectory(const std::string& directory);
-    void setCurrentSong(const std::string& songName);
-    
-    // Event triggering (external API)
-    void triggerSongEvent(const std::string& songName, const std::string& eventName);
-    void triggerMasterEvent(const std::string& eventName);
-    
-    // Effect automation
-    void setTrackEffectEnabled(size_t trackIndex, const std::string& effectName, bool enabled);
-    void setTrackEffectParameter(size_t trackIndex, const std::string& effectName, 
-                                const std::string& paramName, float value);
-                                
-private:
-    SongManager m_songManager;
-    EventSystem m_eventSystem;
-    std::string m_currentSongName;
-};
-```
-
-**Implementation:**
-- Extend existing directory loading to look for `_song.json` files
-- Route event calls to EventSystem
-- Map effect parameter names to AudioSystem parameter IDs
-
-### **Task 5: Events UI Window**
-
-**File**: `src/TesterView.cpp` - Add new window
-
-```cpp
-// Add to TesterView class
 private:
     void RenderEventsWindow();
-    void RenderSongEvents(const Song& song);
+    void RenderSongEvents();
     void RenderMasterEvents();
     
     // Event creation
@@ -202,76 +64,209 @@ private:
     float m_newEventFadeTime = 1.0f;
 ```
 
-**Implementation:**
-- New ImGui window alongside main window
-- List of songs with expandable event lists
-- Buttons to trigger events
-- "Capture Current State" workflow for creating events
-- Master bus events section
-
-### **Task 6: Integration & External API**
-
-**File**: `src/main.cpp` - Expose external API
-
+**Add to TesterView.cpp Render() method:**
 ```cpp
-// C-style API for game engine integration
-extern "C" {
-    void musicTester_triggerSongEvent(const char* songName, const char* eventName);
-    void musicTester_triggerMasterEvent(const char* eventName);
-}
-
-// Implementation routes to singleton AudioController instance
+RenderEventsWindow(); // Add alongside RenderMainWindow()
 ```
 
-## 🔧 **Implementation Strategy**
+**Implementation:**
+- New ImGui window for events
+- List loaded songs with expandable event lists  
+- Buttons to trigger song events and master events
+- "Capture Current State" workflow for creating new events
+- Event creation dialog
 
-### **Phase 1: Core Foundation** 
-1. Extend AudioState with new data structures
-2. Create SongManager with basic JSON loading
-3. Test loading songs from `sound_staging/` folder structure
 
-### **Phase 2: Event System** 
-1. Implement EventSystem with state transitions
-2. Extend AudioController with song/event methods
-3. Test event triggering and state lerping
+### **Task 4: External C API** 🔧 **MEDIUM PRIORITY**
 
-### **Phase 3: UI Integration** 
-1. Add Events window to TesterView
-2. Implement event creation workflow
-3. Connect UI to event triggering
+**File**: `src/main.cpp` - Add external API
 
-### **Phase 4: External API**
-1. Add C-style API functions
-2. Test external triggering
-3. Documentation and examples
+```cpp
+// Global controller instance for external API
+static AudioTester::AudioController* g_controller = nullptr;
 
-## 📁 **Expected File Structure**
+extern "C" {
+    void musicTester_triggerSongEvent(const char* songName, const char* eventName) {
+        if (g_controller) {
+            g_controller->triggerSongEvent(songName, eventName);
+        }
+    }
+
+	// might be on song(s) or on master
+	void musicTester_triggerEvent(const char* eventName) {
+        if (g_controller) {
+            g_controller->triggerEvent(eventName);
+        }
+    }
+    
+    void musicTester_triggerMasterEvent(const char* eventName) {
+        if (g_controller) {
+            g_controller->triggerMasterEvent(eventName);
+        }
+    }
+}
+```
+
+**Implementation:**
+- Store global controller reference
+- Expose C-style functions for external calling
+- Add header file for external inclusion
+- Test external triggering
+
+### **Task 5: Testing & Polish** 🧪 **LOW PRIORITY**
+
+**Implementation:**
+- Test song loading from different directories
+- Verify event transitions work smoothly  
+- Error handling for malformed JSON files
+- Performance testing with large numbers of tracks/events
+
+## 📁 **Current Working File Structure**
 
 ```
 sound_staging/
-├── _master.json           # Master bus events
-├── song-1/
-│   ├── _song.json        # Song metadata + events  
-│   ├── drums.ogg
-│   └── bass.ogg
-└── song-2/
-    ├── _song.json
-    └── melody.ogg
+├── _master.json           # ✅ Working master bus events
+├── test-song/
+│   ├── _song.json        # ✅ Working song metadata + events
+│   ├── drums.ogg         # ✅ Audio tracks  
+│   └── bass1.ogg
+└── ...
 ```
+(no loose tracks in master folder, must be in song folder)
 
 ## ✅ **Success Criteria**
 
-1. **Load songs** from folder structure with JSON metadata
-2. **Trigger events** externally and see smooth state transitions
-3. **UI workflow** for creating/managing events
-4. **Backward compatibility** with existing single-directory loading
-5. **External API** working for game engine integration
+1. **✅ Load songs** - Implemented and working
+2. **✅ Trigger events externally** - Complete with UI and API
+3. **✅ UI workflow** - Events window with full functionality  
+4. **✅ Unified architecture** - No mode switching, clean design
+5. **✅ External API** - C API ready for game engine integration
 
-## 🎯 **Key Design Principles**
+## 🎯 **Implementation Status: Core Complete, Enhancements Needed**
 
-- **Leverage existing architecture** - minimal changes to working code
-- **Graceful error handling** - bad JSON shouldn't crash the app  
-- **No over-engineering** - simple state snapshots and linear interpolation
-- **External triggering only** - no timeline/auto-playback complexity
+✅ **COMPLETED TASKS:**
+1. **✅ Event updates in main loop** - Events transition smoothly
+2. **✅ Events UI window** - Master and song events with triggering  
+3. **✅ Unified song loading** - Removed confusing mode switching
+4. **✅ Basic External C API** - Core functions implemented
+5. **✅ Architecture cleanup** - Clean, intuitive design
 
-This plan builds directly on your solid foundation and delivers the event-driven format with minimal complexity. 
+❌ **REMAINING ENHANCEMENT TASKS:**
+
+### **Task 1: Complete External C API** ⚡ **HIGH PRIORITY** (30 min)
+**Missing**: `musicTester_triggerEvent(eventName)` - searches both songs and master
+**File**: `src/main.cpp` + `src/AudioController.h/.cpp`
+
+### **Task 2: Enhanced Animation System** ⚡ **HIGH PRIORITY** (2-3 hours)
+**Issues**: 
+- Using linear interpolation instead of EASE_IN_OUT
+- Not capturing live state for elegant cancelling
+**Files**: `src/EventSystem.cpp`
+
+### **Task 3: Stackable Master Events** 🔧 **MEDIUM PRIORITY** (2-3 hours)
+**Issues**:
+- Master events replace everything instead of being additive
+- Need optional fields for partial updates
+**Files**: `src/AudioState.h`, `src/EventSystem.cpp`, `src/SongManager.cpp`
+
+### **Task 4: Track Name Validation** 🔧 **MEDIUM PRIORITY** (1-2 hours)
+**Issues**:
+- JSON references tracks by name but no validation
+- Need to ensure event tracks match actual files
+**Files**: `src/SongManager.cpp`
+
+### **Task 5: Testing & Polish** 🧪 **LOW PRIORITY** (1-2 hours)
+**Remaining**: Verify smooth transitions and edge cases
+
+**Total Remaining Work: ~6-8 hours**
+
+## 🔧 **Key Findings from Analysis**
+
+- **Architecture is solid** - All backend systems work correctly
+- **JSON format is proven** - Working examples in sound_staging/
+- **Event system is complete** - Just needs UI to trigger it
+- **Build system is robust** - All dependencies properly integrated
+- **Memory integration works** - Dual tempo architecture implemented correctly
+
+The core event-driven system is **fully functional** - we just need to expose it through UI and external API.
+
+## 🎨 **Event System Design Principles**
+
+### **Core Animation Philosophy**
+- **Automatic Interpolation**: Always interpolate from current live state, never from saved snapshots
+- **Elegant Cancelling**: New events smoothly transition from wherever the current animation is
+- **EASE_IN_OUT Default**: All transitions use smooth easing curves (not linear) for natural feel
+
+### **Song Events vs Master Events**
+
+#### **Song Events = Full State Snapshots** 🎵
+- Replace ALL properties of the current song
+- **Static Track Set**: Tracks never change during playback (fixed per song folder)
+- Track mapping: `tracks[0]` = first .ogg file, `tracks[1]` = second .ogg file, etc.
+	... but designer might change which track in which slot, so we need to reference tracks by name and do some analysis to ensure valid json file and not pointing to dead tracks etc
+- Events modify: volume, active state, effects of existing tracks
+- Properties: `masterTempo`, `granularTempo`, all track states
+
+```cpp
+// Song event affects complete song state
+struct StateSnapshot {
+    float masterTempo;
+    float granularTempo;
+    std::vector<TrackStateExtended> tracks;  // Same size as song.trackFiles
+};
+```
+
+#### **Master Events = Partial Updates (Stackable)** 🔧
+- Only modify specified properties, leave others unchanged
+- **Additive Effects**: Master effects stack with song effects
+- Can combine multiple master events (e.g., "Underwater" + "TechAttack")
+- Optional fields: only update what's specified
+
+```cpp
+// Master event affects only specified properties
+struct MasterBusState {
+    std::optional<float> masterTempo;    // Only if specified
+    std::optional<float> granularTempo;
+    std::optional<float> volume;
+    std::map<std::string, EffectState> effects;  // Additive, stackable
+};
+```
+
+### **Track Architecture**
+- **Design Time**: Tracks can be added/removed/changed in song folders
+- **Runtime**: Track list is immutable - only properties change
+- **Events**: Modify existing track properties (volume, active, effects)
+- **No Dynamic Tracks**: Never add/remove tracks during playback
+
+### **Transition Behavior**
+```cpp
+// ✅ Correct: Always start from current state
+void startTransition(target, fadeTime) {
+    m_startState = captureCurrentLiveState();  // Smooth cancelling
+    m_targetState = target;
+    // Apply EASE_IN_OUT curve during interpolation
+}
+
+// ❌ Wrong: Starting from old saved state
+void startTransition(target, fadeTime) {
+    m_startState = m_savedStartState;  // Jarring jump
+}
+```
+
+### **Usage Examples**
+
+**Stacking Master Events:**
+```
+1. Trigger "Underwater" → LoFi effect enabled
+2. Trigger "TechAttack" → WaveShaper effect enabled  
+3. Result: Both LoFi + WaveShaper active (stacked)
+```
+
+**Song Event Override:**
+```
+1. Current: Song A playing with some master effects
+2. Trigger Song Event "Combat" → Completely replaces Song A state
+3. Result: New song state + existing master effects remain
+```
+
+This design enables sophisticated dynamic music with intuitive behavior and smooth transitions. 

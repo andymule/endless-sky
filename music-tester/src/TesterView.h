@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioController.h"
+#include "AudioState.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <filesystem>
@@ -50,11 +51,18 @@ private:
     void cleanup();
     void RenderMainWindow();
     void RenderControlsWindow();
+    void RenderEventsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
     void RenderTrackControls();
     void RenderBusControls();
     void drawFilterControls(size_t trackIndex);
+
+    // Events UI helpers
+    void RenderSongEvents();
+    void RenderMasterEvents();
+    void ShowCreateEventDialog();
+    AudioTester::StateSnapshot CaptureCurrentState();
 
     // Input handling helpers
     void handleNumberKeyPress(int keyNumber);
@@ -70,6 +78,12 @@ private:
     bool m_mainWindowWasFocused = false;
     bool m_controlsWindowWasFocused = false;
     // bool m_secondaryWindowWasFocused = false; // Future: for secondary window support
+
+    // Events UI state
+    bool m_showEventsWindow = true;
+    bool m_showCreateEventDialog = false;
+    char m_newEventName[256] = "";
+    float m_newEventFadeTime = 1.0f;
 
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;

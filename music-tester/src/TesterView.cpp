@@ -94,6 +94,11 @@ void TesterView::Render() {
     RenderMainWindow();
     RenderControlsWindow();
 
+    // Render Events window if enabled
+    if (m_showEventsWindow) {
+        RenderEventsWindow();
+    }
+
     // Update which window is currently active/focused
     UpdateActiveWindow();
 
@@ -128,11 +133,16 @@ void TesterView::RenderDirectoryInput() {
     ImGui::Text("Music Directory:");
     if (ImGui::InputText("##dir", m_dirInput, DIR_INPUT_SIZE,
                          ImGuiInputTextFlags_EnterReturnsTrue)) {
-        m_controller->setMusicDirectory(m_dirInput);
+        m_controller->loadSongsFromDirectory(m_dirInput);
     }
     ImGui::SameLine();
-    if (ImGui::Button("Load")) {
-        m_controller->setMusicDirectory(m_dirInput);
+    if (ImGui::Button("Load Songs")) {
+        m_controller->loadSongsFromDirectory(m_dirInput);
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Load songs from directory (each folder = one song)");
     }
 }
 
@@ -445,6 +455,237 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
                 break;
         }
     }
+}
+
+void TesterView::RenderEventsWindow() {
+    ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Events", &m_showEventsWindow);
+
+    if (!m_controller) {
+        ImGui::Text("No controller available");
+        ImGui::End();
+        return;
+    }
+
+    // Toggle Events window visibility from main menu
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Show Events", nullptr, &m_showEventsWindow);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
+    ImGui::Text("Event-Driven Music System");
+    ImGui::Separator();
+
+    // Create Event button
+    if (ImGui::Button("Create Event from Current State")) {
+        m_showCreateEventDialog = true;
+        // Clear input fields
+        strcpy(m_newEventName, "");
+        m_newEventFadeTime = 1.0f;
+    }
+
+    ImGui::Separator();
+
+    // Render Master Events
+    RenderMasterEvents();
+
+    ImGui::Separator();
+
+    // Render Song Events
+    RenderSongEvents();
+
+    // Show Create Event Dialog
+    if (m_showCreateEventDialog) {
+        ShowCreateEventDialog();
+    }
+
+    ImGui::End();
+}
+
+void TesterView::RenderMasterEvents() {
+    const auto* songManager = m_controller->getSongManager();
+    if (!songManager) {
+        return;
+    }
+
+    const auto& masterBus = songManager->getMasterBus();
+
+    if (ImGui::CollapsingHeader("Master Events", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (masterBus.events.empty()) {
+            ImGui::TextDisabled("No master events loaded");
+            ImGui::Text("Load a directory with _master.json to see master events");
+        } else {
+            ImGui::Text("Master Bus: %s", masterBus.name.c_str());
+
+            for (const auto& event : masterBus.events) {
+                ImGui::PushID(("master_" + event.name).c_str());
+
+                // Event name and trigger button
+                if (ImGui::Button(("Trigger##" + event.name).c_str())) {
+                    m_controller->triggerMasterEvent(event.name);
+                }
+                ImGui::SameLine();
+                ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
+
+                // Show event details in a tooltip
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Master Event: %s", event.name.c_str());
+                    ImGui::Text("Fade Time: %.1f seconds", event.fadeTime);
+                    ImGui::Text("Master Tempo: %.2fx", event.state.masterTempo);
+                    ImGui::Text("Granular Tempo: %.2fx", event.state.granularTempo);
+                    ImGui::Text("Volume: %.2f", event.state.volume);
+                    ImGui::Text("Effects: %d", static_cast<int>(event.state.effects.size()));
+                    ImGui::EndTooltip();
+                }
+
+                ImGui::PopID();
+            }
+        }
+    }
+}
+
+void TesterView::RenderSongEvents() {
+    const auto* songManager = m_controller->getSongManager();
+    if (!songManager) {
+        return;
+    }
+
+    const auto& songs = songManager->getSongs();
+
+    if (ImGui::CollapsingHeader("Song Events", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (songs.empty()) {
+            ImGui::TextDisabled("No songs loaded");
+            ImGui::Text("Load a directory with song folders containing _song.json");
+        } else {
+            for (const auto& song : songs) {
+                ImGui::PushID(song.name.c_str());
+
+                // Song header
+                bool songOpen = ImGui::TreeNode(song.name.c_str());
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Song: %s", song.name.c_str());
+                    ImGui::Text("Events: %d", static_cast<int>(song.events.size()));
+                    ImGui::Text("Path: %s", song.folderPath.string().c_str());
+                    ImGui::EndTooltip();
+                }
+
+                if (songOpen) {
+                    if (song.events.empty()) {
+                        ImGui::TextDisabled("  No events in this song");
+                    } else {
+                        for (const auto& event : song.events) {
+                            ImGui::PushID(event.name.c_str());
+
+                            // Event trigger button
+                            if (ImGui::Button(("Trigger##" + event.name).c_str())) {
+                                m_controller->triggerSongEvent(song.name, event.name);
+                            }
+                            ImGui::SameLine();
+                            ImGui::Text("%s (%.1fs fade)", event.name.c_str(), event.fadeTime);
+
+                            // Show event details in a tooltip
+                            if (ImGui::IsItemHovered()) {
+                                ImGui::BeginTooltip();
+                                ImGui::Text("Event: %s", event.name.c_str());
+                                ImGui::Text("Fade Time: %.1f seconds", event.fadeTime);
+                                ImGui::Text("Master Tempo: %.2fx", event.state.masterTempo);
+                                ImGui::Text("Granular Tempo: %.2fx", event.state.granularTempo);
+                                ImGui::Text("Tracks: %d",
+                                            static_cast<int>(event.state.tracks.size()));
+
+                                // Show track details
+                                for (size_t i = 0; i < event.state.tracks.size(); ++i) {
+                                    const auto& track = event.state.tracks[i];
+                                    ImGui::Text("  %d: %s (vol:%.2f, %s)", static_cast<int>(i),
+                                                track.file.c_str(), track.volume,
+                                                track.active ? "active" : "inactive");
+                                }
+                                ImGui::EndTooltip();
+                            }
+
+                            ImGui::PopID();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+
+                ImGui::PopID();
+            }
+        }
+    }
+}
+
+void TesterView::ShowCreateEventDialog() {
+    ImGui::OpenPopup("Create Event");
+    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("Create Event", &m_showCreateEventDialog)) {
+        ImGui::Text("Create new event from current state");
+        ImGui::Separator();
+
+        ImGui::InputText("Event Name", m_newEventName, sizeof(m_newEventName));
+        ImGui::SliderFloat("Fade Time", &m_newEventFadeTime, 0.0f, 10.0f, "%.1f seconds");
+
+        ImGui::Separator();
+        ImGui::Text("Current State Preview:");
+
+        // Show current state that would be captured
+        if (m_controller) {
+            const auto& state = m_controller->getState();
+            ImGui::Text("Tracks: %d", static_cast<int>(state.getTrackCount()));
+            ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
+            ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
+            ImGui::Text("Bus Volume: %.2f", state.busVolume);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Create Event")) {
+            // TODO: Implement event creation
+            // This would capture current state and add it to the current song
+            ImGui::CloseCurrentPopup();
+            m_showCreateEventDialog = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+            m_showCreateEventDialog = false;
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
+    if (!m_controller) {
+        return AudioTester::StateSnapshot{};
+    }
+
+    AudioTester::StateSnapshot snapshot;
+    snapshot.masterTempo = m_controller->getMasterTempo();
+    snapshot.granularTempo = m_controller->getGranularTempo();
+
+    const auto& state = m_controller->getState();
+
+    // Capture track states
+    for (size_t i = 0; i < state.getTrackCount(); ++i) {
+        const auto& track = state.getTrack(i);
+
+        AudioTester::TrackStateExtended trackState;
+        trackState.file = track.name; // Use name as file reference
+        trackState.volume = track.volume;
+        trackState.active = track.active;
+        // TODO: Capture effect states from AudioSystem
+
+        snapshot.tracks.push_back(trackState);
+    }
+
+    return snapshot;
 }
 
 void TesterView::cleanup() {
