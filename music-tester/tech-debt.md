@@ -21,28 +21,23 @@ This document outlines technical debt identified in the music-tester codebase. I
 - **Effort**: 10 minutes
 - **Status**: ✅ **COMPLETED** - Redundant test_event_system.cpp and its CMake entry removed, build and tests verified
 
-### 3. Massive Parameter Mapping Duplication
+### 3. Massive Parameter Mapping Duplication ✅ **COMPLETED**
 - **File**: `src/AudioController.cpp` (lines 175-220)
 - **Issue**: Identical parameter name-to-ID mapping logic duplicated between `setTrackEffectParameter` and `setBusEffectParameter`
 - **Impact**: ~45 lines of duplicated code, maintenance nightmare
 - **Action**: Extract to shared helper function
 - **Effort**: 30 minutes
-
-### 4. Unused TODO Implementation
-- **File**: `src/AudioController.cpp` line 94
-- **Issue**: `setCurrentSong()` method has TODO but is never called
-- **Impact**: Dead code path
-- **Action**: Either implement or remove the method
-- **Effort**: 15 minutes
+- **Status**: ✅ **COMPLETED**
 
 ## **HIGH PRIORITY ISSUES (Medium Impact, Medium Risk)**
 
-### 5. Excessive Console Output
+### 5. Excessive Console Output ✅ **COMPLETED**
 - **Files**: Multiple files throughout codebase
 - **Issue**: Extensive use of `std::cout`/`std::cerr` for debugging that should be conditional
 - **Impact**: Performance overhead, especially in release builds
 - **Action**: Implement proper logging system with configurable levels
 - **Effort**: 2-3 hours
+- **Status**: ✅ **COMPLETED** - Implemented Logger class with configurable levels, replaced console output in main files, build and tests verified
 
 ### 6. Inefficient String Operations
 - **File**: `src/AudioController.cpp` line 99

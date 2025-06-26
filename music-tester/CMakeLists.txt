@@ -73,6 +73,7 @@ set(MUSIC_TESTER_SOURCES
     src/AudioStreamProcessor.cpp
     src/SongManager.cpp
     src/EventSystem.cpp
+    src/Logger.cpp
 )
 
 # Set up headers for music-tester
@@ -86,6 +87,7 @@ set(MUSIC_TESTER_HEADERS
     src/AudioStreamProcessor.h
     src/SongManager.h
     src/EventSystem.h
+    src/Logger.h
 )
 
 # Add the executable target
@@ -334,8 +336,8 @@ endif()
 
 # Add test executables
 add_executable(test-circular-buffer src/test_circular_buffer.cpp)
-add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp)
-add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp)
+add_executable(test-song-loading src/test_song_loading.cpp src/SongManager.cpp src/Logger.cpp)
+add_executable(test-event-system-minimal src/test_event_system_minimal.cpp src/SongManager.cpp src/Logger.cpp)
 
 # Include directories for tests
 target_include_directories(test-circular-buffer PRIVATE

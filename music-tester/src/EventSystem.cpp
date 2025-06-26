@@ -1,5 +1,6 @@
 #include "EventSystem.h"
 #include "AudioController.h"
+#include "Logger.h"
 #include "SongManager.h"
 #include <algorithm>
 #include <iostream>
@@ -10,21 +11,20 @@ namespace AudioTester {
 
     void EventSystem::triggerSongEvent(const std::string& songName, const std::string& eventName) {
         if (!m_controller) {
-            std::cerr << "[EventSystem] ERROR: No controller available" << std::endl;
+            LOG_ERROR_COMP("EventSystem", "No controller available");
             return;
         }
 
-        // Get song manager from controller (we'll add this method)
         const SongManager* songManager = m_controller->getSongManager();
         if (!songManager) {
-            std::cerr << "[EventSystem] ERROR: No song manager available" << std::endl;
+            LOG_ERROR_COMP("EventSystem", "No song manager available");
             return;
         }
 
         // Find the song
         const Song* song = songManager->findSong(songName);
         if (!song) {
-            std::cerr << "[EventSystem] ERROR: Song not found: " << songName << std::endl;
+            LOG_ERROR_COMP("EventSystem", "Song not found: " + songName);
             return;
         }
 
@@ -34,13 +34,12 @@ namespace AudioTester {
                          [&eventName](const SongEvent& event) { return event.name == eventName; });
 
         if (eventIt == song->events.end()) {
-            std::cerr << "[EventSystem] ERROR: Event not found: " << eventName
-                      << " in song: " << songName << std::endl;
+            LOG_ERROR_COMP("EventSystem",
+                           "Event not found: " + eventName + " in song: " + songName);
             return;
         }
 
-        std::cout << "[EventSystem] INFO: Triggering song event: " << songName << " -> "
-                  << eventName << std::endl;
+        LOG_INFO_COMP("EventSystem", "Triggering song event: " + songName + " -> " + eventName);
 
         // Start transition
         startSongTransition(eventIt->state, eventIt->fadeTime);
@@ -48,14 +47,13 @@ namespace AudioTester {
 
     void EventSystem::triggerMasterEvent(const std::string& eventName) {
         if (!m_controller) {
-            std::cerr << "[EventSystem] ERROR: No controller available" << std::endl;
+            LOG_ERROR_COMP("EventSystem", "No controller available");
             return;
         }
 
-        // Get song manager from controller
         const SongManager* songManager = m_controller->getSongManager();
         if (!songManager) {
-            std::cerr << "[EventSystem] ERROR: No song manager available" << std::endl;
+            LOG_ERROR_COMP("EventSystem", "No song manager available");
             return;
         }
 
@@ -66,11 +64,11 @@ namespace AudioTester {
             [&eventName](const MasterEvent& event) { return event.name == eventName; });
 
         if (eventIt == masterBus.events.end()) {
-            std::cerr << "[EventSystem] ERROR: Master event not found: " << eventName << std::endl;
+            LOG_ERROR_COMP("EventSystem", "Master event not found: " + eventName);
             return;
         }
 
-        std::cout << "[EventSystem] INFO: Triggering master event: " << eventName << std::endl;
+        LOG_INFO_COMP("EventSystem", "Triggering master event: " + eventName);
 
         // Start transition
         startMasterTransition(eventIt->state, eventIt->fadeTime);
@@ -95,7 +93,7 @@ namespace AudioTester {
                 applyMasterBusState(m_targetMasterState);
             }
 
-            std::cout << "[EventSystem] INFO: Transition completed" << std::endl;
+            LOG_INFO_COMP("EventSystem", "Transition completed");
         } else {
             // Continue lerping
             float t = m_currentTime / m_targetTime;
@@ -111,6 +109,9 @@ namespace AudioTester {
     }
 
     void EventSystem::startSongTransition(const StateSnapshot& target, float fadeTime) {
+        LOG_INFO_COMP("EventSystem",
+                      "Starting song transition (" + std::to_string(fadeTime) + "s)");
+
         // Capture current state
         m_startState = captureCurrentSongState();
         m_targetState = target;
@@ -121,12 +122,12 @@ namespace AudioTester {
         m_transitionTime = fadeTime;
         m_targetTime = fadeTime;
         m_currentTime = 0.0f;
-
-        std::cout << "[EventSystem] INFO: Starting song transition (" << fadeTime << "s)"
-                  << std::endl;
     }
 
     void EventSystem::startMasterTransition(const MasterBusState& target, float fadeTime) {
+        LOG_INFO_COMP("EventSystem",
+                      "Starting master transition (" + std::to_string(fadeTime) + "s)");
+
         // Capture current state
         m_startMasterState = captureCurrentMasterState();
         m_targetMasterState = target;
@@ -137,9 +138,6 @@ namespace AudioTester {
         m_transitionTime = fadeTime;
         m_targetTime = fadeTime;
         m_currentTime = 0.0f;
-
-        std::cout << "[EventSystem] INFO: Starting master transition (" << fadeTime << "s)"
-                  << std::endl;
     }
 
     void EventSystem::lerpStates(float t) {

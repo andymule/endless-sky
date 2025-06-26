@@ -14,6 +14,7 @@
 #include <SDL2/SDL_opengl.h>
 
 #include "AudioController.h"
+#include "Logger.h"
 #include "TesterView.h"
 
 // Get the directory where the executable is located
@@ -37,11 +38,11 @@ std::string getExecutableDirectory() {
 int main() {
     // Get the executable directory for proper path resolution
     std::string exeDir = getExecutableDirectory();
-    std::cout << "Executable directory: " << exeDir << std::endl;
+    LOG_INFO("Executable directory: " + exeDir);
 
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
-        std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
+        LOG_ERROR("Error initializing SDL: " + std::string(SDL_GetError()));
         return 1;
     }
 
@@ -60,7 +61,7 @@ int main() {
         "Endless Sky - Music Tester", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!window) {
-        std::cerr << "Error creating SDL window: " << SDL_GetError() << std::endl;
+        LOG_ERROR("Error creating SDL window: " + std::string(SDL_GetError()));
         return 1;
     }
 
@@ -71,14 +72,13 @@ int main() {
         SDL_FreeSurface(iconSurface);
     } else {
         // Try PNG format (requires SDL2_image)
-        std::cout
-            << "Note: No icon.bmp found. For PNG support, install SDL2_image and use SDL_image.h"
-            << std::endl;
+        LOG_INFO(
+            "Note: No icon.bmp found. For PNG support, install SDL2_image and use SDL_image.h");
     }
 
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
-        std::cerr << "Error creating OpenGL context: " << SDL_GetError() << std::endl;
+        LOG_ERROR("Error creating OpenGL context: " + std::string(SDL_GetError()));
         return 1;
     }
     SDL_GL_MakeCurrent(window, glContext);
@@ -93,12 +93,12 @@ int main() {
 
     // Initialize components with executable directory
     if (!controller.initialize(exeDir)) {
-        std::cerr << "Failed to initialize AudioController" << std::endl;
+        LOG_ERROR("Failed to initialize AudioController");
         return 1;
     }
 
     if (!view.Initialize(window, glContext)) {
-        std::cerr << "Failed to initialize TesterView" << std::endl;
+        LOG_ERROR("Failed to initialize TesterView");
         return 1;
     }
 

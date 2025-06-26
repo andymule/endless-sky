@@ -1,4 +1,5 @@
 #include "TesterView.h"
+#include "Logger.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
@@ -33,13 +34,13 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
 
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
-        std::cerr << "Failed to initialize ImGui SDL2 backend" << std::endl;
+        LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui SDL2 backend");
         return false;
     }
 
     const char* glsl_version = "#version 150";
     if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
-        std::cerr << "Failed to initialize ImGui OpenGL3 backend" << std::endl;
+        LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui OpenGL3 backend");
         return false;
     }
 

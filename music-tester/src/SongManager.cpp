@@ -1,4 +1,5 @@
 #include "SongManager.h"
+#include "Logger.h"
 #include <algorithm>
 #include <fstream>
 
@@ -327,11 +328,11 @@ namespace AudioTester {
     }
 
     void SongManager::logError(const std::string& message) const {
-        std::cerr << "[SongManager] ERROR: " << message << std::endl;
+        LOG_ERROR_COMP("SongManager", message);
     }
 
     void SongManager::logInfo(const std::string& message) const {
-        std::cout << "[SongManager] INFO: " << message << std::endl;
+        LOG_INFO_COMP("SongManager", message);
     }
 
 } // namespace AudioTester

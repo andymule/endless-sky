@@ -1,4 +1,5 @@
 #include "AudioController.h"
+#include "Logger.h"
 #include <algorithm>
 #include <iostream>
 
@@ -20,7 +21,7 @@ namespace AudioTester {
         }
 
         if (!m_audioSystem.initialize()) {
-            std::cerr << "Failed to initialize audio system" << std::endl;
+            LOG_ERROR_COMP("AudioController", "Failed to initialize audio system");
             return false;
         }
 
@@ -63,7 +64,8 @@ namespace AudioTester {
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
-            std::cerr << "Error loading music directory: " << e.what() << std::endl;
+            LOG_ERROR_COMP("AudioController",
+                           "Error loading music directory: " + std::string(e.what()));
         }
 
         // Sync all tracks with audio system
