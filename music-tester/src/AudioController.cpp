@@ -241,8 +241,12 @@ namespace AudioTester {
     }
 
     void AudioController::syncAllTracksToAudioSystem() {
+        // Optimized: sync all tracks directly without method call overhead
         for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            syncTrackToAudioSystem(i);
+            const auto& track = m_state.getTrack(i);
+            // Apply volume based on active state
+            float effectiveVolume = track.active ? track.volume : 0.0f;
+            m_audioSystem.setTrackVolume(i, effectiveVolume);
         }
     }
 
