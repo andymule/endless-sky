@@ -302,25 +302,36 @@ namespace AudioTester {
         m_controller->setMasterTempo(state.masterTempo);
         m_controller->setGranularTempo(state.granularTempo);
 
-        // Apply track states
+        // Apply track states with complete effect reset
+        const auto& audioSystem = m_controller->getAudioSystem();
+
         for (size_t i = 0; i < state.tracks.size(); ++i) {
             const auto& track = state.tracks[i];
 
-            // Find track index by filename (we'll need to add this to AudioController)
+            // Find track index by filename
             int trackIndex = m_controller->findTrackByFilename(track.file);
             if (trackIndex >= 0) {
                 m_controller->setTrackVolume(trackIndex, track.volume);
 
-                // Apply effects
+                // COMPLETE EFFECT RESET: First disable ALL effects for this track
+                for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
+                    m_controller->setTrackEffectEnabled(trackIndex, filterName, false);
+                }
+
+                // Then apply effects from the snapshot
                 for (const auto& [effectName, effectState] : track.effects) {
-                    // Apply all effect parameters first (this will auto-enable/disable based on
-                    // wet)
-                    for (const auto& [paramName, paramValue] : effectState.parameters) {
-                        m_controller->setTrackEffectParameter(trackIndex, effectName, paramName,
-                                                              paramValue);
+                    // Apply all effect parameters using IDs instead of names
+                    for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
+                        try {
+                            // Convert string back to int ID
+                            int paramId = std::stoi(paramIdStr);
+                            m_controller->setTrackFilterParameter(trackIndex, effectName, paramId,
+                                                                  paramValue);
+                        } catch (const std::exception& e) {
+                            // Skip invalid parameter IDs - just continue silently
+                            continue;
+                        }
                     }
-                    // Note: No need to set enabled state separately - it's handled automatically
-                    // by the wet parameter logic in AudioSystem
                 }
             }
         }
@@ -337,14 +348,24 @@ namespace AudioTester {
         // Apply bus volume
         m_controller->setBusVolume(state.volume);
 
-        // Apply effects
+        // COMPLETE EFFECT RESET: First disable ALL bus effects
+        for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
+            m_controller->setBusEffectEnabled(filterName, false);
+        }
+
+        // Then apply effects from the snapshot
         for (const auto& [effectName, effectState] : state.effects) {
-            // Apply all effect parameters (this will auto-enable/disable based on wet)
-            for (const auto& [paramName, paramValue] : effectState.parameters) {
-                m_controller->setBusEffectParameter(effectName, paramName, paramValue);
+            // Apply all effect parameters using IDs instead of names
+            for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
+                try {
+                    // Convert string back to int ID
+                    int paramId = std::stoi(paramIdStr);
+                    m_controller->setBusFilterParameter(effectName, paramId, paramValue);
+                } catch (const std::exception& e) {
+                    // Skip invalid parameter IDs - just continue silently
+                    continue;
+                }
             }
-            // Note: No need to set enabled state separately - it's handled automatically
-            // by the wet parameter logic in AudioSystem
         }
     }
 

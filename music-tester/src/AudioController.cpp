@@ -312,7 +312,7 @@ namespace AudioTester {
         currentState.masterTempo = getMasterTempo();
         currentState.granularTempo = getGranularTempo();
 
-        // Capture track states
+        // Capture track states with effects
         for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
             const auto& track = m_state.getTrack(i);
 
@@ -320,9 +320,19 @@ namespace AudioTester {
             trackState.file = std::filesystem::path(track.filepath).filename().string();
             trackState.volume = track.volume;
 
-            // TODO: Capture effect states from AudioSystem
-            // For now, create empty effects map
-            trackState.effects = {};
+            // Capture all effect states from AudioSystem
+            const auto& trackFilters = m_audioSystem.getFilters(i);
+            for (const auto& [filterName, filterInstance] : trackFilters) {
+                EffectState effectState;
+
+                // Capture all parameters using their IDs, not names (to avoid validation issues)
+                for (const auto& [paramId, param] : filterInstance.parameters) {
+                    // Store parameter by ID as string key for JSON compatibility
+                    effectState.parameters[std::to_string(paramId)] = param.value;
+                }
+
+                trackState.effects[filterName] = effectState;
+            }
 
             currentState.tracks.push_back(trackState);
         }
@@ -349,9 +359,19 @@ namespace AudioTester {
         masterState.granularTempo = getGranularTempo();
         masterState.volume = m_state.busVolume;
 
-        // TODO: Capture master effects from AudioSystem
-        // For now, create empty effects map
-        masterState.effects = {};
+        // Capture all master effects from AudioSystem
+        const auto& busFilters = m_audioSystem.getBusFilters();
+        for (const auto& [filterName, filterInstance] : busFilters) {
+            EffectState effectState;
+
+            // Capture all parameters from the filter instance
+            for (const auto& [paramId, param] : filterInstance.parameters) {
+                // Convert parameter ID to parameter name using filter manager
+                effectState.parameters[param.name] = param.value;
+            }
+
+            masterState.effects[filterName] = effectState;
+        }
 
         // Create the event
         MasterEvent event;
@@ -361,7 +381,8 @@ namespace AudioTester {
 
         LOG_INFO_COMP("AudioController",
                       "Event state captured - Tempo: " + std::to_string(masterState.masterTempo) +
-                          ", Volume: " + std::to_string(masterState.volume));
+                          ", Volume: " + std::to_string(masterState.volume) +
+                          ", Effects: " + std::to_string(masterState.effects.size()));
 
         // Add to master bus and save
         if (m_songManager.addMasterEvent(event)) {
