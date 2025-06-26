@@ -185,40 +185,28 @@ namespace AudioTester {
         setTrackFilterEnabled(trackIndex, effectName, enabled);
     }
 
+    namespace {
+        // Helper to map effect parameter names to parameter IDs
+        int mapEffectParamNameToId(const std::string& /*effectName*/,
+                                   const std::string& paramName) {
+            if (paramName == "boost" || paramName == "delay" || paramName == "samplerate" ||
+                paramName == "wet" || paramName == "freq" || paramName == "amount")
+                return 0;
+            if (paramName == "decay" || paramName == "roomsize" || paramName == "bitdepth" ||
+                paramName == "wave")
+                return 1;
+            if (paramName == "filter" || paramName == "damp")
+                return 2;
+            if (paramName == "width")
+                return 3;
+            // Default fallback
+            return 0;
+        }
+    } // namespace
+
     void AudioController::setTrackEffectParameter(size_t trackIndex, const std::string& effectName,
                                                   const std::string& paramName, float value) {
-        // Map parameter names to parameter IDs
-        // This is a simplified mapping - in a real implementation you'd have a proper mapping table
-        int paramId = 0; // Default to first parameter
-
-        // Simple mapping for common parameters
-        if (paramName == "boost")
-            paramId = 0;
-        else if (paramName == "delay")
-            paramId = 0;
-        else if (paramName == "decay")
-            paramId = 1;
-        else if (paramName == "filter")
-            paramId = 2;
-        else if (paramName == "samplerate")
-            paramId = 0;
-        else if (paramName == "bitdepth")
-            paramId = 1;
-        else if (paramName == "wet")
-            paramId = 0;
-        else if (paramName == "roomsize")
-            paramId = 1;
-        else if (paramName == "damp")
-            paramId = 2;
-        else if (paramName == "width")
-            paramId = 3;
-        else if (paramName == "freq")
-            paramId = 0;
-        else if (paramName == "wave")
-            paramId = 1;
-        else if (paramName == "amount")
-            paramId = 0;
-
+        int paramId = mapEffectParamNameToId(effectName, paramName);
         setTrackFilterParameter(trackIndex, effectName, paramId, value);
     }
 
@@ -228,36 +216,7 @@ namespace AudioTester {
 
     void AudioController::setBusEffectParameter(const std::string& effectName,
                                                 const std::string& paramName, float value) {
-        // Map parameter names to parameter IDs (same as track effects)
-        int paramId = 0;
-
-        if (paramName == "boost")
-            paramId = 0;
-        else if (paramName == "delay")
-            paramId = 0;
-        else if (paramName == "decay")
-            paramId = 1;
-        else if (paramName == "filter")
-            paramId = 2;
-        else if (paramName == "samplerate")
-            paramId = 0;
-        else if (paramName == "bitdepth")
-            paramId = 1;
-        else if (paramName == "wet")
-            paramId = 0;
-        else if (paramName == "roomsize")
-            paramId = 1;
-        else if (paramName == "damp")
-            paramId = 2;
-        else if (paramName == "width")
-            paramId = 3;
-        else if (paramName == "freq")
-            paramId = 0;
-        else if (paramName == "wave")
-            paramId = 1;
-        else if (paramName == "amount")
-            paramId = 0;
-
+        int paramId = mapEffectParamNameToId(effectName, paramName);
         setBusFilterParameter(effectName, paramId, value);
     }
 
