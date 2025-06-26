@@ -4,6 +4,7 @@
 #include "SongManager.h"
 #include <algorithm>
 #include <iostream>
+#include <set>
 
 namespace AudioTester {
 
@@ -205,71 +206,68 @@ namespace AudioTester {
 
     void EventSystem::lerpStates(float t) {
         if (m_transitionType == TransitionType::SONG) {
-            // Create interpolated state
             StateSnapshot lerpedState;
             lerpedState.masterTempo = lerp(m_startState.masterTempo, m_targetState.masterTempo, t);
             lerpedState.granularTempo =
                 lerp(m_startState.granularTempo, m_targetState.granularTempo, t);
 
-            // For tracks, we need to handle them by filename to ensure proper interpolation
-            // Target state defines which tracks should exist
-            lerpedState.tracks.resize(m_targetState.tracks.size());
+            size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
+            lerpedState.tracks.resize(maxTracks);
 
-            for (size_t i = 0; i < m_targetState.tracks.size(); ++i) {
-                const auto& targetTrack = m_targetState.tracks[i];
+            for (size_t i = 0; i < maxTracks; ++i) {
+                // Defensive: check bounds for both start and target
+                const TrackStateExtended* targetTrack =
+                    (i < m_targetState.tracks.size()) ? &m_targetState.tracks[i] : nullptr;
+                const TrackStateExtended* startTrack =
+                    (i < m_startState.tracks.size()) ? &m_startState.tracks[i] : nullptr;
                 TrackStateExtended& lerpedTrack = lerpedState.tracks[i];
 
-                // Find corresponding track in start state by filename
-                const TrackStateExtended* startTrack = nullptr;
-                for (const auto& startT : m_startState.tracks) {
-                    if (startT.file == targetTrack.file) {
-                        startTrack = &startT;
-                        break;
-                    }
-                }
+                if (targetTrack)
+                    lerpedTrack.file = targetTrack->file;
+                else if (startTrack)
+                    lerpedTrack.file = startTrack->file;
+                else
+                    lerpedTrack.file = "";
 
-                lerpedTrack.file = targetTrack.file; // Always use target filename
+                // Volume
+                float startVol = startTrack ? startTrack->volume : 1.0f;
+                float targetVol = targetTrack ? targetTrack->volume : 1.0f;
+                lerpedTrack.volume = lerp(startVol, targetVol, t);
 
-                if (startTrack) {
-                    // Track exists in both states - interpolate volume
-                    lerpedTrack.volume = lerp(startTrack->volume, targetTrack.volume, t);
-                } else {
-                    // Track only exists in target - use current live volume as start
-                    // This handles the case where JSON has tracks that aren't in captured state
-                    int trackIndex = m_controller->findTrackByFilename(targetTrack.file);
-                    float currentVolume = 1.0f; // Default fallback
-                    if (trackIndex >= 0) {
-                        const auto& audioState = m_controller->getState();
-                        if (trackIndex < static_cast<int>(audioState.getTrackCount())) {
-                            currentVolume = audioState.getTrack(trackIndex).volume;
-                        }
-                    }
-                    lerpedTrack.volume = lerp(currentVolume, targetTrack.volume, t);
-                }
+                // Effects: union of all effect names in start and target
+                std::set<std::string> allEffects;
+                if (startTrack)
+                    for (const auto& [ename, _] : startTrack->effects) allEffects.insert(ename);
+                if (targetTrack)
+                    for (const auto& [ename, _] : targetTrack->effects) allEffects.insert(ename);
 
-                // Interpolate effects
-                for (const auto& [effectName, targetEffect] : targetTrack.effects) {
-                    if (startTrack) {
-                        auto startIt = startTrack->effects.find(effectName);
-                        if (startIt != startTrack->effects.end()) {
-                            // Effect exists in both states
-                            lerpEffectState(startIt->second, targetEffect,
-                                            lerpedTrack.effects[effectName], t);
-                        } else {
-                            // Effect only in target state
-                            lerpedTrack.effects[effectName] = targetEffect;
-                        }
-                    } else {
-                        // No start track, use target effect
-                        lerpedTrack.effects[effectName] = targetEffect;
+                for (const auto& effectName : allEffects) {
+                    const EffectState* startEff =
+                        (startTrack && startTrack->effects.count(effectName))
+                            ? &startTrack->effects.at(effectName)
+                            : nullptr;
+                    const EffectState* targetEff =
+                        (targetTrack && targetTrack->effects.count(effectName))
+                            ? &targetTrack->effects.at(effectName)
+                            : nullptr;
+
+                    if (startEff && targetEff) {
+                        lerpEffectState(*startEff, *targetEff, lerpedTrack.effects[effectName], t);
+                    } else if (targetEff) {
+                        // No start, lerp from zero wet
+                        EffectState zeroStart = *targetEff;
+                        zeroStart.parameters["0"] = 0.0f;
+                        lerpEffectState(zeroStart, *targetEff, lerpedTrack.effects[effectName], t);
+                    } else if (startEff) {
+                        // No target, lerp to zero wet
+                        EffectState zeroTarget = *startEff;
+                        zeroTarget.parameters["0"] = 0.0f;
+                        lerpEffectState(*startEff, zeroTarget, lerpedTrack.effects[effectName], t);
                     }
                 }
             }
-
             applyStateSnapshot(lerpedState);
-
         } else if (m_transitionType == TransitionType::MASTER) {
-            // Create interpolated master state
             MasterBusState lerpedState;
             lerpedState.masterTempo =
                 lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, t);
@@ -277,19 +275,31 @@ namespace AudioTester {
                 lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, t);
             lerpedState.volume = lerp(m_startMasterState.volume, m_targetMasterState.volume, t);
 
-            // Interpolate effects
-            for (const auto& [effectName, targetEffect] : m_targetMasterState.effects) {
-                auto startIt = m_startMasterState.effects.find(effectName);
-                if (startIt != m_startMasterState.effects.end()) {
-                    // Effect exists in both states
-                    lerpEffectState(startIt->second, targetEffect, lerpedState.effects[effectName],
-                                    t);
-                } else {
-                    // Effect only in target state
-                    lerpedState.effects[effectName] = targetEffect;
+            // Effects: union of all effect names in start and target
+            std::set<std::string> allEffects;
+            for (const auto& [ename, _] : m_startMasterState.effects) allEffects.insert(ename);
+            for (const auto& [ename, _] : m_targetMasterState.effects) allEffects.insert(ename);
+
+            for (const auto& effectName : allEffects) {
+                const EffectState* startEff = m_startMasterState.effects.count(effectName)
+                                                  ? &m_startMasterState.effects.at(effectName)
+                                                  : nullptr;
+                const EffectState* targetEff = m_targetMasterState.effects.count(effectName)
+                                                   ? &m_targetMasterState.effects.at(effectName)
+                                                   : nullptr;
+
+                if (startEff && targetEff) {
+                    lerpEffectState(*startEff, *targetEff, lerpedState.effects[effectName], t);
+                } else if (targetEff) {
+                    EffectState zeroStart = *targetEff;
+                    zeroStart.parameters["0"] = 0.0f;
+                    lerpEffectState(zeroStart, *targetEff, lerpedState.effects[effectName], t);
+                } else if (startEff) {
+                    EffectState zeroTarget = *startEff;
+                    zeroTarget.parameters["0"] = 0.0f;
+                    lerpEffectState(*startEff, zeroTarget, lerpedState.effects[effectName], t);
                 }
             }
-
             applyMasterBusState(lerpedState);
         }
     }
@@ -302,9 +312,7 @@ namespace AudioTester {
         m_controller->setMasterTempo(state.masterTempo);
         m_controller->setGranularTempo(state.granularTempo);
 
-        // Apply track states with complete effect reset
-        const auto& audioSystem = m_controller->getAudioSystem();
-
+        // Apply track states with smart wet level logic
         for (size_t i = 0; i < state.tracks.size(); ++i) {
             const auto& track = state.tracks[i];
 
@@ -313,24 +321,36 @@ namespace AudioTester {
             if (trackIndex >= 0) {
                 m_controller->setTrackVolume(trackIndex, track.volume);
 
-                // COMPLETE EFFECT RESET: First disable ALL effects for this track
-                for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-                    m_controller->setTrackEffectEnabled(trackIndex, filterName, false);
-                }
+                // Get current audio system state for comparison
+                const auto& currentFilters = m_controller->getAudioSystem().getFilters(trackIndex);
 
-                // Then apply effects from the snapshot
+                // Apply effects with wet level logic
                 for (const auto& [effectName, effectState] : track.effects) {
-                    // Apply all effect parameters using IDs instead of names
-                    for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
-                        try {
-                            // Convert string back to int ID
-                            int paramId = std::stoi(paramIdStr);
-                            m_controller->setTrackFilterParameter(trackIndex, effectName, paramId,
-                                                                  paramValue);
-                        } catch (const std::exception& e) {
-                            // Skip invalid parameter IDs - just continue silently
-                            continue;
+                    auto currentIt = currentFilters.find(effectName);
+                    bool currentlyEnabled =
+                        (currentIt != currentFilters.end() && currentIt->second.enabled);
+
+                    // Find wet parameter value (wet is usually param ID 0)
+                    auto wetIt = effectState.parameters.find("0");
+                    float targetWet =
+                        (wetIt != effectState.parameters.end()) ? wetIt->second : 0.0f;
+
+                    if (targetWet > 0.0f) {
+                        // Target has effect enabled - apply all parameters
+                        // The transition system will handle lerping the wet level
+                        for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
+                            try {
+                                int paramId = std::stoi(paramIdStr);
+                                m_controller->setTrackFilterParameter(trackIndex, effectName,
+                                                                      paramId, paramValue);
+                            } catch (const std::exception& e) {
+                                // Skip invalid parameter IDs
+                                continue;
+                            }
                         }
+                    } else if (currentlyEnabled) {
+                        // Target has effect disabled but currently enabled - lerp down to 0
+                        m_controller->setTrackFilterParameter(trackIndex, effectName, 0, 0.0f);
                     }
                 }
             }
@@ -348,23 +368,34 @@ namespace AudioTester {
         // Apply bus volume
         m_controller->setBusVolume(state.volume);
 
-        // COMPLETE EFFECT RESET: First disable ALL bus effects
-        for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
-            m_controller->setBusEffectEnabled(filterName, false);
-        }
+        // Get current audio system state for comparison
+        const auto& currentFilters = m_controller->getAudioSystem().getBusFilters();
 
-        // Then apply effects from the snapshot
+        // Apply effects with wet level logic
         for (const auto& [effectName, effectState] : state.effects) {
-            // Apply all effect parameters using IDs instead of names
-            for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
-                try {
-                    // Convert string back to int ID
-                    int paramId = std::stoi(paramIdStr);
-                    m_controller->setBusFilterParameter(effectName, paramId, paramValue);
-                } catch (const std::exception& e) {
-                    // Skip invalid parameter IDs - just continue silently
-                    continue;
+            auto currentIt = currentFilters.find(effectName);
+            bool currentlyEnabled =
+                (currentIt != currentFilters.end() && currentIt->second.enabled);
+
+            // Find wet parameter value (wet is usually param ID 0)
+            auto wetIt = effectState.parameters.find("0");
+            float targetWet = (wetIt != effectState.parameters.end()) ? wetIt->second : 0.0f;
+
+            if (targetWet > 0.0f) {
+                // Target has effect enabled - apply all parameters
+                // The transition system will handle lerping the wet level
+                for (const auto& [paramIdStr, paramValue] : effectState.parameters) {
+                    try {
+                        int paramId = std::stoi(paramIdStr);
+                        m_controller->setBusFilterParameter(effectName, paramId, paramValue);
+                    } catch (const std::exception& e) {
+                        // Skip invalid parameter IDs
+                        continue;
+                    }
                 }
+            } else if (currentlyEnabled) {
+                // Target has effect disabled but currently enabled - lerp down to 0
+                m_controller->setBusFilterParameter(effectName, 0, 0.0f);
             }
         }
     }
@@ -379,18 +410,29 @@ namespace AudioTester {
         state.masterTempo = m_controller->getMasterTempo();
         state.granularTempo = m_controller->getGranularTempo();
 
-        // Capture tracks
+        // Capture tracks with complete effect states
         const auto& audioState = m_controller->getState();
+        const auto& audioSystem = m_controller->getAudioSystem();
 
         for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
             const auto& track = audioState.getTrack(i);
+            const auto& trackFilters = audioSystem.getFilters(i);
 
             TrackStateExtended extendedTrack;
             extendedTrack.file = std::filesystem::path(track.filepath).filename().string();
             extendedTrack.volume = track.volume;
 
-            // Capture effects (we'll need to add this to AudioController)
-            // For now, leave effects empty as we'll implement this in the next step
+            // Capture only effects with wet > 0 (enabled effects)
+            for (const auto& [filterName, filterInstance] : trackFilters) {
+                if (filterInstance.enabled) {
+                    EffectState effectState;
+                    // Store all parameters including wet level
+                    for (const auto& [paramId, param] : filterInstance.parameters) {
+                        effectState.parameters[std::to_string(paramId)] = param.value;
+                    }
+                    extendedTrack.effects[filterName] = effectState;
+                }
+            }
 
             state.tracks.push_back(extendedTrack);
         }
@@ -411,7 +453,20 @@ namespace AudioTester {
         // Capture bus volume
         state.volume = m_controller->getState().busVolume;
 
-        // Capture effects (we'll implement this in the next step)
+        // Capture master effects with complete effect states
+        const auto& busFilters = m_controller->getAudioSystem().getBusFilters();
+
+        // Capture only effects with wet > 0 (enabled effects)
+        for (const auto& [filterName, filterInstance] : busFilters) {
+            if (filterInstance.enabled) {
+                EffectState effectState;
+                // Store all parameters including wet level
+                for (const auto& [paramId, param] : filterInstance.parameters) {
+                    effectState.parameters[std::to_string(paramId)] = param.value;
+                }
+                state.effects[filterName] = effectState;
+            }
+        }
 
         return state;
     }
@@ -425,16 +480,51 @@ namespace AudioTester {
 
     void EventSystem::lerpEffectState(const EffectState& start, const EffectState& end,
                                       EffectState& result, float t) {
-        // Interpolate parameters (enabled state is handled automatically by wet parameter)
-        for (const auto& [paramName, endValue] : end.parameters) {
-            auto startIt = start.parameters.find(paramName);
-            if (startIt != start.parameters.end()) {
-                // Parameter exists in both states
-                result.parameters[paramName] = lerp(startIt->second, endValue, t);
-            } else {
-                // Parameter only in end state
+        // Always lerp wet parameter first (wet is usually param ID 0)
+        float startWet = 0.0f, endWet = 0.0f;
+        bool hasStartWet = false, hasEndWet = false;
+        if (auto it = start.parameters.find("0"); it != start.parameters.end()) {
+            startWet = it->second;
+            hasStartWet = true;
+        }
+        if (auto it = end.parameters.find("0"); it != end.parameters.end()) {
+            endWet = it->second;
+            hasEndWet = true;
+        }
+        if (hasStartWet && hasEndWet) {
+            result.parameters["0"] = lerp(startWet, endWet, t);
+            // Only lerp other parameters if either wet level > 0
+            if (startWet > 0.0f || endWet > 0.0f) {
+                std::set<std::string> allParams;
+                for (const auto& [p, _] : start.parameters) allParams.insert(p);
+                for (const auto& [p, _] : end.parameters) allParams.insert(p);
+                for (const auto& paramName : allParams) {
+                    if (paramName == "0")
+                        continue;
+                    float s =
+                        start.parameters.count(paramName) ? start.parameters.at(paramName) : 0.0f;
+                    float e = end.parameters.count(paramName) ? end.parameters.at(paramName) : 0.0f;
+                    result.parameters[paramName] = lerp(s, e, t);
+                }
+            }
+        } else if (hasEndWet) {
+            // No start wet, lerp from 0
+            result.parameters["0"] = lerp(0.0f, endWet, t);
+            for (const auto& [paramName, endValue] : end.parameters) {
+                if (paramName == "0")
+                    continue;
                 result.parameters[paramName] = endValue;
             }
+        } else if (hasStartWet) {
+            // No end wet, lerp to 0
+            result.parameters["0"] = lerp(startWet, 0.0f, t);
+            for (const auto& [paramName, startValue] : start.parameters) {
+                if (paramName == "0")
+                    continue;
+                result.parameters[paramName] = startValue;
+            }
+        } else {
+            // No wet in either, do nothing
         }
     }
 

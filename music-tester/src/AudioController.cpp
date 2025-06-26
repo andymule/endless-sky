@@ -320,18 +320,22 @@ namespace AudioTester {
             trackState.file = std::filesystem::path(track.filepath).filename().string();
             trackState.volume = track.volume;
 
-            // Capture all effect states from AudioSystem
+            // Capture only enabled effect states from AudioSystem
             const auto& trackFilters = m_audioSystem.getFilters(i);
             for (const auto& [filterName, filterInstance] : trackFilters) {
-                EffectState effectState;
+                // Only capture effects that are enabled (wet > 0)
+                if (filterInstance.enabled) {
+                    EffectState effectState;
 
-                // Capture all parameters using their IDs, not names (to avoid validation issues)
-                for (const auto& [paramId, param] : filterInstance.parameters) {
-                    // Store parameter by ID as string key for JSON compatibility
-                    effectState.parameters[std::to_string(paramId)] = param.value;
+                    // Capture all parameters using their IDs, not names (to avoid validation
+                    // issues)
+                    for (const auto& [paramId, param] : filterInstance.parameters) {
+                        // Store parameter by ID as string key for JSON compatibility
+                        effectState.parameters[std::to_string(paramId)] = param.value;
+                    }
+
+                    trackState.effects[filterName] = effectState;
                 }
-
-                trackState.effects[filterName] = effectState;
             }
 
             currentState.tracks.push_back(trackState);
@@ -359,18 +363,22 @@ namespace AudioTester {
         masterState.granularTempo = getGranularTempo();
         masterState.volume = m_state.busVolume;
 
-        // Capture all master effects from AudioSystem
+        // Capture only enabled master effects from AudioSystem
         const auto& busFilters = m_audioSystem.getBusFilters();
         for (const auto& [filterName, filterInstance] : busFilters) {
-            EffectState effectState;
+            // Only capture effects that are enabled (wet > 0)
+            if (filterInstance.enabled) {
+                EffectState effectState;
 
-            // Capture all parameters from the filter instance
-            for (const auto& [paramId, param] : filterInstance.parameters) {
-                // Convert parameter ID to parameter name using filter manager
-                effectState.parameters[param.name] = param.value;
+                // Capture all parameters using their IDs, not names (for consistency with song
+                // events)
+                for (const auto& [paramId, param] : filterInstance.parameters) {
+                    // Store parameter by ID as string key for JSON compatibility
+                    effectState.parameters[std::to_string(paramId)] = param.value;
+                }
+
+                masterState.effects[filterName] = effectState;
             }
-
-            masterState.effects[filterName] = effectState;
         }
 
         // Create the event
