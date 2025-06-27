@@ -60,6 +60,10 @@ public:
     void RefreshOggBrowserEntries();
     bool CopyOggFileToSong(const std::string& sourcePath, const std::string& songName);
 
+    // Project and song selection methods
+    void DiscoverAvailableProjects();
+    void RenderProjectSongDropdown();
+
     // Menu bar methods
     void RenderMenuBar();
     std::string GetWindowTitle();
@@ -148,6 +152,11 @@ private:
     std::vector<std::filesystem::path> m_oggBrowserEntries;
     int m_selectedOggEntry = -1;
     char m_oggBrowserFilter[256] = "";
+
+    // Project and song selection state
+    std::vector<std::string> m_availableProjects;
+    std::string m_currentProject = "";
+    bool m_showProjectSongDropdown = false;
 
     // Event creation state
     enum class EventCreationType { MASTER, SONG };

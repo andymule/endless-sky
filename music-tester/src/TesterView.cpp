@@ -56,6 +56,53 @@ void TesterView::InitializeDefaultDirectory() {
     }
 }
 
+void TesterView::DiscoverAvailableProjects() {
+    m_availableProjects.clear();
+
+    try {
+        std::filesystem::path dynamixPath(m_defaultDirectory);
+        if (!std::filesystem::exists(dynamixPath) || !std::filesystem::is_directory(dynamixPath)) {
+            return;
+        }
+
+        for (const auto& entry : std::filesystem::directory_iterator(dynamixPath)) {
+            if (entry.is_directory()) {
+                std::string projectName = entry.path().filename().string();
+
+                // Check if this directory contains a _master.json file (indicating it's a project)
+                std::filesystem::path masterJsonPath = entry.path() / "_master.json";
+                if (std::filesystem::exists(masterJsonPath)) {
+                    m_availableProjects.push_back(projectName);
+                }
+            }
+        }
+
+        // Sort projects alphabetically
+        std::sort(m_availableProjects.begin(), m_availableProjects.end());
+
+        // Update current project based on current directory
+        std::string currentDir = m_controller->getCurrentDirectory();
+        if (!currentDir.empty()) {
+            std::filesystem::path currentPath(currentDir);
+            std::string currentProjectName = currentPath.filename().string();
+
+            // Check if current directory is a project
+            std::filesystem::path masterJsonPath = currentPath / "_master.json";
+            if (std::filesystem::exists(masterJsonPath)) {
+                m_currentProject = currentProjectName;
+            }
+        }
+
+        // Set current project if not set
+        if (m_currentProject.empty() && !m_availableProjects.empty()) {
+            m_currentProject = m_availableProjects[0];
+        }
+    } catch (const std::exception& e) {
+        // Handle errors gracefully
+        std::cout << "Error discovering projects: " << e.what() << std::endl;
+    }
+}
+
 TesterView::~TesterView() { cleanup(); }
 
 bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
@@ -1403,28 +1450,8 @@ void TesterView::RenderMenuBar() {
             ImGui::EndMenu();
         }
 
-        // Songs menu
-        if (ImGui::BeginMenu("Songs")) {
-            const auto* songManager = m_controller->getSongManager();
-            if (songManager) {
-                const auto& songs = songManager->getSongs();
-                std::string currentSong = m_controller->getCurrentSong();
-
-                for (const auto& song : songs) {
-                    bool isSelected = (song.name == currentSong);
-                    if (ImGui::MenuItem(song.name.c_str(), nullptr, isSelected)) {
-                        m_controller->setCurrentSong(song.name);
-                    }
-                }
-
-                if (songs.empty()) {
-                    ImGui::TextDisabled("No songs loaded");
-                }
-            } else {
-                ImGui::TextDisabled("No song manager");
-            }
-            ImGui::EndMenu();
-        }
+        // Unified Project/Song dropdown
+        RenderProjectSongDropdown();
 
         // Directory input in menu bar
         ImGui::SameLine();
@@ -1448,16 +1475,6 @@ void TesterView::RenderMenuBar() {
         const auto& state = m_controller->getState();
         if (ImGui::Button(state.globalPlaying ? "Pause" : "Play")) {
             m_controller->toggleGlobalPlayback();
-        }
-
-        // Current song display
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
-        std::string currentSong = m_controller->getCurrentSong();
-        if (!currentSong.empty()) {
-            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "Song: %s", currentSong.c_str());
-        } else {
-            ImGui::TextDisabled("No song loaded");
         }
 
         ImGui::EndMainMenuBar();
@@ -1724,4 +1741,89 @@ void TesterView::cleanup() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
+}
+
+void TesterView::RenderProjectSongDropdown() {
+    // Discover projects if needed
+    if (m_availableProjects.empty()) {
+        DiscoverAvailableProjects();
+    }
+
+    // Get current song
+    std::string currentSong = m_controller->getCurrentSong();
+
+    // Project dropdown
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+    ImGui::Text("Project:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+
+    std::string projectDisplayText = m_currentProject.empty() ? "No Project" : m_currentProject;
+    if (ImGui::BeginCombo("##project", projectDisplayText.c_str())) {
+        for (const auto& project : m_availableProjects) {
+            bool isSelected = (project == m_currentProject);
+
+            if (ImGui::Selectable(("📁 " + project).c_str(), isSelected)) {
+                m_currentProject = project;
+                // Load the project directory
+                std::string projectPath = m_defaultDirectory + "/" + project;
+                m_controller->setMusicDirectory(projectPath);
+            }
+
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+
+        if (m_availableProjects.empty()) {
+            ImGui::TextDisabled("No projects found");
+        }
+
+        ImGui::EndCombo();
+    }
+
+    // Song dropdown
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.0f);
+    ImGui::Text("Song:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+
+    std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
+    if (ImGui::BeginCombo("##song", songDisplayText.c_str())) {
+        const auto* songManager = m_controller->getSongManager();
+        if (songManager) {
+            const auto& songs = songManager->getSongs();
+
+            for (const auto& song : songs) {
+                bool songSelected = (song.name == currentSong);
+
+                if (ImGui::Selectable(("🎵 " + song.name).c_str(), songSelected)) {
+                    m_controller->setCurrentSong(song.name);
+                }
+
+                if (songSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            if (songs.empty()) {
+                ImGui::TextDisabled("No songs in project");
+            }
+        } else {
+            ImGui::TextDisabled("No song manager");
+        }
+
+        ImGui::EndCombo();
+    }
+
+    // Refresh button
+    ImGui::SameLine();
+    if (ImGui::Button("🔄")) {
+        DiscoverAvailableProjects();
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Refresh project list");
+    }
 }
