@@ -180,6 +180,15 @@ namespace AudioTester {
         void stopAllTracks();                                    // Stop all tracks
         void pauseAllTracks();  // Pause all tracks (preserves position)
         void resumeAllTracks(); // Resume all tracks from paused position
+        void clearAllTracks() {
+            m_tracks.clear();
+            m_trackFilters.clear();
+            // Reset playback state for fresh start
+            m_hasEverPlayed = false;
+            m_syncState.isPlaying = false;
+            m_syncState.globalTime = 0.0;
+            m_syncState.lastSyncCheck = 0.0;
+        }
 
         // Synchronization
         void updateSync(); // Call this regularly to maintain sync

@@ -86,43 +86,34 @@ namespace AudioTester {
                 if (!songs.empty()) {
                     setCurrentSong(songs[0].folderPath.filename().string());
                 }
-            }
-
-            // Collect all unique track files referenced in songs
-            std::set<std::string> songTrackFiles;
-            const auto& songs = m_songManager.getSongs();
-
-            for (const auto& song : songs) {
-                for (const auto& event : song.events) {
-                    for (const auto& track : event.state.tracks) {
-                        songTrackFiles.insert(track.file);
+            } else {
+                // Load tracks for the current song only
+                const SongManager* mgr = getSongManager();
+                if (mgr) {
+                    const Song* song = mgr->findSongByFolder(m_currentSongName);
+                    if (song) {
+                        std::filesystem::path songFolder = song->folderPath;
+                        if (std::filesystem::exists(songFolder)) {
+                            // Load all .ogg files from the current song's folder
+                            for (const auto& entry :
+                                 std::filesystem::directory_iterator(songFolder)) {
+                                if (entry.is_regular_file()) {
+                                    auto filepath = entry.path().string();
+                                    if (isSupportedFile(filepath)) {
+                                        std::string trackFile = entry.path().filename().string();
+                                        // Add to state with the track filename as the name
+                                        m_state.addTrack(trackFile, filepath);
+                                        // Load into audio system
+                                        m_audioSystem.loadTrack(filepath);
+                                        // Ensure track is set to loop (tracks should always loop in
+                                        // a song)
+                                        size_t trackIndex = m_state.getTrackCount() - 1;
+                                        m_audioSystem.setTrackLooping(trackIndex, true);
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-            }
-
-            // Load only the tracks that are part of songs
-            for (const auto& trackFile : songTrackFiles) {
-                // Try to find the track file in song folders first
-                bool trackLoaded = false;
-
-                for (const auto& song : songs) {
-                    auto trackPath = song.folderPath / trackFile;
-                    if (std::filesystem::exists(trackPath)) {
-                        // Add to state with the track filename as the name
-                        m_state.addTrack(trackFile, trackPath.string());
-                        // Load into audio system
-                        m_audioSystem.loadTrack(trackPath.string());
-                        // Ensure track is set to loop (tracks should always loop in a song)
-                        size_t trackIndex = m_state.getTrackCount() - 1;
-                        m_audioSystem.setTrackLooping(trackIndex, true);
-                        trackLoaded = true;
-                        break; // Found the track, no need to check other songs
-                    }
-                }
-
-                if (!trackLoaded) {
-                    LOG_WARN_COMP("AudioController",
-                                  "Track file not found in any song folder: " + trackFile);
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
@@ -150,8 +141,52 @@ namespace AudioTester {
     }
 
     void AudioController::setCurrentSong(const std::string& songName) {
+        if (m_currentSongName == songName) {
+            return; // No change
+        }
+
+        // Stop playback and clear all tracks from audio system and state
+        pausePlayback();
+        m_audioSystem.stopAllTracks();
+        m_audioSystem.clearAllTracks();
+        m_state.clearTracks();
+
         m_currentSongName = songName;
-        // TODO: Implement song switching logic
+
+        // Load all tracks for the new song (from the folder)
+        const SongManager* mgr = getSongManager();
+        if (!mgr)
+            return;
+        const Song* song = mgr->findSongByFolder(songName);
+        if (!song)
+            return;
+        std::filesystem::path songFolder = song->folderPath;
+        if (!std::filesystem::exists(songFolder))
+            return;
+
+        std::vector<std::string> trackFiles;
+        for (const auto& entry : std::filesystem::directory_iterator(songFolder)) {
+            if (entry.is_regular_file()) {
+                auto filepath = entry.path().string();
+                if (isSupportedFile(filepath)) {
+                    trackFiles.push_back(entry.path().filename().string());
+                }
+            }
+        }
+        std::sort(trackFiles.begin(), trackFiles.end());
+
+        for (const auto& trackFile : trackFiles) {
+            std::filesystem::path trackPath = songFolder / trackFile;
+            m_state.addTrack(trackFile, trackPath.string());
+            m_audioSystem.loadTrack(trackPath.string());
+            size_t trackIndex = m_state.getTrackCount() - 1;
+            m_audioSystem.setTrackLooping(trackIndex, true);
+        }
+
+        // If global play state was active, resume playback
+        if (m_state.globalPlaying) {
+            resumePlayback();
+        }
     }
 
     bool AudioController::isSupportedFile(const std::string& filepath) const {
@@ -190,12 +225,17 @@ namespace AudioTester {
             return;
         }
 
+        // Check if we have any tracks loaded
+        if (m_state.getTrackCount() == 0) {
+            return; // No tracks to play
+        }
+
         // Only resume from pause - if no tracks are paused, we need to start fresh
         if (m_audioSystem.hasPausedTracks()) {
             m_audioSystem.resumeAllTracks(); // Resume from paused position
         } else {
             // No paused tracks - this means we're starting fresh
-            // This should only happen on the very first play
+            // This should only happen on the very first play or after track reloading
             m_audioSystem.playAllTracks(); // Start fresh
         }
         m_state.setGlobalPlaying(true);
