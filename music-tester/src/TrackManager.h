@@ -1,5 +1,5 @@
 #pragma once
-#include "AudioStreamProcessor.h" // For SyncWav definition
+#include "SyncWav.h" // For SyncWav definition
 #include <memory>
 #include <string>
 #include <vector>
@@ -8,7 +8,7 @@ namespace AudioTester {
     class TrackManager {
     public:
         struct TrackInfo {
-            std::unique_ptr<AudioTester::SyncWav> wav;
+            std::unique_ptr<SyncWav> wav;
             double duration = 0.0;
             unsigned int handle = 0;
             bool isPlaying = false;

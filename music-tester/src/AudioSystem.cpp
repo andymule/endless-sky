@@ -1207,28 +1207,6 @@ namespace AudioTester {
         return timeDiff > SyncState::DRIFT_TOLERANCE;
     }
 
-    // SyncWavInstance implementation
-    SyncWavInstance::SyncWavInstance(SoLoud::Wav* aParent) : SoLoud::WavInstance(aParent) {}
-
-    SoLoud::result SyncWavInstance::seek(SoLoud::time aSeconds, float* aScratch,
-                                         unsigned int aScratchSize) {
-        // For now, use the base class seek and track position manually
-        // We'll implement proper seeking later if needed
-        mSeekPosition = aSeconds;
-        mStreamPosition = aSeconds;
-
-        // Call base class seek (which may not be accurate for OGG, but we'll handle sync
-        // differently)
-        return SoLoud::WavInstance::seek(aSeconds, aScratch, aScratchSize);
-    }
-
-    double SyncWavInstance::getStreamPosition() {
-        return mSeekPosition + (mStreamPosition - mSeekPosition);
-    }
-
-    // SyncWav implementation
-    SoLoud::AudioSourceInstance* SyncWav::createInstance() { return new SyncWavInstance(this); }
-
     // Dual tape speed architecture implementation
     /**
      * Updates the dual tape speed architecture for granular tempo control.

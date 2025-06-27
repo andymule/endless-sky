@@ -78,6 +78,7 @@ set(MUSIC_TESTER_SOURCES
     src/ErrorHandling.cpp
     src/FileBrowser.cpp
     src/TrackManager.cpp
+    src/SyncWav.cpp
 )
 
 # Set up headers for music-tester
@@ -95,6 +96,7 @@ set(MUSIC_TESTER_HEADERS
     src/FilterManager.h
     src/FileBrowser.h
     src/TrackManager.h
+    src/SyncWav.h
 )
 
 # Copy assets to build directory

@@ -4,6 +4,7 @@
 #include "AudioStreamProcessor.h"
 #include "FilterManager.h"
 #include "Logger.h"
+#include "SyncWav.h"
 #include "TrackManager.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
@@ -121,35 +122,6 @@ namespace AudioTester {
         std::unordered_map<std::string, FilterInstance> filters;
     };
 
-    // Custom WavInstance that supports accurate seeking
-    class SyncWavInstance : public SoLoud::WavInstance {
-    public:
-        SyncWavInstance(SoLoud::Wav* aParent);
-        virtual SoLoud::result seek(SoLoud::time aSeconds, float* aScratch,
-                                    unsigned int aScratchSize);
-        virtual double getStreamPosition();
-
-    private:
-        double mSeekPosition = 0.0;
-    };
-
-    // Custom Wav that creates SyncWavInstance
-    class SyncWav : public SoLoud::Wav {
-    public:
-        virtual SoLoud::AudioSourceInstance* createInstance();
-    };
-
-    struct TrackInfo {
-        std::unique_ptr<SyncWav> wav;
-        double duration = 0.0;   // Track duration in seconds
-        unsigned int handle = 0; // SoLoud voice handle
-        bool isPlaying = false;
-        bool isPaused = false;         // Track is paused (preserves position)
-        double lastSyncCheck = 0.0;    // Last time we checked sync
-        double expectedPosition = 0.0; // Expected playback position
-        float volume = 1.0f;           // Track volume (0.0 to 1.0)
-    };
-
     struct SyncState {
         double masterDuration = 0.0; // Duration of shortest track (master clock)
         double globalTime = 0.0;     // Global playback time
@@ -180,7 +152,7 @@ namespace AudioTester {
         void removeTrack(size_t index); // Remove track completely from audio system
         size_t getTrackCount() const {
             return m_trackManager.getTrackCount();
-        }                       // Get number of tracks
+        } // Get number of tracks
         void playAllTracks();   // Play all tracks with sync
         void stopAllTracks();   // Stop all tracks
         void pauseAllTracks();  // Pause all tracks (preserves position)
