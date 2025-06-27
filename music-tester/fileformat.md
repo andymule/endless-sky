@@ -2,13 +2,14 @@
 
 ## Overview
 
-This document specifies an event-driven song format for the music-tester system. Songs are folders containing loose OGG audio track files and a JSON metadata file. All tracks loop automatically. The system supports state-persistent events triggered externally by game engines, with complete automation of all audio effects and parameters.
+This document specifies an event-driven song format for the music-tester system. Songs are folders containing loose OGG audio track files and a JSON metadata file. All tracks loop automatically and are always playing - volume control is used to fade tracks in/out. The system supports state-persistent events triggered externally by game engines, with complete automation of all audio effects and parameters.
 
 **Key Architecture:**
 - Songs contain tracks with per-song tempo control
 - Master bus handles global effects and master-level tempo control  
 - No bus per-song - bus exists only at master level
 - All audio formats must be OGG Vorbis
+- **All tracks loop continuously and are always active** - use volume=0 to "disable" tracks
 
 ## Current Architecture Integration
 
@@ -21,18 +22,28 @@ The existing codebase provides these components to leverage:
 ## File Structure
 
 ```
-songs/
+sound_staging/
+├── _master.json           # Master bus events (REQUIRED - global effects)
 ├── song-name-1/
-│   ├── _song.json         # Song metadata + events (underscore prefix for top sorting)
-│   ├── drums.ogg          # Loose track files
+│   ├── _song.json         # Song definition
+│   ├── drums.ogg          # Audio tracks (song-specific)
 │   ├── bass.ogg
 │   └── melody.ogg
 ├── song-name-2/
 │   ├── _song.json
 │   ├── track1.ogg
 │   └── track2.ogg
-└── _master.json           # Master bus events (global effects, no tracks)
-``` (we only support ogg)
+└── song-name-3/
+    ├── _song.json
+    └── track1.ogg
+```
+
+**Important Notes:**
+- **`_master.json` is REQUIRED** in the root directory
+- **Songs are loaded as holistic entities** - each song folder contains its own tracks
+- **No global tracks folder** - all tracks belong to specific songs
+- **Track filename conflicts between songs are allowed** - each song is independent
+- **All `.ogg` files in song folders are loaded** when that song is loaded
 
 ## JSON Format Specification
 
@@ -52,28 +63,26 @@ songs/
           {
             "file": "drums.ogg",
             "volume": 0.8,
-            "active": true,
             "effects": {
               "BassBoost": {
-                "enabled": true,
                 "parameters": {
-                  "boost": 3.0
+                  "0": 1.0,
+                  "1": 3.0
                 }
               },
               "Echo": {
-                "enabled": false,
                 "parameters": {
-                  "delay": 0.3,
-                  "decay": 0.5,
-                  "filter": 0.0
+                  "0": 0.5,
+                  "1": 0.3,
+                  "2": 0.5,
+                  "3": 0.0
                 }
               }
             }
           },
           {
             "file": "bass.ogg", 
-            "volume": 1.0,
-            "active": false,
+            "volume": 0.0,
             "effects": {}
           }
         ]
@@ -91,6 +100,14 @@ songs/
 }
 ```
 
+**Important Notes:**
+- **No `active` field**: Tracks are always active and looping
+- **Volume=0**: Used to "disable" tracks (fade to silence)
+- **Effect parameters**: Stored by ID as strings (e.g., `"0"` = wet level, `"1"` = first parameter)
+- **Wet level logic**: Only effects with wet level > 0 are stored in snapshots
+- **Effect names preserved**: Effect names like "BassBoost", "Echo" are stored in JSON
+- **Parameter names not preserved**: Only parameter IDs (0, 1, 2, etc.) are stored, not human-readable names
+
 ### Master Bus JSON (`_master.json`)
 
 ```json
@@ -107,8 +124,9 @@ songs/
           "volume": 1.0,
           "effects": {
             "DCRemoval": {
-              "enabled": true,
-              "parameters": {}
+              "parameters": {
+                "0": 1.0
+              }
             }
           }
         }
@@ -124,14 +142,15 @@ songs/
           "volume": 0.6,
           "effects": {
             "DCRemoval": {
-              "enabled": true,
-              "parameters": {}
+              "parameters": {
+                "0": 1.0
+              }
             },
             "LoFi": {
-              "enabled": true,
               "parameters": {
-                "samplerate": 8000,
-                "bitdepth": 3
+                "0": 0.8,
+                "1": 8000,
+                "2": 3
               }
             }
           }
@@ -158,16 +177,16 @@ struct StateSnapshot {
 // Enhanced track state with complete effect automation
 struct TrackState {
     std::string file;           // Track filename
-    float volume = 1.0f;
-    bool active = true;
+    float volume = 1.0f;        // 0.0 = "disabled" (silent), 1.0 = full volume
     // All tracks loop automatically - no looping field needed
+    // All tracks are always active - no active field needed
     std::map<std::string, EffectState> effects;
 };
 
 // Complete effect state with all parameters
 struct EffectState {
-    bool enabled = false;
-    std::map<std::string, float> parameters;
+    std::map<std::string, float> parameters;  // Parameter ID -> value mapping
+    // No enabled field - wet level (parameter "0") determines if effect is active
 };
 
 // Master bus state with effects and tempo (only exists at master level)
@@ -222,21 +241,42 @@ The system supports dual-level tempo control:
 
 **Combined Effect**: Final tempo = songTempo × masterTempo (same for granular)
 
+## Wet Level Behavior
+
+The system uses sophisticated wet level tracking for smooth effect transitions:
+
+### Effect State Capture
+- **Only effects with wet level > 0 are stored** in state snapshots
+- **Wet level is always parameter ID "0"** for all effects
+- **All parameters are captured** when wet level > 0, including the wet level itself
+- **Effects with wet level = 0 are not stored** in snapshots (saves space and complexity)
+
+### Transition Behavior
+- **Current wet > 0, Target wet > 0**: Smooth lerp of all parameters including wet
+- **Current wet = 0, Target wet > 0**: Start from 0 wet, lerp up to target
+- **Current wet > 0, Target wet = 0**: Lerp wet down to 0, effectively disable effect
+- **Current wet = 0, Target wet = 0**: No change needed
+
+### Parameter Storage
+- **Parameters stored by ID as strings** (e.g., `"0"`, `"1"`, `"2"`) for JSON compatibility
+- **Parameter ID "0" is always the wet level** for all effects
+- **Other parameter IDs vary by effect type** (see Available Effects section)
+
 ## Available Effects and Parameters
 
 Based on existing AudioSystem, all effects are automatable:
 
 ```cpp
-// Filter types with their parameters
-"BassBoost":           { "boost": [0.0, 11.0] }
-"BiquadResonant":      { "frequency": [0.0, 8000.0], "resonance": [1.0, 20.0], "type": [0, 3] }
-"DCRemoval":           { /* no parameters */ }
-"Echo":                { "delay": [0.0, 1.0], "decay": [0.0, 1.0], "filter": [0.0, 1.0] }
-"Flanger":             { "delay": [0.0005, 0.01], "freq": [0.1, 10.0] }
-"Freeverb":            { "wet": [0.0, 1.0], "roomsize": [0.0, 1.0], "damp": [0.0, 1.0], "width": [0.0, 1.0] }
-"LoFi":                { "samplerate": [1000, 8000], "bitdepth": [1, 8] }
-"Robotize":            { "freq": [1.0, 30.0], "wave": [0, 5] }
-"WaveShaper":          { "amount": [-1.0, 1.0] }
+// Filter types with their parameters (ID -> description)
+"BassBoost":           { "0": "wet", "1": "boost [0.0, 11.0]" }
+"BiquadResonant":      { "0": "wet", "1": "frequency [0.0, 8000.0]", "2": "resonance [1.0, 20.0]", "3": "type [0, 3]" }
+"DCRemoval":           { "0": "wet" }
+"Echo":                { "0": "wet", "1": "delay [0.0, 1.0]", "2": "decay [0.0, 1.0]", "3": "filter [0.0, 1.0]" }
+"Flanger":             { "0": "wet", "1": "delay [0.0005, 0.01]", "2": "freq [0.1, 10.0]" }
+"Freeverb":            { "0": "wet", "1": "wet [0.0, 1.0]", "2": "roomsize [0.0, 1.0]", "3": "damp [0.0, 1.0]", "4": "width [0.0, 1.0]" }
+"LoFi":                { "0": "wet", "1": "samplerate [1000, 8000]", "2": "bitdepth [1, 8]" }
+"Robotize":            { "0": "wet", "1": "freq [1.0, 30.0]", "2": "wave [0, 5]" }
+"WaveShaper":          { "0": "wet", "1": "amount [-1.0, 1.0]" }
 ```
 
 ## Implementation Requirements
@@ -246,14 +286,23 @@ Based on existing AudioSystem, all effects are automatable:
 ```cpp
 class SongManager {
 public:
-    // Load song from folder - discover tracks automatically
+    // Load songs from directory structure
+    void loadSongsFromDirectory(const std::string& directory);
+    
+    // Load individual song (for song switching)
     bool loadSong(const std::filesystem::path& songFolder);
     
-    // Load master bus configuration
+    // Load master bus configuration (REQUIRED)
     bool loadMasterBus(const std::filesystem::path& masterJsonPath);
     
-    // File discovery
+    // File discovery - loads ALL OGG files in song folder
     std::vector<std::string> discoverTracks(const std::filesystem::path& folder);
+    
+    // Create new master directory with empty _master.json
+    bool createNewMasterDirectory(const std::string& directoryName);
+    
+    // Create new song folder with empty _song.json
+    bool createNewSongFolder(const std::string& songName);
     
     // Validation: log errors but don't crash
     bool validateSongJson(const nlohmann::json& json);
@@ -270,9 +319,12 @@ public:
     void triggerMasterEvent(const std::string& eventName);
     
     // State transition with lerping
-    void startSongTransition(const StateSnapshot& targetState, float fadeTime);
-    void startMasterTransition(const MasterBusState& targetState, float fadeTime);
+    void startSongTransition(const StateSnapshot& target, float fadeTime);
+    void startMasterTransition(const MasterBusState& target, float fadeTime);
     void updateTransitions(float deltaTime);
+    
+    // Song switching (resets tracks & effects, preserves master bus)
+    void switchToSong(const std::string& songName);
     
     // State diffing for UI
     StateSnapshot createSongStateDiff(const StateSnapshot& current, const StateSnapshot& target);
@@ -289,6 +341,10 @@ public:
     void renderSongEvents(Song& song);
     void renderMasterEvents(MasterBus& masterBus);
     
+    // Song browser (new feature)
+    void renderSongBrowser();
+    void renderActiveSongIndicator();
+    
     // Event creation workflow
     void showCreateSongEventDialog();
     void showCreateMasterEventDialog();
@@ -297,22 +353,51 @@ public:
     void commitNewSongEvent(const std::string& name, float fadeTime);
     void commitNewMasterEvent(const std::string& name, float fadeTime);
     
-    // List management
+    // Event management
     void renderDraggableSongEventList(std::vector<SongEvent>& events);
     void renderDraggableMasterEventList(std::vector<MasterEvent>& events);
     void reorderSongEvents(std::vector<SongEvent>& events, int oldIndex, int newIndex);
     void reorderMasterEvents(std::vector<MasterEvent>& events, int oldIndex, int newIndex);
+    
+    // CRUD operations
+    void deleteSongEvent(const std::string& songName, const std::string& eventName);
+    void deleteMasterEvent(const std::string& eventName);
+    void saveSongEvent(const std::string& songName, const std::string& eventName);
+    void saveMasterEvent(const std::string& eventName);
 };
 ```
 
-### 4. State Persistence
+### 4. File Menu System
+
+```cpp
+class FileMenu {
+public:
+    // File menu operations
+    void showFileMenu();
+    void createNewMaster();
+    void createNewSong();
+    void loadDirectory();
+    
+    // Template creation
+    void createEmptyMasterJson(const std::filesystem::path& path);
+    void createEmptySongJson(const std::filesystem::path& path);
+    
+    // Directory management
+    bool validateDirectoryStructure(const std::filesystem::path& path);
+    std::vector<std::filesystem::path> discoverSongFolders(const std::filesystem::path& root);
+};
+```
+
+### 5. State Persistence
 
 - **All events modify state permanently** - no reset to original
 - **Event order in JSON = display order** - no additional metadata needed
 - **Complete state snapshots** - simple diffing and lerping
 - **External triggering only** - no timeline/timestamp system
+- **Song switching resets tracks & effects** but preserves master bus and tempo
+- **Master bus state persists** across song switches
 
-### 5. Error Handling
+### 6. Error Handling
 
 ```cpp
 // File validation - fail gracefully
@@ -326,15 +411,42 @@ if (!std::filesystem::exists(trackPath)) {
     logError("Track file not found: " + trackPath.string());
     // Skip track but continue loading song
 }
+
+// JSON parsing errors
+try {
+    file >> json;
+} catch (const std::exception& e) {
+    logError("JSON parsing error: " + std::string(e.what()));
+    return false; // Skip this file, continue with others
+}
+
+// Parameter validation
+if (paramValue < minValue || paramValue > maxValue) {
+    logError("Parameter out of range: " + paramName + " = " + std::to_string(paramValue));
+    // Use default value and continue
+}
+
+// Transition failures
+if (!startTransition(targetState)) {
+    logError("Failed to start transition to: " + targetState.name);
+    // Keep current state, don't crash
+}
 ```
+
+**Error Recovery Strategy:**
+- **Graceful degradation**: Continue operation even if some files fail to load
+- **Default values**: Use sensible defaults for invalid parameters
+- **Logging**: Comprehensive error logging for debugging
+- **User feedback**: Clear error messages in UI when appropriate
+- **Retry mechanisms**: Automatic retry for transient file system errors
 
 ## Integration Points
 
 ### Extend Existing Classes
 
-1. **AudioController**: Add event triggering methods
+1. **AudioController**: Add event triggering methods and song switching
 2. **AudioState**: Extend with complete snapshot capabilities  
-3. **TesterView**: Add Events window for each loaded song
+3. **TesterView**: Add File menu and Events window with song browser
 4. **AudioSystem**: Ensure all effects expose their parameters for automation
 
 ### External API
@@ -348,14 +460,19 @@ musicTester.triggerSongEvent("ambient-forest", "night-cycle");
 // Trigger master bus events (affects global effects + master tempo)
 musicTester.triggerMasterEvent("underwater");
 musicTester.triggerMasterEvent("normal");
+
+// Switch to different song (new feature)
+musicTester.switchToSong("new-song-name");
 ```
 
 ## File Loading Priority
 
-1. Scan for `_master.json` first (global effects)
-2. Scan folders for `_song.json` files  
-3. Auto-discover loose track files in each song folder
-4. Validate and load, logging errors for failures
-5. Build UI with Events window per loaded song
+1. **Validate `_master.json` exists** (REQUIRED) in root directory
+2. **Scan subdirectories for `_song.json` files** to discover available songs
+3. **Load master bus configuration** from `_master.json`
+4. **Load currently active song** (tracks + events)
+5. **Auto-discover ALL `.ogg` files** in active song folder
+6. **Validate and load**, logging errors for failures
+7. **Build UI** with Events window and song browser
 
-This specification provides complete state automation, external triggering, and seamless integration with the existing AudioController/AudioState/AudioSystem architecture. 
+This specification provides complete state automation, external triggering, song switching, and seamless integration with the existing AudioController/AudioState/AudioSystem architecture. 

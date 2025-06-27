@@ -57,6 +57,7 @@ The system follows a layered architecture with clear separation of concerns:
 - Control master and granular tempo settings
 - Provide event triggering interface
 - Maintain synchronization between audio system and UI state
+- Handle song switching and master bus persistence
 
 **Key Features**:
 - Dual tape speed architecture for granular tempo control
@@ -64,6 +65,10 @@ The system follows a layered architecture with clear separation of concerns:
 - Effect automation for both tracks and master bus
 - Path resolution relative to executable directory
 - State change notifications for UI updates
+- **All tracks loop continuously and are always active** - volume control for fade in/out
+- **Song switching**: Load songs as holistic entities
+- **Master bus persistence**: Master bus state persists across song switches
+- **File menu operations**: Create new master/song directories
 
 **Dependencies**: AudioState, AudioSystem, SongManager, EventSystem
 
@@ -86,6 +91,7 @@ The system follows a layered architecture with clear separation of concerns:
 - Effect parameter storage with validation
 - Tempo control at both song and master levels
 - State change notification system
+- **No active field for tracks** - tracks are always active, use volume=0 to disable
 
 **Dependencies**: Standard library containers, filesystem
 
@@ -110,6 +116,7 @@ The system follows a layered architecture with clear separation of concerns:
 - **SyncWav/SyncWavInstance**: Custom WAV classes with accurate seeking
 - **Track synchronization**: Automatic drift detection and correction
 - **Filter management**: Dynamic filter application with parameter validation
+- **All tracks loop continuously** - no individual loop control needed
 
 **Supported Filters**:
 - biquad, echo, lofi, flanger, dcremoval, bassboost, waveshaper, robotize, freeverb
@@ -153,17 +160,22 @@ The system follows a layered architecture with clear separation of concerns:
 - **Auto-discovery**: Automatically finds tracks and song folders
 - **JSON Parsing**: Uses nlohmann/json for configuration
 - **Validation**: Comprehensive JSON structure validation
-- **Master Bus Support**: Global events affecting all music
-- **File Format Support**: OGG audio files
+- **Master Bus Support**: Global events affecting all music (REQUIRED)
+- **File Format Support**: OGG audio files only
 - **Error Handling**: Robust error reporting and recovery
+- **Parameter Storage**: Effect parameters stored by ID as strings
+- **Effect Names**: Effect names preserved in JSON for readability
+- **Parameter IDs**: Parameter names not preserved - only IDs stored for efficiency
+- **Song Switching**: Load songs as holistic entities, switch between them
+- **Master Persistence**: Master bus state persists across song switches
 
 **File Structure**:
 ```
 sound_staging/
-├── _master.json          # Master bus events
+├── _master.json          # Master bus events (REQUIRED)
 ├── song1/
 │   ├── _song.json        # Song definition
-│   ├── track1.ogg        # Audio tracks
+│   ├── track1.ogg        # Audio tracks (song-specific)
 │   └── track2.ogg
 └── song2/
     ├── _song.json
@@ -190,6 +202,7 @@ sound_staging/
 - **Cross-Transition Support**: Master ↔ Song transitions
 - **Effect Automation**: Smooth parameter transitions
 - **Real-time Updates**: Frame-based transition processing
+- **Wet Level Logic**: Only captures effects with wet level > 0
 
 **Transition Types**:
 - **Song Events**: Affect individual song tracks and tempo
@@ -214,6 +227,7 @@ sound_staging/
 - **Name/ID Mapping**: Human-readable parameter names
 - **Factory Pattern**: Dynamic filter creation
 - **Extensible Design**: Easy to add new filter types
+- **Wet Level Support**: Parameter ID 0 is always wet level
 
 **Supported Filters**:
 - biquad, echo, lofi, flanger, dcremoval, bassboost, waveshaper, robotize, freeverb
@@ -229,24 +243,36 @@ sound_staging/
 - Show filter/effect controls
 - Manage event creation and deletion
 - Handle keyboard shortcuts
-- Provide directory input and loading
+- Provide file menu and directory management
 - Display tempo controls and synchronization
 
 **Key Features**:
 - **Multi-Window Support**: Main window + controls window + events window
+- **File Menu**: New Master, New Song, and Load operations
 - **Keyboard Shortcuts**: Spacebar for play/pause, number keys for tracks
 - **Real-time Updates**: Live parameter control
 - **Event Management**: Create, delete, and trigger events
 - **Hold-to-Delete**: Long-press for event deletion
 - **Filter Controls**: Collapsible effect parameter controls
+- **Events Window**: Complete CRUD operations for events
+- **Song Browser**: Switch between available songs
+- **Active Song Indicator**: Shows currently loaded song
 
 **UI Components**:
-- Directory input and loading
+- File menu (New Master, New Song, Load)
 - Global playback controls
 - Track volume and effect controls
 - Bus volume and master effects
 - Event creation and management
 - Tempo controls
+- **Events Window Features**:
+  - Create new song and master events
+  - Delete events with confirmation
+  - Save/overwrite existing events
+  - Event triggering with visual feedback
+  - Event list management and organization
+  - Song browser at bottom for switching songs
+  - Active song indicator
 
 **Dependencies**: Dear ImGui, SDL2, AudioController
 
@@ -325,6 +351,7 @@ For granular tempo effects with SoLoud filters (requiring 1:1 input/output ratio
 - **Smooth Transitions**: Lerping between states with easing curves
 - **Transition Cancellation**: Elegant handling of interrupted transitions
 - **Cross-Transition Support**: Master ↔ Song transitions
+- **Wet Level Logic**: Sophisticated effect state management
 
 ### 4. Lock-Free Audio Processing
 - **Circular Buffers**: Single-producer, single-consumer design
@@ -523,6 +550,110 @@ void EventSystem::lerpEffectState(const EffectState& start, const EffectState& e
 - SongManager already supports the parameter format used
 - String-based parameter IDs for JSON compatibility
 - Complete state serialization for events and snapshots
+
+## Error Handling and Recovery
+
+### Implementation Status: COMPLETED ✅
+
+The system implements comprehensive error handling with graceful degradation and recovery mechanisms.
+
+### Error Handling Strategy
+
+#### 1. **File Loading Errors**
+```cpp
+// Graceful file loading with error recovery
+if (!std::filesystem::exists(trackPath)) {
+    logError("Track file not found: " + trackPath.string());
+    // Skip track but continue loading song
+    continue;
+}
+
+// JSON parsing with exception handling
+try {
+    file >> json;
+} catch (const std::exception& e) {
+    logError("JSON parsing error: " + std::string(e.what()));
+    return false; // Skip this file, continue with others
+}
+```
+
+#### 2. **Parameter Validation**
+```cpp
+// Parameter range checking with defaults
+if (paramValue < minValue || paramValue > maxValue) {
+    logError("Parameter out of range: " + paramName + " = " + std::to_string(paramValue));
+    // Use default value and continue
+    paramValue = defaultValue;
+}
+```
+
+#### 3. **Transition Failures**
+```cpp
+// Safe transition handling
+if (!startTransition(targetState)) {
+    logError("Failed to start transition to: " + targetState.name);
+    // Keep current state, don't crash
+    return false;
+}
+```
+
+#### 4. **Memory and Resource Errors**
+```cpp
+// Resource allocation with fallbacks
+if (!allocateAudioBuffer(size)) {
+    logError("Failed to allocate audio buffer, using fallback size");
+    size = fallbackSize;
+    allocateAudioBuffer(size);
+}
+```
+
+### Recovery Mechanisms
+
+#### 1. **Graceful Degradation**
+- Continue operation even if some files fail to load
+- Use default values for invalid parameters
+- Skip problematic effects while keeping others functional
+
+#### 2. **Retry Logic**
+- Automatic retry for transient file system errors
+- Exponential backoff for network resources
+- User-initiated retry for failed operations
+
+#### 3. **State Recovery**
+- Maintain previous state on transition failures
+- Rollback partial changes on error
+- Preserve user settings across sessions
+
+#### 4. **User Feedback**
+- Clear error messages in UI
+- Progress indicators for long operations
+- Recovery suggestions for common issues
+
+### Error Categories
+
+#### 1. **File System Errors**
+- Missing files or directories
+- Permission denied
+- Disk space issues
+- Corrupted files
+
+#### 2. **JSON Parsing Errors**
+- Malformed JSON syntax
+- Missing required fields
+- Invalid data types
+- Schema validation failures
+
+#### 3. **Audio System Errors**
+- Device initialization failures
+- Buffer allocation errors
+- Filter parameter validation
+- Transition conflicts
+
+#### 4. **UI and User Input Errors**
+- Invalid user input
+- Resource exhaustion
+- Thread safety violations
+- Memory allocation failures
 
 ## Dependencies
 
