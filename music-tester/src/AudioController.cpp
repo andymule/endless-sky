@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include <algorithm>
 #include <iostream>
+#include <set>
 
 namespace AudioTester {
 
@@ -56,20 +57,41 @@ namespace AudioTester {
             // First load songs/events from the directory (unified loading)
             m_songManager.loadSongsFromDirectory(m_currentDirectory);
 
-            // Then load individual track files for playback
-            for (const auto& entry : std::filesystem::directory_iterator(m_currentDirectory)) {
-                if (entry.is_regular_file()) {
-                    const auto& path = entry.path();
-                    if (isSupportedFile(path.string())) {
-                        // Add to state
-                        m_state.addTrack(path.filename().string(), path.string());
-                        // Load into audio system
-                        m_audioSystem.loadTrack(path.string());
+            // Collect all unique track files referenced in songs
+            std::set<std::string> songTrackFiles;
+            const auto& songs = m_songManager.getSongs();
 
+            for (const auto& song : songs) {
+                for (const auto& event : song.events) {
+                    for (const auto& track : event.state.tracks) {
+                        songTrackFiles.insert(track.file);
+                    }
+                }
+            }
+
+            // Load only the tracks that are part of songs
+            for (const auto& trackFile : songTrackFiles) {
+                // Try to find the track file in song folders first
+                bool trackLoaded = false;
+
+                for (const auto& song : songs) {
+                    auto trackPath = song.folderPath / trackFile;
+                    if (std::filesystem::exists(trackPath)) {
+                        // Add to state with the track filename as the name
+                        m_state.addTrack(trackFile, trackPath.string());
+                        // Load into audio system
+                        m_audioSystem.loadTrack(trackPath.string());
                         // Ensure track is set to loop (tracks should always loop in a song)
                         size_t trackIndex = m_state.getTrackCount() - 1;
                         m_audioSystem.setTrackLooping(trackIndex, true);
+                        trackLoaded = true;
+                        break; // Found the track, no need to check other songs
                     }
+                }
+
+                if (!trackLoaded) {
+                    LOG_WARN_COMP("AudioController",
+                                  "Track file not found in any song folder: " + trackFile);
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
