@@ -77,6 +77,7 @@ set(MUSIC_TESTER_SOURCES
     src/FilterManager.cpp
     src/ErrorHandling.cpp
     src/FileBrowser.cpp
+    src/TrackManager.cpp
 )
 
 # Set up headers for music-tester
@@ -93,6 +94,7 @@ set(MUSIC_TESTER_HEADERS
     src/Logger.h
     src/FilterManager.h
     src/FileBrowser.h
+    src/TrackManager.h
 )
 
 # Copy assets to build directory

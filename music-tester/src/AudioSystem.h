@@ -4,6 +4,7 @@
 #include "AudioStreamProcessor.h"
 #include "FilterManager.h"
 #include "Logger.h"
+#include "TrackManager.h"
 #include "soloud.h"
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
@@ -177,13 +178,15 @@ namespace AudioTester {
         float getTrackVolume(size_t index) const; // Get track volume from single source of truth
         void setTrackLooping(size_t index, bool looping);
         void removeTrack(size_t index); // Remove track completely from audio system
-        size_t getTrackCount() const { return m_tracks.size(); } // Get number of tracks
-        void playAllTracks();                                    // Play all tracks with sync
-        void stopAllTracks();                                    // Stop all tracks
+        size_t getTrackCount() const {
+            return m_trackManager.getTrackCount();
+        }                       // Get number of tracks
+        void playAllTracks();   // Play all tracks with sync
+        void stopAllTracks();   // Stop all tracks
         void pauseAllTracks();  // Pause all tracks (preserves position)
         void resumeAllTracks(); // Resume all tracks from paused position
         void clearAllTracks() {
-            m_tracks.clear();
+            m_trackManager.clear();
             m_trackFilters.clear();
             // Reset playback state for fresh start
             m_hasEverPlayed = false;
@@ -271,7 +274,7 @@ namespace AudioTester {
         std::unique_ptr<AudioStreamProcessor> m_granularProcessor;
         std::unique_ptr<GranularInterceptFilter> m_granularFilter;
         FilterManager m_filterManager;
-        std::vector<TrackInfo> m_tracks;
+        TrackManager m_trackManager;
         std::vector<TrackFilters> m_trackFilters;
         std::unordered_map<std::string, FilterInstance> m_busFilters;
         float m_busVolume = 1.0f;
