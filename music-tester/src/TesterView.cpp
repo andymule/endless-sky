@@ -10,15 +10,14 @@
 #include <iostream>
 
 TesterView::TesterView() {
-    // Initialize UI with default directory - will be updated when controller is set
-    strncpy(m_dirInput, "sound_staging", DIR_INPUT_SIZE);
+    // Initialize default directory
+    InitializeDefaultDirectory();
+    // Set directory input to default directory
+    strncpy(m_dirInput, m_defaultDirectory.c_str(), DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
-
-    // Initialize default directory
-    InitializeDefaultDirectory();
 }
 
 void TesterView::InitializeDefaultDirectory() {
@@ -166,6 +165,27 @@ void TesterView::RenderMainWindow() {
     ImGui::Separator();
     RenderBusControls();
 
+    // Add PLUS icon at the bottom for adding .ogg files to the current song
+    ImGui::Separator();
+    ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 40);
+
+    std::string currentSong = m_controller->getCurrentSong();
+    if (!currentSong.empty()) {
+        if (ImGui::Button("+", ImVec2(30, 30))) {
+            m_showOggFileDialog = true;
+            m_currentOggBrowserPath = m_defaultDirectory;
+            RefreshOggBrowserEntries();
+        }
+        ImGui::SameLine();
+        ImGui::Text("Add .ogg file to '%s'", currentSong.c_str());
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(
+                "Click the + button to browse for .ogg files and add them to this song");
+        }
+    } else {
+        ImGui::TextDisabled("No song loaded - load a song to add tracks");
+    }
+
     // Show dialogs
     if (m_showNewMasterDialog) {
         RenderNewMasterDialog();
@@ -175,6 +195,9 @@ void TesterView::RenderMainWindow() {
     }
     if (m_showFileDialog) {
         RenderFileDialog();
+    }
+    if (m_showOggFileDialog) {
+        RenderOggFileDialog();
     }
 
     ImGui::End();
@@ -1440,6 +1463,252 @@ std::string TesterView::GetWindowTitle() {
         return "Dynamix - " + currentSong;
     } else {
         return "Dynamix - Music Tester";
+    }
+}
+
+void TesterView::RenderOggFileDialog() {
+    ImGui::OpenPopup("Add .ogg File to Song");
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("Add .ogg File to Song", &m_showOggFileDialog)) {
+        // Initialize browser path if empty
+        if (m_currentOggBrowserPath.empty()) {
+            m_currentOggBrowserPath = m_defaultDirectory;
+            RefreshOggBrowserEntries();
+        }
+
+        std::string currentSong = m_controller->getCurrentSong();
+        ImGui::Text("Adding .ogg file to song: %s", currentSong.c_str());
+        ImGui::Separator();
+
+        // Path display and navigation
+        ImGui::Text("Current Path: %s", m_currentOggBrowserPath.c_str());
+
+        if (ImGui::Button("Go Up")) {
+            std::filesystem::path currentPath(m_currentOggBrowserPath);
+            if (currentPath.has_parent_path()) {
+                m_currentOggBrowserPath = currentPath.parent_path().string();
+                RefreshOggBrowserEntries();
+                m_selectedOggEntry = -1;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Home")) {
+            m_currentOggBrowserPath = m_defaultDirectory;
+            RefreshOggBrowserEntries();
+            m_selectedOggEntry = -1;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh")) {
+            RefreshOggBrowserEntries();
+        }
+
+        ImGui::Separator();
+
+        // Filter input
+        ImGui::Text("Filter:");
+        ImGui::SameLine();
+        if (ImGui::InputText("##ogg_filter", m_oggBrowserFilter, sizeof(m_oggBrowserFilter))) {
+            RefreshOggBrowserEntries();
+        }
+
+        ImGui::Separator();
+
+        // File list (only .ogg files)
+        ImGui::BeginChild("##ogg_browser_list", ImVec2(0, 250), true);
+
+        for (int i = 0; i < static_cast<int>(m_oggBrowserEntries.size()); ++i) {
+            const auto& entry = m_oggBrowserEntries[i];
+            std::string displayName = entry.filename().string();
+
+            // Apply filter
+            if (strlen(m_oggBrowserFilter) > 0) {
+                std::string filter(m_oggBrowserFilter);
+                std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+                std::string lowerName = displayName;
+                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+                if (lowerName.find(filter) == std::string::npos) {
+                    continue;
+                }
+            }
+
+            // Selectable item
+            bool isSelected = (m_selectedOggEntry == i);
+            if (ImGui::Selectable(displayName.c_str(), isSelected)) {
+                m_selectedOggEntry = i;
+            }
+
+            // Double-click to navigate into directories
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                if (std::filesystem::is_directory(entry)) {
+                    m_currentOggBrowserPath = entry.string();
+                    RefreshOggBrowserEntries();
+                    m_selectedOggEntry = -1;
+                }
+            }
+
+            // Show icon or indicator
+            ImGui::SameLine();
+            if (std::filesystem::is_directory(entry)) {
+                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "[DIR]");
+            } else {
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "[OGG]");
+            }
+        }
+
+        ImGui::EndChild();
+
+        ImGui::Separator();
+
+        // Action buttons
+        if (ImGui::Button("Add Selected File")) {
+            // Debug logging
+            std::cout << "Add Selected File button clicked!" << std::endl;
+            std::cout << "Selected entry: " << m_selectedOggEntry << std::endl;
+            std::cout << "Browser entries size: " << m_oggBrowserEntries.size() << std::endl;
+
+            if (m_selectedOggEntry >= 0 &&
+                m_selectedOggEntry < static_cast<int>(m_oggBrowserEntries.size())) {
+                const auto& selectedEntry = m_oggBrowserEntries[m_selectedOggEntry];
+                std::cout << "Selected entry path: " << selectedEntry.string() << std::endl;
+
+                if (std::filesystem::is_regular_file(selectedEntry)) {
+                    std::string sourcePath = selectedEntry.string();
+                    std::string filename = selectedEntry.filename().string();
+                    std::cout << "Source path: " << sourcePath << std::endl;
+                    std::cout << "Filename: " << filename << std::endl;
+
+                    // Check if file already exists in the song folder
+                    std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
+                    std::filesystem::path destPath = songFolderPath / filename;
+                    std::cout << "Destination path: " << destPath.string() << std::endl;
+
+                    if (std::filesystem::exists(destPath)) {
+                        // File already exists - show specific error
+                        std::cout << "File already exists!" << std::endl;
+                        strcpy(m_errorMessage,
+                               ("File '" + filename + "' already exists in this song").c_str());
+                        m_showErrorPopup = true;
+                    } else {
+                        // Try to copy the file
+                        std::cout << "Attempting to copy file..." << std::endl;
+                        if (CopyOggFileToSong(sourcePath, currentSong)) {
+                            std::cout << "Copy successful!" << std::endl;
+                            // Add to current event
+                            if (!m_controller->addTrackToCurrentEvent(filename)) {
+                                std::cout
+                                    << "Failed to add track to current event or already present."
+                                    << std::endl;
+                            }
+                            ImGui::CloseCurrentPopup();
+                            m_showOggFileDialog = false;
+                            // Reload the directory to show the new file
+                            m_controller->setMusicDirectory(m_controller->getCurrentDirectory());
+                        } else {
+                            std::cout << "Copy failed!" << std::endl;
+                            strcpy(m_errorMessage, "Failed to copy .ogg file to song folder");
+                            m_showErrorPopup = true;
+                        }
+                    }
+                } else {
+                    std::cout << "Selected entry is not a regular file" << std::endl;
+                }
+            } else {
+                std::cout << "No file selected or invalid selection" << std::endl;
+                strcpy(m_errorMessage, "Please select a .ogg file to add");
+                m_showErrorPopup = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+            m_showOggFileDialog = false;
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void TesterView::RefreshOggBrowserEntries() {
+    m_oggBrowserEntries.clear();
+
+    std::cout << "Refreshing .ogg browser entries from: " << m_currentOggBrowserPath << std::endl;
+
+    try {
+        std::filesystem::path currentPath(m_currentOggBrowserPath);
+        if (std::filesystem::exists(currentPath) && std::filesystem::is_directory(currentPath)) {
+            for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
+                // Skip hidden files on Unix-like systems
+                std::string filename = entry.path().filename().string();
+                if (filename.empty() || filename[0] == '.') {
+                    continue;
+                }
+
+                // Only show directories and .ogg files
+                if (std::filesystem::is_directory(entry)) {
+                    m_oggBrowserEntries.push_back(entry.path());
+                    std::cout << "Found directory: " << filename << std::endl;
+                } else if (std::filesystem::is_regular_file(entry)) {
+                    std::string ext = entry.path().extension().string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    if (ext == ".ogg") {
+                        m_oggBrowserEntries.push_back(entry.path());
+                        std::cout << "Found .ogg file: " << filename << std::endl;
+                    }
+                }
+            }
+
+            std::cout << "Total entries found: " << m_oggBrowserEntries.size() << std::endl;
+
+            // Sort entries: directories first, then files
+            std::sort(m_oggBrowserEntries.begin(), m_oggBrowserEntries.end(),
+                      [](const std::filesystem::path& a, const std::filesystem::path& b) {
+                          bool aIsDir = std::filesystem::is_directory(a);
+                          bool bIsDir = std::filesystem::is_directory(b);
+                          if (aIsDir != bIsDir) {
+                              return aIsDir > bIsDir; // Directories first
+                          }
+                          return a.filename().string() < b.filename().string(); // Alphabetical
+                      });
+        } else {
+            std::cout << "Path does not exist or is not a directory: " << m_currentOggBrowserPath
+                      << std::endl;
+        }
+    } catch (const std::exception& e) {
+        // Handle errors gracefully
+        std::cout << "Exception in RefreshOggBrowserEntries: " << e.what() << std::endl;
+        m_oggBrowserEntries.clear();
+    }
+}
+
+bool TesterView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
+    try {
+        // Get the song folder path
+        std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
+
+        if (!std::filesystem::exists(songFolderPath) ||
+            !std::filesystem::is_directory(songFolderPath)) {
+            return false;
+        }
+
+        // Get the source file name
+        std::filesystem::path sourceFilePath(sourcePath);
+        std::string filename = sourceFilePath.filename().string();
+
+        // Create the destination path
+        std::filesystem::path destPath = songFolderPath / filename;
+
+        // Check if file already exists - if so, don't allow the copy
+        if (std::filesystem::exists(destPath)) {
+            return false; // Signal that file already exists
+        }
+
+        // Copy the file
+        std::filesystem::copy_file(sourcePath, destPath);
+
+        return true;
+    } catch (const std::exception& e) {
+        return false;
     }
 }
 

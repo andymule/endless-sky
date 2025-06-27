@@ -19,9 +19,30 @@ namespace AudioTester {
         // Store executable directory for path resolution
         m_executableDirectory = executableDirectory;
 
-        // Set default music directory relative to executable
+        // Set default music directory to ~/Music/Dynamix
         if (m_currentDirectory.empty()) {
-            m_currentDirectory = resolvePath("sound_staging");
+#ifdef __APPLE__
+            const char* homeDir = getenv("HOME");
+            if (homeDir) {
+                m_currentDirectory = std::string(homeDir) + "/Music/Dynamix";
+            } else {
+                m_currentDirectory = "./Music/Dynamix";
+            }
+#elif defined(_WIN32)
+            const char* userProfile = getenv("USERPROFILE");
+            if (userProfile) {
+                m_currentDirectory = std::string(userProfile) + "\\Music\\Dynamix";
+            } else {
+                m_currentDirectory = ".\\Music\\Dynamix";
+            }
+#else
+            const char* homeDir = getenv("HOME");
+            if (homeDir) {
+                m_currentDirectory = std::string(homeDir) + "/Music/Dynamix";
+            } else {
+                m_currentDirectory = "./Music/Dynamix";
+            }
+#endif
         }
 
         if (!m_audioSystem.initialize()) {
@@ -683,6 +704,49 @@ namespace AudioTester {
         if (createNewSongFolder(defaultName)) {
             LOG_INFO_COMP("AudioController", "Created new song folder: " + defaultName);
         }
+    }
+
+    std::filesystem::path AudioController::getCurrentSongFolderPath() const {
+        const SongManager* mgr = getSongManager();
+        if (!mgr)
+            return {};
+        const Song* song = mgr->findSong(m_currentSongName);
+        if (!song)
+            return {};
+        return song->folderPath;
+    }
+
+    bool AudioController::addTrackToCurrentEvent(const std::string& filename) {
+        // Get the current song and event
+        SongManager* mgr = getSongManagerMutable();
+        if (!mgr)
+            return false;
+        Song* song = const_cast<Song*>(mgr->findSong(m_currentSongName));
+        if (!song)
+            return false;
+        if (song->events.empty())
+            return false;
+
+        // Add to the first event (or you could add to a selected event if UI supports it)
+        SongEvent& event = song->events[0];
+        // Check if already present
+        for (const auto& track : event.state.tracks) {
+            if (track.file == filename)
+                return false; // Already present
+        }
+        // Add new track with default volume and no effects
+        TrackStateExtended newTrack;
+        newTrack.file = filename;
+        newTrack.volume = 1.0f;
+        event.state.tracks.push_back(newTrack);
+
+        // Save song JSON
+        if (!mgr->saveSongJson(song->name))
+            return false;
+
+        // Reload songs from directory to update UI
+        loadMusicFromDirectory();
+        return true;
     }
 
 } // namespace AudioTester

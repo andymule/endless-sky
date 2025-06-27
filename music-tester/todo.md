@@ -36,9 +36,17 @@
    - Falls back to "Dynamix - Music Tester" when no song is loaded
    - Added current song display in menu bar with color coding
    - Cleaner main window focused on track and bus controls
-4. **New Master**: Creates new directory with empty but valid `_master.json`
-5. **New Song**: Creates new subfolder with empty but valid `_song.json`
-6. **Event Browser Enhancement**: Add song browsing at bottom to change active song
+4. ✅ **PLUS Icon for Adding .ogg Files to Songs** - **COMPLETED**
+   - Added PLUS icon (+) at the bottom of the main song window
+   - Opens specialized .ogg file browser that only shows .ogg files and directories
+   - Automatically copies selected .ogg files into the current song folder
+   - **Duplicate Detection**: Prevents adding files that already exist in the song folder
+   - **Smart Error Messages**: Shows specific popup error "File 'filename.ogg' already exists in this song"
+   - Reloads the song directory after adding files to show new tracks
+   - Only shows when a song is loaded, with helpful tooltips
+5. **New Master**: Creates new directory with empty but valid `_master.json`
+6. **New Song**: Creates new subfolder with empty but valid `_song.json`
+7. **Event Browser Enhancement**: Add song browsing at bottom to change active song
    - Loading a song resets all tracks & effects
    - Does NOT reset master bus or playback speed
    - Shows which song is currently active in song window

@@ -55,6 +55,11 @@ public:
     void InitializeDefaultDirectory();
     void RefreshBrowserEntries();
 
+    // .ogg file browser methods
+    void RenderOggFileDialog();
+    void RefreshOggBrowserEntries();
+    bool CopyOggFileToSong(const std::string& sourcePath, const std::string& songName);
+
     // Menu bar methods
     void RenderMenuBar();
     std::string GetWindowTitle();
@@ -136,6 +141,13 @@ private:
     std::vector<std::filesystem::path> m_browserEntries;
     int m_selectedEntry = -1;
     char m_browserFilter[256] = "";
+
+    // .ogg file browser state for adding tracks to songs
+    bool m_showOggFileDialog = false;
+    std::string m_currentOggBrowserPath = "";
+    std::vector<std::filesystem::path> m_oggBrowserEntries;
+    int m_selectedOggEntry = -1;
+    char m_oggBrowserFilter[256] = "";
 
     // Event creation state
     enum class EventCreationType { MASTER, SONG };

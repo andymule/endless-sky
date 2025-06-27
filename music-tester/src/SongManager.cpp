@@ -558,7 +558,28 @@ namespace AudioTester {
         if (!m_songs.empty()) {
             return m_songs[0].folderPath.parent_path().string();
         }
-        return "sound_staging"; // Fallback
+#ifdef __APPLE__
+        const char* homeDir = getenv("HOME");
+        if (homeDir) {
+            return std::string(homeDir) + "/Music/Dynamix";
+        } else {
+            return "./Music/Dynamix";
+        }
+#elif defined(_WIN32)
+        const char* userProfile = getenv("USERPROFILE");
+        if (userProfile) {
+            return std::string(userProfile) + "\\Music\\Dynamix";
+        } else {
+            return ".\\Music\\Dynamix";
+        }
+#else
+        const char* homeDir = getenv("HOME");
+        if (homeDir) {
+            return std::string(homeDir) + "/Music/Dynamix";
+        } else {
+            return "./Music/Dynamix";
+        }
+#endif
     }
 
     bool SongManager::deleteSongEvent(const std::string& songName, const std::string& eventName) {
