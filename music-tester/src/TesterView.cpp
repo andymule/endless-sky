@@ -3,6 +3,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h" g
 #include <SDL2/SDL_opengl.h>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -250,13 +251,17 @@ void TesterView::RenderMainWindow() {
     // Track if this window is focused for keyboard input routing
     m_mainWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
+    // Main content area with scrolling
+    ImGui::BeginChild("##main_content", ImVec2(0, -50), true); // Reserve 50px for bottom button
+
     RenderTrackControls();
     ImGui::Separator();
     RenderBusControls();
 
-    // Add PLUS icon at the bottom for adding .ogg files to the current song
+    ImGui::EndChild(); // End scrollable content area
+
+    // Add PLUS icon at the bottom for adding .ogg files to the current song (always visible)
     ImGui::Separator();
-    ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 40);
 
     std::string currentSong = m_controller->getCurrentSong();
     if (!currentSong.empty()) {
@@ -329,43 +334,118 @@ void TesterView::RenderTrackControls() {
         const auto& trackFile = trackFiles[i];
         ImGui::PushID(static_cast<int>(i));
 
-        // Show keyboard shortcut for track (volume control)
-        std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
-        ImGui::Text("[%s] %s", keyText.c_str(), trackFile.c_str());
+        // Effects dropdown on same line as volume
+        // Find the actual track index by filename to ensure we get the right volume
+        const auto& state = m_controller->getState();
+        int actualTrackIndex = m_controller->findTrackByFilename(trackFile);
 
-        // Delete button for track (positioned to the right)
-        ImGui::SameLine();
-        std::string trackDeleteId = "track_delete_" + trackFile;
-        if (RenderDeleteButton(trackDeleteId, trackFile.c_str())) {
-            // Track was deleted
-            m_controller->removeTrackFromCurrentSong(trackFile);
+        // Create unique ID for this track's effects expanded state
+        std::string expandedId = "expand_track_" + std::to_string(actualTrackIndex);
+
+        // Get or initialize expanded state (shared between dropdown and effects display)
+        static std::map<std::string, bool> trackExpandedStates;
+        bool& isExpanded = trackExpandedStates[expandedId];
+
+        if (actualTrackIndex >= 0) {
+            // Show dropdown arrow (no text, just triangle) on the far left
+            ImGui::PushID(("track_effects_" + std::to_string(actualTrackIndex)).c_str());
+
+            // Color the arrow based on whether any effects are enabled
+            const auto& audioSystem = m_controller->getAudioSystem();
+            const auto& filters = audioSystem.getFilters(actualTrackIndex);
+            bool hasEnabledEffects = false;
+            for (const auto& [filterName, filterInstance] : filters) {
+                if (filterInstance.enabled) {
+                    hasEnabledEffects = true;
+                    break;
+                }
+            }
+
+            if (hasEnabledEffects) {
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when effects enabled
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when no effects
+            }
+
+            // Dropdown arrow (TreeNode style but manual)
+            if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
+                isExpanded = !isExpanded;
+            }
+            ImGui::PopStyleColor();
+            ImGui::PopID();
+
+            ImGui::SameLine();
         }
 
-        // Volume slider (primary control for enable/disable)
+        // Volume slider with track name as overlay
         // Get volume from AudioState if available, otherwise default to 1.0
-        const auto& state = m_controller->getState();
         float volume = 1.0f;
 
-        // Find the actual track index by filename to ensure we get the right volume
-        int actualTrackIndex = m_controller->findTrackByFilename(trackFile);
         if (actualTrackIndex >= 0 && actualTrackIndex < static_cast<int>(state.getTrackCount())) {
             volume = state.getTrack(actualTrackIndex).volume;
         }
 
-        if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
+        // Create track title with keyboard shortcut
+        std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
+
+        // Remove file extension and capitalize
+        std::string trackName = trackFile;
+        size_t dotPos = trackName.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            trackName = trackName.substr(0, dotPos);
+        }
+
+        // Convert to uppercase
+        std::transform(trackName.begin(), trackName.end(), trackName.begin(), ::toupper);
+
+        // Calculate slider width to span the full window width, but reserve space for X button
+        float sliderWidth = ImGui::GetContentRegionAvail().x - 30.0f; // Reserve 30px for X button
+
+        // Set the slider width
+        ImGui::SetNextItemWidth(sliderWidth);
+
+        if (ImGui::SliderFloat("##volume", &volume, 0.0f, 1.0f, "")) {
             // Use the actual track index, not the loop index
             if (actualTrackIndex >= 0) {
                 m_controller->setTrackVolume(actualTrackIndex, volume);
             }
         }
 
-        // Collapsible filter controls (start collapsed)
-        if (ImGui::TreeNodeEx("Effects", ImGuiTreeNodeFlags_None)) {
-            // Use actual track index for filter controls too
-            if (actualTrackIndex >= 0) {
-                drawFilterControls(actualTrackIndex);
-            }
-            ImGui::TreePop();
+        // Draw track name as overlay in the middle of the slider
+        ImVec2 sliderMin = ImGui::GetItemRectMin();
+        ImVec2 sliderMax = ImGui::GetItemRectMax();
+        ImVec2 sliderCenter =
+            ImVec2((sliderMin.x + sliderMax.x) * 0.5f, (sliderMin.y + sliderMax.y) * 0.5f);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImVec2 textSize = ImGui::CalcTextSize(trackName.c_str());
+        ImVec2 textPos =
+            ImVec2(sliderCenter.x - textSize.x * 0.5f, sliderCenter.y - textSize.y * 0.5f);
+
+        // Draw text with a subtle background for better readability
+        drawList->AddRectFilled(ImVec2(textPos.x - 2, textPos.y - 1),
+                                ImVec2(textPos.x + textSize.x + 2, textPos.y + textSize.y + 1),
+                                IM_COL32(0, 0, 0, 100) // Semi-transparent black background
+        );
+        drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), trackName.c_str());
+
+        // Delete button for track (positioned to the right of slider)
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding(); // Ensure proper vertical alignment
+
+        std::string trackDeleteId = "track_delete_" + trackFile;
+        if (RenderDeleteButton(trackDeleteId, trackFile.c_str())) {
+            // Track was deleted
+            m_controller->removeTrackFromCurrentSong(trackFile);
+        }
+
+        // Show effects when expanded (using the same shared state)
+        if (actualTrackIndex >= 0 && isExpanded) {
+            ImGui::Indent();
+            drawFilterControls(actualTrackIndex);
+            ImGui::Unindent();
         }
 
         ImGui::PopID();
@@ -1526,31 +1606,6 @@ void TesterView::RenderMenuBar() {
             if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
                 // Signal to exit - this will be handled by the main loop
                 m_isRunning = false;
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Playback")) {
-            if (ImGui::MenuItem("Play", "Space")) {
-                m_controller->resumePlayback();
-            }
-            if (ImGui::MenuItem("Pause", "Space")) {
-                m_controller->pausePlayback();
-            }
-            if (ImGui::MenuItem("Stop", "S")) {
-                m_controller->toggleGlobalPlayback();
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Help")) {
-            if (ImGui::MenuItem("About")) {
-                // TODO: Implement about dialog
-                // For now, just show a simple message
-                strcpy(
-                    m_errorMessage,
-                    "Music Tester v0.1.0\nA tool for testing music synchronization and effects.");
-                m_showErrorPopup = true;
             }
             ImGui::EndMenu();
         }
