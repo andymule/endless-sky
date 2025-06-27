@@ -1,3 +1,106 @@
+# Dynamix Music Tester File Format
+
+## Overview
+
+The Dynamix Music Tester uses a folder-based structure where each project contains a master bus and multiple songs. Songs are identified by their folder names, not by any JSON field.
+
+## Project Structure
+
+```
+project-folder/
+├── _master.json          # Master bus configuration
+├── song1/                # Song folder (song name = "song1")
+│   ├── _song.json        # Song events and track states
+│   ├── track1.ogg        # Audio files
+│   └── track2.ogg
+└── song2/                # Another song folder (song name = "song2")
+    ├── _song.json
+    └── track3.ogg
+```
+
+## Song JSON Format
+
+Songs are stored in `_song.json` files within song folders. The song name is the folder name, not a JSON field.
+
+```json
+{
+  "events": [
+    {
+      "name": "Event Name",
+      "fadeTime": 1.0,
+      "state": {
+        "masterTempo": 1.0,
+        "granularTempo": 1.0,
+        "tracks": [
+          {
+            "file": "track1.ogg",
+            "volume": 1.0,
+            "effects": {
+              "reverb": {
+                "parameters": {
+                  "0": 0.5,
+                  "1": 0.3
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Song JSON Fields
+
+- **events** (array): List of song events
+  - **name** (string): Event name
+  - **fadeTime** (float): Fade-in duration in seconds
+  - **state** (object): Complete song state
+    - **masterTempo** (float): Song tempo multiplier
+    - **granularTempo** (float): Granular tempo control
+    - **tracks** (array): Track states
+      - **file** (string): Track filename (must exist in folder)
+      - **volume** (float): Track volume (0.0-1.0)
+      - **effects** (object): Effect configurations
+
+## Master Bus JSON Format
+
+The master bus is stored in `_master.json` at the project root.
+
+```json
+{
+  "name": "Master Bus",
+  "events": [
+    {
+      "name": "Master Event",
+      "fadeTime": 1.0,
+      "state": {
+        "masterTempo": 1.0,
+        "granularTempo": 1.0,
+        "bus": {
+          "volume": 1.0,
+          "effects": {
+            "reverb": {
+              "parameters": {
+                "0": 0.3
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+## Important Notes
+
+1. **Song names are folder names**: Songs are identified by their folder names, not by any JSON field.
+2. **Folder-driven workflow**: The GUI shows tracks based on actual .ogg files in the folder, not from JSON.
+3. **Auto-sync**: When loading songs, tracks missing from the folder are removed from events, and new tracks are added with default settings.
+4. **No song name field**: The `name` field in song JSON is deprecated and ignored.
+
 # Event-Driven Song Format Specification
 
 ## Overview

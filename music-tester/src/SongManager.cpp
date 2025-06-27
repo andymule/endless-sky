@@ -64,7 +64,6 @@ namespace AudioTester {
             }
 
             Song song;
-            song.name = json.value("name", songFolder.filename().string());
             song.folderPath = songFolder;
 
             // Discover tracks in the folder (this is the source of truth)
@@ -74,7 +73,8 @@ namespace AudioTester {
                 return false;
             }
 
-            // Parse events and ensure all folder tracks are included
+            // Parse events and ensure all folder tracks are included and all event tracks exist in
+            // folder
             if (json.contains("events") && json["events"].is_array()) {
                 for (const auto& eventJson : json["events"]) {
                     SongEvent event;
@@ -88,6 +88,15 @@ namespace AudioTester {
                         }
                     }
 
+                    // Remove tracks from event that do not exist in the folder
+                    event.state.tracks.erase(
+                        std::remove_if(event.state.tracks.begin(), event.state.tracks.end(),
+                                       [&trackFiles](const TrackStateExtended& track) {
+                                           return std::find(trackFiles.begin(), trackFiles.end(),
+                                                            track.file) == trackFiles.end();
+                                       }),
+                        event.state.tracks.end());
+
                     // Ensure all tracks from the folder are included in this event
                     for (const auto& trackFile : trackFiles) {
                         // Check if this track is already in the event
@@ -98,12 +107,11 @@ namespace AudioTester {
                                 break;
                             }
                         }
-
                         // If track is not in the event, add it with default settings
                         if (!trackExists) {
                             TrackStateExtended newTrack;
                             newTrack.file = trackFile;
-                            newTrack.volume = 1.0f; // Default volume
+                            newTrack.volume = 0.0f; // Default to muted
                             event.state.tracks.push_back(newTrack);
                             logInfo("Added missing track to event: " + trackFile);
                         }
@@ -130,8 +138,9 @@ namespace AudioTester {
             }
 
             m_songs.push_back(song);
-            logInfo("Loaded song: " + song.name + " (" + std::to_string(song.events.size()) +
-                    " events, " + std::to_string(trackFiles.size()) + " tracks)");
+            logInfo("Loaded song: " + song.folderPath.filename().string() + " (" +
+                    std::to_string(song.events.size()) + " events, " +
+                    std::to_string(trackFiles.size()) + " tracks)");
             return true;
 
         } catch (const std::exception& e) {
@@ -203,9 +212,10 @@ namespace AudioTester {
         return tracks;
     }
 
-    const Song* SongManager::findSong(const std::string& songName) const {
-        auto it = std::find_if(m_songs.begin(), m_songs.end(),
-                               [&songName](const Song& song) { return song.name == songName; });
+    const Song* SongManager::findSongByFolder(const std::string& folderName) const {
+        auto it = std::find_if(m_songs.begin(), m_songs.end(), [&folderName](const Song& song) {
+            return song.folderPath.filename().string() == folderName;
+        });
 
         return (it != m_songs.end()) ? &(*it) : nullptr;
     }
@@ -370,9 +380,9 @@ namespace AudioTester {
         LOG_INFO_COMP("SongManager", message);
     }
 
-    bool SongManager::addSongEvent(const std::string& songName, const SongEvent& event) {
+    bool SongManager::addSongEvent(const std::string& folderName, const SongEvent& event) {
         for (auto& song : m_songs) {
-            if (song.name == songName) {
+            if (song.folderPath.filename().string() == folderName) {
                 // Check for duplicate event name
                 auto existingIt = std::find_if(song.events.begin(), song.events.end(),
                                                [&event](const SongEvent& existingEvent) {
@@ -380,17 +390,17 @@ namespace AudioTester {
                                                });
 
                 if (existingIt != song.events.end()) {
-                    logError("Event '" + event.name + "' already exists in song '" + songName +
+                    logError("Event '" + event.name + "' already exists in song '" + folderName +
                              "'. Use overwrite instead.");
                     return false;
                 }
 
                 song.events.push_back(event);
-                logInfo("Added event '" + event.name + "' to song '" + songName + "'");
+                logInfo("Added event '" + event.name + "' to song '" + folderName + "'");
                 return true;
             }
         }
-        logError("Song not found: " + songName);
+        logError("Song not found: " + folderName);
         return false;
     }
 
@@ -411,28 +421,27 @@ namespace AudioTester {
         return true;
     }
 
-    bool SongManager::overwriteSongEvent(const std::string& songName, const SongEvent& event) {
+    bool SongManager::overwriteSongEvent(const std::string& folderName, const SongEvent& event) {
         for (auto& song : m_songs) {
-            if (song.name == songName) {
-                // Find existing event to overwrite
+            if (song.folderPath.filename().string() == folderName) {
+                // Find and replace the event
                 auto existingIt = std::find_if(song.events.begin(), song.events.end(),
                                                [&event](const SongEvent& existingEvent) {
                                                    return existingEvent.name == event.name;
                                                });
 
                 if (existingIt != song.events.end()) {
-                    // Overwrite the existing event while preserving its position
                     *existingIt = event;
-                    logInfo("Overwrote event '" + event.name + "' in song '" + songName + "'");
+                    logInfo("Overwrote event '" + event.name + "' in song '" + folderName + "'");
                     return true;
                 } else {
-                    logError("Event '" + event.name + "' not found in song '" + songName +
-                             "' for overwrite");
+                    logError("Event '" + event.name + "' not found in song '" + folderName +
+                             "'. Use add instead.");
                     return false;
                 }
             }
         }
-        logError("Song not found: " + songName);
+        logError("Song not found: " + folderName);
         return false;
     }
 
@@ -454,10 +463,10 @@ namespace AudioTester {
         }
     }
 
-    bool SongManager::hasSongEvent(const std::string& songName,
+    bool SongManager::hasSongEvent(const std::string& folderName,
                                    const std::string& eventName) const {
         for (const auto& song : m_songs) {
-            if (song.name == songName) {
+            if (song.folderPath.filename().string() == folderName) {
                 auto it = std::find_if(
                     song.events.begin(), song.events.end(),
                     [&eventName](const SongEvent& event) { return event.name == eventName; });
@@ -474,12 +483,11 @@ namespace AudioTester {
         return it != m_masterBus.events.end();
     }
 
-    bool SongManager::saveSongJson(const std::string& songName) {
+    bool SongManager::saveSongJson(const std::string& folderName) {
         for (const auto& song : m_songs) {
-            if (song.name == songName) {
+            if (song.folderPath.filename().string() == folderName) {
                 try {
                     nlohmann::json json;
-                    json["name"] = song.name;
                     json["events"] = nlohmann::json::array();
 
                     for (const auto& event : song.events) {
@@ -533,7 +541,7 @@ namespace AudioTester {
                 }
             }
         }
-        logError("Song not found for saving: " + songName);
+        logError("Song not found for saving: " + folderName);
         return false;
     }
 
@@ -619,24 +627,24 @@ namespace AudioTester {
 #endif
     }
 
-    bool SongManager::deleteSongEvent(const std::string& songName, const std::string& eventName) {
+    bool SongManager::deleteSongEvent(const std::string& folderName, const std::string& eventName) {
         for (auto& song : m_songs) {
-            if (song.name == songName) {
+            if (song.folderPath.filename().string() == folderName) {
                 auto it = std::find_if(
                     song.events.begin(), song.events.end(),
                     [&eventName](const SongEvent& event) { return event.name == eventName; });
 
                 if (it != song.events.end()) {
                     song.events.erase(it);
-                    logInfo("Deleted event '" + eventName + "' from song '" + songName + "'");
-                    return saveSongJson(songName); // Save after deletion
+                    logInfo("Deleted event '" + eventName + "' from song '" + folderName + "'");
+                    return saveSongJson(folderName); // Save after deletion
                 } else {
-                    logError("Event not found in song '" + songName + "': " + eventName);
+                    logError("Event not found in song '" + folderName + "': " + eventName);
                     return false;
                 }
             }
         }
-        logError("Song not found: " + songName);
+        logError("Song not found: " + folderName);
         return false;
     }
 

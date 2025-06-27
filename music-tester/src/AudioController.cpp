@@ -84,7 +84,7 @@ namespace AudioTester {
             if (m_currentSongName.empty()) {
                 const auto& songs = m_songManager.getSongs();
                 if (!songs.empty()) {
-                    setCurrentSong(songs[0].name);
+                    setCurrentSong(songs[0].folderPath.filename().string());
                 }
             }
 
@@ -355,7 +355,7 @@ namespace AudioTester {
         for (const auto& song : songs) {
             for (const auto& event : song.events) {
                 if (event.name == eventName) {
-                    triggerSongEvent(song.name, eventName);
+                    triggerSongEvent(song.folderPath.filename().string(), eventName);
                     return;
                 }
             }
@@ -710,7 +710,7 @@ namespace AudioTester {
         const SongManager* mgr = getSongManager();
         if (!mgr)
             return {};
-        const Song* song = mgr->findSong(m_currentSongName);
+        const Song* song = mgr->findSongByFolder(m_currentSongName);
         if (!song)
             return {};
         return song->folderPath;
@@ -721,7 +721,7 @@ namespace AudioTester {
         SongManager* mgr = getSongManagerMutable();
         if (!mgr)
             return false;
-        Song* song = const_cast<Song*>(mgr->findSong(m_currentSongName));
+        Song* song = const_cast<Song*>(mgr->findSongByFolder(m_currentSongName));
         if (!song)
             return false;
         if (song->events.empty())
@@ -742,7 +742,7 @@ namespace AudioTester {
         event.state.tracks.push_back(newTrack);
 
         // Save song JSON
-        if (!mgr->saveSongJson(song->name))
+        if (!mgr->saveSongJson(song->folderPath.filename().string()))
             return false;
 
         // Smart track addition: only add the new track to the system
@@ -787,9 +787,18 @@ namespace AudioTester {
         SongManager* mgr = getSongManagerMutable();
         if (!mgr)
             return false;
-        Song* song = const_cast<Song*>(mgr->findSong(m_currentSongName));
+        Song* song = const_cast<Song*>(mgr->findSongByFolder(m_currentSongName));
         if (!song)
             return false;
+
+        // Debug: print all track filenames in all events
+        for (const auto& event : song->events) {
+            std::cout << "[DEBUG] Event: " << event.name << " tracks: ";
+            for (const auto& track : event.state.tracks) {
+                std::cout << '"' << track.file << '"' << " ";
+            }
+            std::cout << std::endl;
+        }
 
         // Delete the actual file from the song folder
         std::filesystem::path filePath = song->folderPath / filename;
@@ -826,7 +835,7 @@ namespace AudioTester {
         }
 
         // Save song JSON
-        if (!mgr->saveSongJson(song->name)) {
+        if (!mgr->saveSongJson(song->folderPath.filename().string())) {
             LOG_ERROR_COMP("AudioController", "Failed to save song after removing track");
             return false;
         }
@@ -842,6 +851,8 @@ namespace AudioTester {
         }
 
         LOG_INFO_COMP("AudioController", "Removed track: " + filename + " from song");
+        // Reload the song to ensure GUI and state are in sync
+        loadMusicFromDirectory();
         return true;
     }
 

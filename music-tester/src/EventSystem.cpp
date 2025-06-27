@@ -23,8 +23,7 @@ namespace AudioTester {
             return;
         }
 
-        // Find the song
-        const Song* song = songManager->findSong(songName);
+        const Song* song = songManager->findSongByFolder(songName);
         if (!song) {
             LOG_ERROR_COMP("EventSystem", "Song not found: " + songName);
             return;
@@ -42,8 +41,6 @@ namespace AudioTester {
         }
 
         LOG_INFO_COMP("EventSystem", "Triggering song event: " + songName + " -> " + eventName);
-
-        // Start transition
         startSongTransition(eventIt->state, eventIt->fadeTime);
     }
 

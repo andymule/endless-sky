@@ -118,6 +118,9 @@ namespace AudioTester {
 
         std::filesystem::path getCurrentSongFolderPath() const;
 
+        // New method to get current song by folder name
+        const Song* getCurrentSongByFolder() const;
+
         // New method to add a track to the current event of the current song and save the song JSON
         bool addTrackToCurrentEvent(const std::string& filename);
 

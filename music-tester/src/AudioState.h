@@ -36,7 +36,6 @@ namespace AudioTester {
 
     // Song container
     struct Song {
-        std::string name;
         std::vector<SongEvent> events;
         std::filesystem::path folderPath;
     };

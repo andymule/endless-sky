@@ -96,6 +96,20 @@ void TesterView::DiscoverAvailableProjects() {
         // Set current project if not set
         if (m_currentProject.empty() && !m_availableProjects.empty()) {
             m_currentProject = m_availableProjects[0];
+            // Auto-load the first project
+            std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
+            m_controller->setMusicDirectory(projectPath);
+
+            // Auto-select the first song in the project
+            const auto* songManager = m_controller->getSongManager();
+            if (songManager) {
+                const auto& songs = songManager->getSongs();
+                if (!songs.empty()) {
+                    // Use folder name instead of song name
+                    std::string folderName = songs[0].folderPath.filename().string();
+                    m_controller->setCurrentSong(folderName);
+                }
+            }
         }
     } catch (const std::exception& e) {
         // Handle errors gracefully
@@ -251,27 +265,64 @@ void TesterView::RenderMainWindow() {
 }
 
 void TesterView::RenderTrackControls() {
-    const auto& state = m_controller->getState();
+    // Get tracks directly from the folder contents
+    std::string currentSong = m_controller->getCurrentSong();
+    if (currentSong.empty()) {
+        ImGui::Text("No song loaded");
+        return;
+    }
 
-    ImGui::Text("Tracks (%d):", static_cast<int>(state.getTrackCount()));
-    for (size_t i = 0; i < state.getTrackCount(); i++) {
-        const auto& track = state.getTrack(i);
+    // Get the song folder path
+    std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
+    if (songFolderPath.empty()) {
+        ImGui::Text("No song folder found");
+        return;
+    }
+
+    // Discover tracks in the folder (this is the source of truth)
+    std::vector<std::string> trackFiles;
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(songFolderPath)) {
+            if (entry.is_regular_file()) {
+                auto filepath = entry.path().string();
+                if (m_controller->isSupportedFile(filepath)) {
+                    trackFiles.push_back(entry.path().filename().string());
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        ImGui::Text("Error reading folder: %s", e.what());
+        return;
+    }
+
+    // Sort tracks alphabetically
+    std::sort(trackFiles.begin(), trackFiles.end());
+
+    ImGui::Text("Tracks (%d):", static_cast<int>(trackFiles.size()));
+    for (size_t i = 0; i < trackFiles.size(); i++) {
+        const auto& trackFile = trackFiles[i];
         ImGui::PushID(static_cast<int>(i));
 
         // Show keyboard shortcut for track (volume control)
         std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
-        ImGui::Text("[%s] %s", keyText.c_str(), track.name.c_str());
+        ImGui::Text("[%s] %s", keyText.c_str(), trackFile.c_str());
 
         // Delete button for track (positioned to the right)
         ImGui::SameLine();
-        std::string trackDeleteId = "track_delete_" + track.name;
-        if (RenderDeleteButton(trackDeleteId, track.name.c_str())) {
+        std::string trackDeleteId = "track_delete_" + trackFile;
+        if (RenderDeleteButton(trackDeleteId, trackFile.c_str())) {
             // Track was deleted
-            m_controller->removeTrackFromCurrentSong(track.name);
+            m_controller->removeTrackFromCurrentSong(trackFile);
         }
 
         // Volume slider (primary control for enable/disable)
-        float volume = track.volume;
+        // Get volume from AudioState if available, otherwise default to 1.0
+        const auto& state = m_controller->getState();
+        float volume = 1.0f;
+        if (i < state.getTrackCount()) {
+            volume = state.getTrack(i).volume;
+        }
+
         if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
             m_controller->setTrackVolume(i, volume);
         }
@@ -717,10 +768,10 @@ void TesterView::RenderEventsWindow() {
         // Song Event creation buttons
         const auto& songs = songManager->getSongs();
         for (const auto& song : songs) {
-            std::string buttonText = "+ " + song.name + " Event";
+            std::string buttonText = "+ " + song.folderPath.filename().string() + " Event";
             if (ImGui::Button(buttonText.c_str())) {
                 m_eventCreationType = EventCreationType::SONG;
-                m_targetSongName = song.name;
+                m_targetSongName = song.folderPath.filename().string();
                 m_showCreateEventDialog = true;
                 strcpy(m_newEventName, "");
                 m_newEventFadeTime = 1.0f;
@@ -833,14 +884,14 @@ void TesterView::RenderSongEvents() {
             ImGui::Text("Load a directory with song folders containing _song.json");
         } else {
             for (const auto& song : songs) {
-                ImGui::PushID(song.name.c_str());
+                ImGui::PushID(song.folderPath.filename().c_str());
 
                 // Song header - also expanded by default
-                bool songOpen =
-                    ImGui::TreeNodeEx(song.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+                bool songOpen = ImGui::TreeNodeEx(song.folderPath.filename().c_str(),
+                                                  ImGuiTreeNodeFlags_DefaultOpen);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
-                    ImGui::Text("Song: %s", song.name.c_str());
+                    ImGui::Text("Song: %s", song.folderPath.filename().c_str());
                     ImGui::Text("Events: %d", static_cast<int>(song.events.size()));
                     ImGui::Text("Path: %s", song.folderPath.string().c_str());
                     ImGui::EndTooltip();
@@ -855,7 +906,8 @@ void TesterView::RenderSongEvents() {
 
                             // Event trigger button
                             if (ImGui::Button(("Trigger##" + event.name).c_str())) {
-                                m_controller->triggerSongEvent(song.name, event.name);
+                                m_controller->triggerSongEvent(song.folderPath.filename().string(),
+                                                               event.name);
                             }
                             ImGui::SameLine();
 
@@ -882,23 +934,29 @@ void TesterView::RenderSongEvents() {
 
                             // Delete button (separate, no interference with event tooltip)
                             ImGui::SameLine();
-                            std::string deleteId = "song_" + song.name + "_" + event.name;
+                            std::string deleteId =
+                                "song_" + song.folderPath.filename().string() + "_" + event.name;
                             if (RenderDeleteButton(deleteId, event.name.c_str())) {
                                 // Event deletion confirmed
-                                m_controller->deleteSongEvent(song.name, event.name);
+                                m_controller->deleteSongEvent(song.folderPath.filename().string(),
+                                                              event.name);
                             }
 
                             // Save button (disk icon) - new feature
                             ImGui::SameLine();
-                            std::string saveId = "save_song_" + song.name + "_" + event.name;
+                            std::string saveId = "save_song_" +
+                                                 song.folderPath.filename().string() + "_" +
+                                                 event.name;
                             if (RenderSaveButton(saveId, event.name.c_str())) {
                                 // Event save confirmed - overwrite with current state
                                 bool success = m_controller->overwriteSongEvent(
-                                    song.name, event.name, event.fadeTime);
+                                    song.folderPath.filename().string(), event.name,
+                                    event.fadeTime);
                                 if (!success) {
                                     strcpy(m_errorMessage,
                                            ("Failed to overwrite song event '" + event.name +
-                                            "' in song '" + song.name + "'")
+                                            "' in song '" + song.folderPath.filename().string() +
+                                            "'")
                                                .c_str());
                                     m_showErrorPopup = true;
                                 }
@@ -1769,6 +1827,17 @@ void TesterView::RenderProjectSongDropdown() {
                 // Load the project directory
                 std::string projectPath = m_defaultDirectory + "/" + project;
                 m_controller->setMusicDirectory(projectPath);
+
+                // Auto-select the first song in the new project
+                const auto* songManager = m_controller->getSongManager();
+                if (songManager) {
+                    const auto& songs = songManager->getSongs();
+                    if (!songs.empty()) {
+                        // Use folder name instead of song name
+                        std::string folderName = songs[0].folderPath.filename().string();
+                        m_controller->setCurrentSong(folderName);
+                    }
+                }
             }
 
             if (isSelected) {
@@ -1797,10 +1866,12 @@ void TesterView::RenderProjectSongDropdown() {
             const auto& songs = songManager->getSongs();
 
             for (const auto& song : songs) {
-                bool songSelected = (song.name == currentSong);
+                // Use folder name instead of song name for consistency
+                std::string folderName = song.folderPath.filename().string();
+                bool songSelected = (folderName == currentSong);
 
-                if (ImGui::Selectable(("🎵 " + song.name).c_str(), songSelected)) {
-                    m_controller->setCurrentSong(song.name);
+                if (ImGui::Selectable(("🎵 " + folderName).c_str(), songSelected)) {
+                    m_controller->setCurrentSong(folderName);
                 }
 
                 if (songSelected) {

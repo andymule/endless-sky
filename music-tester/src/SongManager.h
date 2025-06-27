@@ -27,20 +27,20 @@ namespace AudioTester {
         const MasterBus& getMasterBus() const { return m_masterBus; }
 
         // Song lookup
-        const Song* findSong(const std::string& songName) const;
+        const Song* findSongByFolder(const std::string& folderName) const;
 
         // Event management
-        bool addSongEvent(const std::string& songName, const SongEvent& event);
+        bool addSongEvent(const std::string& folderName, const SongEvent& event);
         bool addMasterEvent(const MasterEvent& event);
-        bool overwriteSongEvent(const std::string& songName, const SongEvent& event);
+        bool overwriteSongEvent(const std::string& folderName, const SongEvent& event);
         bool overwriteMasterEvent(const MasterEvent& event);
-        bool hasSongEvent(const std::string& songName, const std::string& eventName) const;
+        bool hasSongEvent(const std::string& folderName, const std::string& eventName) const;
         bool hasMasterEvent(const std::string& eventName) const;
-        bool saveSongJson(const std::string& songName);
+        bool saveSongJson(const std::string& folderName);
         bool saveMasterJson();
 
         // Event deletion
-        bool deleteSongEvent(const std::string& songName, const std::string& eventName);
+        bool deleteSongEvent(const std::string& folderName, const std::string& eventName);
         bool deleteMasterEvent(const std::string& eventName);
 
         // Clear all loaded data
