@@ -77,4 +77,10 @@
 - Memory usage with many loaded tracks
 - Audio streaming optimization
 - Transition performance with complex effect chains
-- UI responsiveness with large event lists 
+- UI responsiveness with large event lists
+
+## Audio System Improvements
+
+- [ ] **Spectral Smoothing for Filter Parameters**: Implement spectral smoothing easing for frequency-domain parameters (filters, pitch) to avoid artifacts during transitions. Use cosine-based easing curves for frequency changes to maintain spectral continuity.
+
+## Event System Enhancements 

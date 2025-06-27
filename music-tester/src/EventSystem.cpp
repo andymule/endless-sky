@@ -165,9 +165,12 @@ namespace AudioTester {
     void EventSystem::lerpStates(float t) {
         if (m_transitionType == TransitionType::SONG) {
             StateSnapshot lerpedState;
-            lerpedState.masterTempo = lerp(m_startState.masterTempo, m_targetState.masterTempo, t);
+            // Use musical interval easing for tempo changes to preserve harmonic relationships
+            float easedT = tempoEase(t);
+            lerpedState.masterTempo =
+                lerp(m_startState.masterTempo, m_targetState.masterTempo, easedT);
             lerpedState.granularTempo =
-                lerp(m_startState.granularTempo, m_targetState.granularTempo, t);
+                lerp(m_startState.granularTempo, m_targetState.granularTempo, easedT);
 
             // Create maps for efficient track lookup by filename
             std::map<std::string, const TrackStateExtended*> startTracks;
@@ -203,7 +206,9 @@ namespace AudioTester {
                 // Volume
                 float startVol = startTrack ? startTrack->volume : 1.0f;
                 float targetVol = targetTrack ? targetTrack->volume : 1.0f;
-                lerpedTrack.volume = lerp(startVol, targetVol, t);
+                // Use logarithmic easing for perceived linear volume changes
+                float easedT = volumeEase(t);
+                lerpedTrack.volume = lerp(startVol, targetVol, easedT);
 
                 // Debug logging only at start (t=0) and end (t=1) of transition
                 if (t < 0.001f || t > 0.999f) {
@@ -325,10 +330,12 @@ namespace AudioTester {
             applyStateSnapshot(lerpedState);
         } else if (m_transitionType == TransitionType::MASTER) {
             MasterBusState lerpedState;
+            // Use musical interval easing for tempo changes to preserve harmonic relationships
+            float easedT = tempoEase(t);
             lerpedState.masterTempo =
-                lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, t);
+                lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, easedT);
             lerpedState.granularTempo =
-                lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, t);
+                lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, easedT);
             lerpedState.volume = lerp(m_startMasterState.volume, m_targetMasterState.volume, t);
 
             // Effects: process ALL effects from current state, plus any new effects in target
@@ -548,6 +555,27 @@ namespace AudioTester {
         return t < 0.5f ? 2.0f * t * t : 1.0f - 2.0f * (1.0f - t) * (1.0f - t);
     }
 
+    float EventSystem::volumeEase(float t) {
+        // Logarithmic easing for perceived linear volume changes
+        // Human hearing perceives volume logarithmically, so we use square root
+        // to make the transition feel more natural
+        return std::sqrt(t);
+    }
+
+    float EventSystem::tempoEase(float t) {
+        // Musical interval easing for tempo changes
+        // Uses exponential curve to maintain musical relationships
+        // This helps preserve harmonic relationships during tempo transitions
+        return std::pow(2.0f, t - 1.0f);
+    }
+
+    float EventSystem::wetEase(float t) {
+        // Sigmoid easing for smooth effect crossfades
+        // Provides smooth transitions for wet/dry mixing
+        // Avoids artifacts that can occur with linear wet level changes
+        return 1.0f / (1.0f + std::exp(-10.0f * (t - 0.5f)));
+    }
+
     void EventSystem::lerpEffectState(const EffectState& start, const EffectState& end,
                                       EffectState& result, float t) {
         // Always lerp wet parameter first (wet is usually param ID 0)
@@ -573,7 +601,9 @@ namespace AudioTester {
         }
 
         if (hasStartWet && hasEndWet) {
-            result.parameters["0"] = lerp(startWet, endWet, t);
+            // Use sigmoid easing for smooth wet level transitions
+            float easedT = wetEase(t);
+            result.parameters["0"] = lerp(startWet, endWet, easedT);
             // Only lerp other parameters if either wet level > 0
             if (startWet > 0.0f || endWet > 0.0f) {
                 std::set<std::string> allParams;
@@ -585,12 +615,13 @@ namespace AudioTester {
                     float s =
                         start.parameters.count(paramName) ? start.parameters.at(paramName) : 0.0f;
                     float e = end.parameters.count(paramName) ? end.parameters.at(paramName) : 0.0f;
-                    result.parameters[paramName] = lerp(s, e, t);
+                    result.parameters[paramName] = lerp(s, e, easedT);
                 }
             }
         } else if (hasEndWet) {
             // No start wet, lerp from 0
-            result.parameters["0"] = lerp(0.0f, endWet, t);
+            float easedT = wetEase(t);
+            result.parameters["0"] = lerp(0.0f, endWet, easedT);
             for (const auto& [paramName, endValue] : end.parameters) {
                 if (paramName == "0")
                     continue;
@@ -598,7 +629,8 @@ namespace AudioTester {
             }
         } else if (hasStartWet) {
             // No end wet, lerp to 0
-            result.parameters["0"] = lerp(startWet, 0.0f, t);
+            float easedT = wetEase(t);
+            result.parameters["0"] = lerp(startWet, 0.0f, easedT);
             for (const auto& [paramName, startValue] : start.parameters) {
                 if (paramName == "0")
                     continue;
