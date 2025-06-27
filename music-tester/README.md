@@ -505,17 +505,7 @@ This tool is designed as a prototype for testing adaptive music concepts that co
 
 1. Make code changes
 2. Test with quick build: `./quick-build.sh`
-3. Run tests: `cd build && ./test-song-loading && ./test-event-system-minimal`
-4. Commit changes with descriptive messages
-
-### Testing
-
-The project includes several test programs:
-- `test-song-loading` - Tests JSON song loading functionality
-- `test-event-system-minimal` - Tests event triggering without audio
-- `test-circular-buffer` - Tests audio processing components
-
-Run tests after making changes to ensure functionality is preserved.
+3. Commit changes with descriptive messages
 
 ## License
 
