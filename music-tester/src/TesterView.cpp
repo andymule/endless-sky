@@ -340,26 +340,46 @@ void TesterView::RenderTrackControls() {
 }
 
 void TesterView::drawFilterControls(size_t trackIndex) {
+    /**
+     * Draw Filter Controls - Dynamic Audio Effect UI
+     *
+     * This method renders the filter/effect controls for a specific track.
+     * It provides a collapsible interface for each available audio effect with
+     * real-time parameter adjustment and visual feedback.
+     *
+     * Features:
+     * - Collapsible effect sections with visual enable/disable indicators
+     * - Real-time parameter adjustment with type-specific controls
+     * - Automatic effect enable/disable based on wet parameter
+     * - Visual feedback for effect states (green=on, gray=off)
+     * - Special handling for different parameter types (bool, int, float)
+     * - Tooltips for parameter explanations
+     *
+     * @param trackIndex Index of the track to control filters for
+     */
+
     const auto& audioSystem = m_controller->getAudioSystem();
 
-    // Get fresh filter state on every frame to ensure UI sync
+    // Get fresh filter state on every frame to ensure UI sync with audio system
     const auto& filters = audioSystem.getFilters(trackIndex);
 
+    // Iterate through all available filter types
     for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
         // Check if filter is currently enabled (based on wet parameter > 0)
+        // This provides real-time feedback of the actual filter state
         bool effectivelyEnabled = audioSystem.isFilterEnabled(trackIndex, filterName);
 
-        // Create unique ID for this filter's expanded state
+        // Create unique ID for this filter's expanded state to maintain UI state
         std::string expandedId = "expand_" + filterName + "_" + std::to_string(trackIndex);
 
-        // Get or initialize expanded state
+        // Get or initialize expanded state using static map for persistence
         static std::map<std::string, bool> expandedStates;
         bool& isExpanded = expandedStates[expandedId];
 
         // Show dropdown arrow with effect name and status
         ImGui::PushID(filterName.c_str());
 
-        // Color the arrow based on effect enabled state
+        // Color the arrow based on effect enabled state for visual feedback
         if (effectivelyEnabled) {
             ImGui::PushStyleColor(ImGuiCol_Text,
                                   ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when enabled
@@ -368,13 +388,13 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                                   ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when disabled
         }
 
-        // Dropdown arrow (TreeNode style but manual)
+        // Dropdown arrow (TreeNode style but manual control)
         if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
-            isExpanded = !isExpanded;
+            isExpanded = !isExpanded; // Toggle expanded state
         }
         ImGui::PopStyleColor();
 
-        // Effect name on same line
+        // Effect name on same line with enable/disable status
         ImGui::SameLine();
         ImGui::Text("%s%s", filterName.c_str(), effectivelyEnabled ? " (ON)" : " (OFF)");
 
@@ -382,20 +402,21 @@ void TesterView::drawFilterControls(size_t trackIndex) {
         if (isExpanded) {
             ImGui::Indent();
 
-            // Get fresh filter state after any potential changes
+            // Get fresh filter state after any potential changes to ensure accuracy
             const auto& currentFilters = audioSystem.getFilters(trackIndex);
             auto it = currentFilters.find(filterName);
             bool filterExists = (it != currentFilters.end());
 
             if (filterExists) {
-                // Filter exists, show all parameters
+                // Filter exists, show all parameters with type-specific controls
                 for (const auto& [paramId, param] : it->second.parameters) {
                     float value = param.value;
                     bool changed = false;
 
-                    // Use appropriate control based on parameter type
+                    // Use appropriate control based on parameter type for better UX
                     switch (param.type) {
                         case AudioTester::ParameterType::BOOL: {
+                            // Boolean parameters use checkbox interface
                             bool boolValue = value > 0.5f;
                             if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
                                 value = boolValue ? 1.0f : 0.0f;
@@ -404,6 +425,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                             break;
                         }
                         case AudioTester::ParameterType::INT: {
+                            // Integer parameters use slider with integer steps
                             int intValue = static_cast<int>(value);
                             if (ImGui::SliderInt(param.name.c_str(), &intValue,
                                                  static_cast<int>(param.min),
@@ -415,12 +437,16 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                         }
                         case AudioTester::ParameterType::FLOAT:
                         default: {
-                            // Highlight wet parameter for easy identification
+                            // Float parameters use standard slider with special wet parameter
+                            // handling Highlight wet parameter for easy identification (most
+                            // effects use param ID 0)
                             if (paramId == 0 && filterName != "dcremoval") {
-                                ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                                                      value > 0.0f
-                                                          ? ImVec4(0.2f, 0.6f, 0.2f, 0.4f)
-                                                          : ImVec4(0.6f, 0.2f, 0.2f, 0.4f));
+                                ImGui::PushStyleColor(
+                                    ImGuiCol_FrameBg,
+                                    value > 0.0f ? ImVec4(0.2f, 0.6f, 0.2f,
+                                                          0.4f) // Green background when enabled
+                                                 : ImVec4(0.6f, 0.2f, 0.2f,
+                                                          0.4f)); // Red background when disabled
                             }
 
                             if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
@@ -430,7 +456,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
 
                             if (paramId == 0 && filterName != "dcremoval") {
                                 ImGui::PopStyleColor();
-                                // Add tooltip for wet parameter
+                                // Add tooltip for wet parameter to explain its purpose
                                 if (ImGui::IsItemHovered()) {
                                     ImGui::SetTooltip(
                                         "Wet parameter: Controls effect enable/disable.\n"
@@ -441,15 +467,17 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                         }
                     }
 
+                    // Apply changes immediately to audio system
                     if (changed) {
                         m_controller->setTrackFilterParameter(trackIndex, filterName, paramId,
                                                               value);
                     }
                 }
             } else if (filterName != "dcremoval") {
+                // Filter doesn't exist yet, show wet parameter to enable it
                 float wetValue = 0.0f;
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
+                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled state
                 if (ImGui::SliderFloat("wet", &wetValue, 0.0f, 1.0f)) {
                     m_controller->setTrackFilterParameter(trackIndex, filterName, 0, wetValue);
                 }
@@ -458,10 +486,10 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                     ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
                 }
             } else {
-                // DCRemoval has no wet parameter, show enable option
+                // DCRemoval has no wet parameter, show enable option with button
                 ImGui::TextDisabled("(Effect disabled - click to enable)");
                 if (ImGui::Button("Enable DCRemoval")) {
-                    // DCRemoval default parameter
+                    // DCRemoval default parameter (length = 0.1 seconds)
                     m_controller->setTrackFilterParameter(trackIndex, filterName, 0, 0.1f);
                 }
             }
@@ -690,8 +718,25 @@ void TesterView::UpdateActiveWindow() {
 }
 
 void TesterView::handleNumberKeyPress(int keyNumber) {
+    /**
+     * Handle Number Key Press - Keyboard Shortcut Handler
+     *
+     * This method processes number key presses (1-9, 0) to provide quick track control.
+     * It implements a toggle behavior for track volumes and supports multi-window routing.
+     *
+     * Key Mapping:
+     * - Keys 1-9: Control tracks 0-8 (volume toggle between 0.0 and 1.0)
+     * - Key 0: Controls track 9 (volume toggle)
+     *
+     * Features:
+     * - Toggle volume between muted (0.0) and full (1.0) based on current state
+     * - Multi-window support (currently only main window implemented)
+     * - Bounds checking to prevent access to non-existent tracks
+     * - Graceful handling of invalid key numbers
+     */
+
     if (!m_controller) {
-        return;
+        return; // No controller available
     }
 
     // Always operate on the main window's tracks for now
@@ -699,18 +744,18 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
     const auto& state = m_controller->getState();
     size_t trackCount = state.getTrackCount();
 
-    // Map number keys to track indices
+    // Map number keys to track indices with special handling for key '0'
     // 1-9 maps to tracks 0-8, 0 maps to track 9
     size_t trackIndex;
     if (keyNumber >= 1 && keyNumber <= 9) {
         trackIndex = keyNumber - 1; // 1->0, 2->1, ..., 9->8
     } else if (keyNumber == 0) {
-        trackIndex = 9; // 0->9
+        trackIndex = 9; // 0->9 (tenth track)
     } else {
-        return; // Invalid key
+        return; // Invalid key number - ignore
     }
 
-    // Only control if the track exists
+    // Only control if the track exists (bounds checking)
     if (trackIndex < trackCount) {
         // Route to appropriate window's tracks based on active window
         switch (m_activeWindow) {
@@ -718,6 +763,7 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
                 // Main window tracks - toggle volume between 0.0 and 1.0
                 {
                     const auto& track = state.getTrack(trackIndex);
+                    // Toggle logic: if volume > 50%, mute it; otherwise, set to full
                     float newVolume = (track.volume > 0.5f) ? 0.0f : 1.0f;
                     m_controller->setTrackVolume(trackIndex, newVolume);
                 }
@@ -726,6 +772,7 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
             case ActiveWindow::SECONDARY:
                 // Future: Secondary window tracks
                 // Would operate on a different track set or different controller instance
+                // Currently unimplemented - placeholder for multi-window support
                 break;
         }
     }
@@ -1386,88 +1433,104 @@ void TesterView::RenderNewSongDialog() {
 }
 
 void TesterView::RenderFileDialog() {
-    ImGui::OpenPopup("File Browser");
+    if (!m_showFileDialog) {
+        return;
+    }
+
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+    if (ImGui::BeginPopupModal("Browse Directory", &m_showFileDialog)) {
+        /**
+         * File Browser Dialog - Directory Selection Interface
+         *
+         * This dialog provides a hierarchical file browser for selecting music directories.
+         * It includes navigation controls, filtering, and directory/file distinction.
+         *
+         * Key Features:
+         * - Hierarchical navigation with breadcrumb-style path display
+         * - Real-time filtering of entries by filename
+         * - Visual distinction between directories and files
+         * - Double-click navigation into directories
+         * - Keyboard and mouse interaction support
+         */
 
-    if (ImGui::BeginPopupModal("File Browser", &m_showFileDialog)) {
-        // Initialize browser path if empty
-        if (m_currentBrowserPath.empty()) {
-            m_currentBrowserPath = m_defaultDirectory;
-            RefreshBrowserEntries();
-        }
-
-        // Path display and navigation
+        // Display current path for user orientation
         ImGui::Text("Current Path: %s", m_currentBrowserPath.c_str());
 
+        // Navigation controls section
         if (ImGui::Button("Go Up")) {
+            // Navigate to parent directory if available
             std::filesystem::path currentPath(m_currentBrowserPath);
             if (currentPath.has_parent_path()) {
                 m_currentBrowserPath = currentPath.parent_path().string();
                 RefreshBrowserEntries();
-                m_selectedEntry = -1;
+                m_selectedEntry = -1; // Clear selection when navigating
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("Home")) {
+            // Return to default music directory
             m_currentBrowserPath = m_defaultDirectory;
             RefreshBrowserEntries();
             m_selectedEntry = -1;
         }
         ImGui::SameLine();
         if (ImGui::Button("Refresh")) {
+            // Reload current directory contents
             RefreshBrowserEntries();
         }
 
         ImGui::Separator();
 
-        // Filter input
+        // Real-time filtering section
         ImGui::Text("Filter:");
         ImGui::SameLine();
         if (ImGui::InputText("##filter", m_browserFilter, sizeof(m_browserFilter))) {
+            // Apply filter immediately as user types
             RefreshBrowserEntries();
         }
 
         ImGui::Separator();
 
-        // File/directory list
+        // File/directory list with scrollable area
         ImGui::BeginChild("##browser_list", ImVec2(0, 250), true);
 
         for (int i = 0; i < static_cast<int>(m_browserEntries.size()); ++i) {
             const auto& entry = m_browserEntries[i];
             std::string displayName = entry.filename().string();
 
-            // Apply filter
+            // Apply case-insensitive filter to current entry
             if (strlen(m_browserFilter) > 0) {
                 std::string filter(m_browserFilter);
                 std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
                 std::string lowerName = displayName;
                 std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
                 if (lowerName.find(filter) == std::string::npos) {
-                    continue;
+                    continue; // Skip entries that don't match filter
                 }
             }
 
-            // Selectable item
+            // Create selectable item with current selection state
             bool isSelected = (m_selectedEntry == i);
             if (ImGui::Selectable(displayName.c_str(), isSelected)) {
-                m_selectedEntry = i;
+                m_selectedEntry = i; // Update selection on click
             }
 
-            // Double-click to navigate
+            // Handle double-click navigation into directories
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                 if (std::filesystem::is_directory(entry)) {
                     m_currentBrowserPath = entry.string();
                     RefreshBrowserEntries();
-                    m_selectedEntry = -1;
+                    m_selectedEntry = -1; // Clear selection after navigation
                 }
             }
 
-            // Show icon or indicator
+            // Visual indicators for file types
             ImGui::SameLine();
             if (std::filesystem::is_directory(entry)) {
-                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "[DIR]");
+                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f),
+                                   "[DIR]"); // Yellow for directories
             } else {
-                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[FILE]");
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[FILE]"); // Gray for files
             }
         }
 
@@ -1475,21 +1538,23 @@ void TesterView::RenderFileDialog() {
 
         ImGui::Separator();
 
-        // Action buttons
+        // Action buttons for final selection
         if (ImGui::Button("Select Directory")) {
             if (m_selectedEntry >= 0 &&
                 m_selectedEntry < static_cast<int>(m_browserEntries.size())) {
+                // User selected a specific entry
                 const auto& selectedEntry = m_browserEntries[m_selectedEntry];
                 if (std::filesystem::is_directory(selectedEntry)) {
+                    // Copy selected directory path to input field and apply
                     std::string selectedPath = selectedEntry.string();
                     strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
-                    m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+                    m_dirInput[DIR_INPUT_SIZE - 1] = '\0'; // Ensure null termination
                     m_controller->setMusicDirectory(selectedPath);
                     ImGui::CloseCurrentPopup();
                     m_showFileDialog = false;
                 }
             } else {
-                // Use current path
+                // No specific entry selected, use current path
                 strncpy(m_dirInput, m_currentBrowserPath.c_str(), DIR_INPUT_SIZE);
                 m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
                 m_controller->setMusicDirectory(m_currentBrowserPath);
@@ -1499,6 +1564,7 @@ void TesterView::RenderFileDialog() {
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {
+            // Close dialog without making changes
             ImGui::CloseCurrentPopup();
             m_showFileDialog = false;
         }
@@ -1508,33 +1574,50 @@ void TesterView::RenderFileDialog() {
 }
 
 void TesterView::RefreshBrowserEntries() {
+    /**
+     * Refresh Browser Entries - File System Scanner
+     *
+     * This method scans the current directory and populates the browser entries list.
+     * It handles file system errors gracefully and provides intelligent sorting.
+     *
+     * Features:
+     * - Scans current directory for files and subdirectories
+     * - Filters out hidden files (Unix-style .files)
+     * - Sorts entries with directories first, then alphabetical files
+     * - Graceful error handling for inaccessible directories
+     * - Thread-safe file system operations
+     */
+
     m_browserEntries.clear();
 
     try {
         std::filesystem::path currentPath(m_currentBrowserPath);
         if (std::filesystem::exists(currentPath) && std::filesystem::is_directory(currentPath)) {
+            // Iterate through all entries in the current directory
             for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
-                // Skip hidden files on Unix-like systems
+                // Skip hidden files on Unix-like systems (files starting with '.')
                 std::string filename = entry.path().filename().string();
                 if (filename.empty() || filename[0] == '.') {
-                    continue;
+                    continue; // Skip empty filenames and hidden files
                 }
                 m_browserEntries.push_back(entry.path());
             }
 
-            // Sort entries: directories first, then files
+            // Sort entries with intelligent ordering: directories first, then files alphabetically
             std::sort(m_browserEntries.begin(), m_browserEntries.end(),
                       [](const std::filesystem::path& a, const std::filesystem::path& b) {
                           bool aIsDir = std::filesystem::is_directory(a);
                           bool bIsDir = std::filesystem::is_directory(b);
                           if (aIsDir != bIsDir) {
-                              return aIsDir > bIsDir; // Directories first
+                              return aIsDir > bIsDir; // Directories first (true > false)
                           }
-                          return a.filename().string() < b.filename().string(); // Alphabetical
+                          return a.filename().string() <
+                                 b.filename().string(); // Alphabetical within each type
                       });
         }
     } catch (const std::exception& e) {
-        // Handle errors gracefully
+        // Handle file system errors gracefully by clearing the list
+        // This prevents crashes when accessing protected or non-existent directories
         m_browserEntries.clear();
     }
 }

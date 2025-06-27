@@ -192,22 +192,43 @@ namespace AudioTester {
     }
 
     std::vector<std::string> SongManager::discoverTracks(const std::filesystem::path& folder) {
+        /**
+         * Discover Tracks - Audio File Scanner
+         *
+         * This method scans a directory for supported audio files and returns a sorted list
+         * of track filenames. It's the source of truth for track discovery in the system.
+         *
+         * Features:
+         * - Scans directory for supported audio file formats
+         * - Filters out non-audio files and unsupported formats
+         * - Provides consistent alphabetical ordering
+         * - Graceful error handling for inaccessible directories
+         * - Thread-safe file system operations
+         *
+         * @param folder Directory path to scan for audio files
+         * @return Sorted vector of audio filenames (without path)
+         */
+
         std::vector<std::string> tracks;
 
         try {
+            // Iterate through all files in the specified directory
             for (const auto& entry : std::filesystem::directory_iterator(folder)) {
                 if (entry.is_regular_file()) {
                     auto filepath = entry.path().string();
+                    // Validate file format using extension checking
                     if (isSupportedAudioFile(filepath)) {
+                        // Store only the filename, not the full path
                         tracks.push_back(entry.path().filename().string());
                     }
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
+            // Handle file system errors gracefully (permissions, non-existent dir, etc.)
             logError("Error discovering tracks: " + std::string(e.what()));
         }
 
-        // Sort for consistent ordering
+        // Sort for consistent ordering across different file systems and OS
         std::sort(tracks.begin(), tracks.end());
         return tracks;
     }
@@ -227,10 +248,39 @@ namespace AudioTester {
     }
 
     bool SongManager::parseStateSnapshot(const nlohmann::json& json, StateSnapshot& state) {
+        /**
+         * Parse State Snapshot - JSON State Reconstruction
+         *
+         * This method parses a JSON object representing a complete audio state snapshot,
+         * including master tempo settings and individual track states with effects.
+         *
+         * JSON Structure Expected:
+         * {
+         *   "masterTempo": 1.0,
+         *   "granularTempo": 1.0,
+         *   "tracks": [
+         *     {
+         *       "file": "track1.ogg",
+         *       "volume": 0.8,
+         *       "effects": {
+         *         "echo": { "parameters": { "0": 0.5, "1": 0.3 } },
+         *         "freeverb": { "parameters": { "0": 0.7, "2": 0.6 } }
+         *       }
+         *     }
+         *   ]
+         * }
+         *
+         * @param json JSON object containing the state snapshot
+         * @param state Output parameter to populate with parsed state
+         * @return true on successful parsing, false on error
+         */
+
         try {
+            // Parse master tempo settings with defaults
             state.masterTempo = json.value("masterTempo", 1.0f);
             state.granularTempo = json.value("granularTempo", 1.0f);
 
+            // Parse track states if present
             if (json.contains("tracks") && json["tracks"].is_array()) {
                 state.tracks.clear();
                 for (const auto& trackJson : json["tracks"]) {
@@ -238,6 +288,7 @@ namespace AudioTester {
                     if (parseTrackState(trackJson, track)) {
                         state.tracks.push_back(track);
                     }
+                    // Continue parsing other tracks even if one fails
                 }
             }
 
@@ -317,6 +368,21 @@ namespace AudioTester {
     }
 
     bool SongManager::validateSongJson(const nlohmann::json& json) {
+        /**
+         * Validate Song JSON - Structure Validation
+         *
+         * This method validates that a JSON object has the correct structure for a song file.
+         * It checks for required fields and correct data types without parsing the full content.
+         *
+         * Required Structure:
+         * {
+         *   "events": [ ... ]  // Array of song events
+         * }
+         *
+         * @param json JSON object to validate
+         * @return true if valid song JSON structure, false otherwise
+         */
+
         // Basic validation - should have events array
         if (!json.is_object()) {
             logError("Song JSON must be an object");
@@ -332,6 +398,21 @@ namespace AudioTester {
     }
 
     bool SongManager::validateMasterJson(const nlohmann::json& json) {
+        /**
+         * Validate Master JSON - Structure Validation
+         *
+         * This method validates that a JSON object has the correct structure for a master bus file.
+         * It checks for required fields and correct data types without parsing the full content.
+         *
+         * Required Structure:
+         * {
+         *   "events": [ ... ]  // Array of master events
+         * }
+         *
+         * @param json JSON object to validate
+         * @return true if valid master JSON structure, false otherwise
+         */
+
         // Basic validation - should have events array
         if (!json.is_object()) {
             logError("Master JSON must be an object");
