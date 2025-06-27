@@ -124,10 +124,6 @@ private:
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_glContext = nullptr;
 
-    // Fonts
-    ImFont* m_mainFont = nullptr;
-    ImFont* m_iconFont = nullptr;
-
     // Local UI state for tempo control to avoid ImGui slider issues
     float m_masterTempoUI = 1.0f;
 };

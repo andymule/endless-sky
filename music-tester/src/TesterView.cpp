@@ -34,21 +34,6 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
-    // Load MesloLGS NF font (includes icons)
-    std::string fontPath = "assets/fonts/MesloLGS_NF_Regular.ttf";
-    if (std::filesystem::exists(fontPath)) {
-        m_mainFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 16.0f);
-        if (m_mainFont) {
-            LOG_INFO_COMP("TesterView", "Loaded MesloLGS NF font successfully");
-            // Set as default font
-            io.FontDefault = m_mainFont;
-        } else {
-            LOG_ERROR_COMP("TesterView", "Failed to load MesloLGS NF font");
-        }
-    } else {
-        LOG_ERROR_COMP("TesterView", "Font file not found: " + fontPath);
-    }
-
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
         LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui SDL2 backend");
@@ -1105,12 +1090,8 @@ bool TesterView::RenderDeleteButton(const std::string& eventId, const char* even
 }
 
 bool TesterView::RenderSaveButton(const std::string& eventId, const char* eventName) {
-    // Use Nerd Font disk icon if font is loaded, otherwise fallback to ASCII
-    const char* iconText =
-        (m_mainFont != nullptr) ? "󰆓" : "S"; // Nerd Font disk icon or ASCII fallback
-
     return RenderHoldActionButton(
-        eventId, iconText,
+        eventId, "S",
         ("Hold for 1 second to save (overwrite) \"" + std::string(eventName) + "\"").c_str(),
         HoldActionType::SAVE, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), // Green text
         ImVec4(0.2f, 0.8f, 0.2f, 1.0f),                       // Green progress
