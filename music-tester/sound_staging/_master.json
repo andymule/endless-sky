@@ -1,0 +1,45 @@
+{
+	"events": [
+		{
+			"fadeTime": 1.7000000476837158,
+			"name": "Underwater2",
+			"state": {
+				"bus": {
+					"effects": {
+						"biquad": {
+							"parameters": {
+								"0": 0.8209999799728394,
+								"1": 0.0,
+								"2": 181.53799438476563,
+								"3": 3.1459999084472656
+							}
+						},
+						"flanger": {
+							"parameters": {
+								"0": 0.21400000154972076,
+								"1": 0.006000000052154064,
+								"2": 1.8079999685287476
+							}
+						}
+					},
+					"volume": 1.0
+				},
+				"granularTempo": 1.0,
+				"masterTempo": 0.8399999737739563
+			}
+		},
+		{
+			"fadeTime": 2.0,
+			"name": "Normal",
+			"state": {
+				"bus": {
+					"effects": {},
+					"volume": 0.6000001430511475
+				},
+				"granularTempo": 1.0,
+				"masterTempo": 1.0
+			}
+		}
+	],
+	"name": "Master Bus"
+}

@@ -1,0 +1,217 @@
+{
+  "events": [
+    {
+      "fadeTime": 2.0,
+      "name": "Intro",
+      "state": {
+        "granularTempo": 1.0,
+        "masterTempo": 1.0,
+        "tracks": [
+          {
+            "effects": {
+              "bassboost": {
+                "parameters": {
+                  "boost": 2.0,
+                  "wet": 0.800000011920929
+                }
+              },
+              "echo": {
+                "parameters": {
+                  "decay": 0.5,
+                  "delay": 0.30000001192092896,
+                  "filter": 0.0,
+                  "wet": 0.0
+                }
+              }
+            },
+            "file": "drums.ogg",
+            "volume": 0.800000011920929
+          },
+          {
+            "effects": {},
+            "file": "bass1.ogg",
+            "volume": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "fadeTime": 1.5,
+      "name": "Verse",
+      "state": {
+        "granularTempo": 1.0,
+        "masterTempo": 1.0,
+        "tracks": [
+          {
+            "effects": {
+              "bassboost": {
+                "parameters": {
+                  "boost": 1.0,
+                  "wet": 0.0
+                }
+              }
+            },
+            "file": "drums.ogg",
+            "volume": 0.699999988079071
+          },
+          {
+            "effects": {
+              "lofi": {
+                "parameters": {
+                  "bitdepth": 3.0,
+                  "samplerate": 8000.0,
+                  "wet": 0.6000000238418579
+                }
+              }
+            },
+            "file": "bass1.ogg",
+            "volume": 0.8999999761581421
+          }
+        ]
+      }
+    },
+    {
+      "fadeTime": 1.0,
+      "name": "driving",
+      "state": {
+        "granularTempo": 1.0,
+        "masterTempo": 1.0,
+        "tracks": [
+          {
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 0.7559999823570251,
+                  "1": 0.30000001192092896,
+                  "2": 0.699999988079071,
+                  "3": 0.3310000002384186
+                }
+              },
+              "freeverb": {
+                "parameters": {
+                  "0": 0.7730000019073486,
+                  "1": 0.0,
+                  "2": 0.9330000281333923,
+                  "3": 0.9300000071525574,
+                  "4": 0.9300000071525574
+                }
+              }
+            },
+            "file": "airy.ogg",
+            "volume": 1.0
+          },
+          {
+            "effects": {},
+            "file": "bass2.ogg",
+            "volume": 1.0
+          },
+          {
+            "effects": {},
+            "file": "bass1.ogg",
+            "volume": 1.0
+          },
+          {
+            "effects": {},
+            "file": "drums.ogg",
+            "volume": 0.0
+          },
+          {
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 0.7760000228881836,
+                  "1": 0.30000001192092896,
+                  "2": 0.699999988079071,
+                  "3": 0.11599999666213989
+                }
+              },
+              "freeverb": {
+                "parameters": {
+                  "0": 0.7239999771118164,
+                  "1": 0.0,
+                  "2": 0.9419999718666077,
+                  "3": 0.953000009059906,
+                  "4": 0.9509999752044678
+                }
+              }
+            },
+            "file": "drone.ogg",
+            "volume": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "fadeTime": 4.800000190734863,
+      "name": "Airy2",
+      "state": {
+        "granularTempo": 1.0,
+        "masterTempo": 1.0,
+        "tracks": [
+          {
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 0.8895995020866394,
+                  "1": 0.2998650074005127,
+                  "2": 0.6996849775314331,
+                  "3": 0.3308510482311249
+                }
+              },
+              "freeverb": {
+                "parameters": {
+                  "0": 0.9235842227935791,
+                  "1": 0.0,
+                  "2": 0.9325801730155945,
+                  "3": 0.9295814633369446,
+                  "4": 0.9295814633369446
+                }
+              }
+            },
+            "file": "airy.ogg",
+            "volume": 1.0
+          },
+          {
+            "effects": {},
+            "file": "bass2.ogg",
+            "volume": 0.0004500150680541992
+          },
+          {
+            "effects": {},
+            "file": "bass1.ogg",
+            "volume": 0.0004500150680541992
+          },
+          {
+            "effects": {},
+            "file": "drums.ogg",
+            "volume": 0.0004500150680541992
+          },
+          {
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 0.9415760636329651,
+                  "1": 0.2998650074005127,
+                  "2": 0.6996849775314331,
+                  "3": 0.11594779789447784
+                }
+              },
+              "freeverb": {
+                "parameters": {
+                  "0": 0.9065918326377869,
+                  "1": 0.0,
+                  "2": 0.9415760636329651,
+                  "3": 0.9525711536407471,
+                  "4": 0.9505720138549805
+                }
+              }
+            },
+            "file": "drone.ogg",
+            "volume": 1.0
+          }
+        ]
+      }
+    }
+  ],
+  "name": "Test Song"
+}
