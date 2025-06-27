@@ -2,6 +2,7 @@
 
 #include "AudioController.h"
 #include "AudioState.h"
+#include "FileBrowser.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <filesystem>
@@ -115,6 +116,10 @@ private:
     // Input handling helpers
     void handleNumberKeyPress(int keyNumber);
 
+    // File browser callback handlers
+    void onDirectorySelected(const std::filesystem::path& path);
+    void onOggFileSelected(const std::filesystem::path& path);
+
     // Constants
     static constexpr size_t DIR_INPUT_SIZE = 256;
 
@@ -143,20 +148,12 @@ private:
 
     // File dialog state
     bool m_showFileDialog = false;
+    bool m_showOggFileDialog = false;
     std::string m_defaultDirectory = "";
 
-    // Custom file browser state
-    std::string m_currentBrowserPath = "";
-    std::vector<std::filesystem::path> m_browserEntries;
-    int m_selectedEntry = -1;
-    char m_browserFilter[256] = "";
-
-    // .ogg file browser state for adding tracks to songs
-    bool m_showOggFileDialog = false;
-    std::string m_currentOggBrowserPath = "";
-    std::vector<std::filesystem::path> m_oggBrowserEntries;
-    int m_selectedOggEntry = -1;
-    char m_oggBrowserFilter[256] = "";
+    // File browser components (replaces old custom file browser state)
+    AudioTester::FileBrowser m_directoryBrowser;
+    AudioTester::FileBrowser m_oggFileBrowser;
 
     // Project and song selection state
     std::vector<std::string> m_availableProjects;

@@ -18,6 +18,32 @@ TesterView::TesterView() {
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
+
+    // Initialize FileBrowser components
+    AudioTester::FileBrowser::Config dirConfig;
+    dirConfig.title = "Browse Directory";
+    dirConfig.defaultPath = m_defaultDirectory;
+    dirConfig.actionButtonText = "Select Directory";
+    dirConfig.cancelButtonText = "Cancel";
+    dirConfig.showDirectories = true;
+    dirConfig.showFiles = true;
+    dirConfig.fileTypeLabel = "[FILE]";
+    m_directoryBrowser.initialize(dirConfig);
+    m_directoryBrowser.setSelectionCallback(
+        [this](const std::filesystem::path& path) { this->onDirectorySelected(path); });
+
+    AudioTester::FileBrowser::Config oggConfig;
+    oggConfig.title = "Add .ogg File to Song";
+    oggConfig.defaultPath = m_defaultDirectory;
+    oggConfig.actionButtonText = "Add Selected File";
+    oggConfig.cancelButtonText = "Cancel";
+    oggConfig.showDirectories = true;
+    oggConfig.showFiles = true;
+    oggConfig.fileTypeFilter = ".ogg";
+    oggConfig.fileTypeLabel = "[OGG]";
+    m_oggFileBrowser.initialize(oggConfig);
+    m_oggFileBrowser.setSelectionCallback(
+        [this](const std::filesystem::path& path) { this->onOggFileSelected(path); });
 }
 
 void TesterView::InitializeDefaultDirectory() {
@@ -236,8 +262,6 @@ void TesterView::RenderMainWindow() {
     if (!currentSong.empty()) {
         if (ImGui::Button("+", ImVec2(30, 30))) {
             m_showOggFileDialog = true;
-            m_currentOggBrowserPath = m_defaultDirectory;
-            RefreshOggBrowserEntries();
         }
         ImGui::SameLine();
         ImGui::Text("Add .ogg file to '%s'", currentSong.c_str());
@@ -1433,470 +1457,13 @@ void TesterView::RenderNewSongDialog() {
 }
 
 void TesterView::RenderFileDialog() {
-    if (!m_showFileDialog) {
-        return;
-    }
-
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-    if (ImGui::BeginPopupModal("Browse Directory", &m_showFileDialog)) {
-        /**
-         * File Browser Dialog - Directory Selection Interface
-         *
-         * This dialog provides a hierarchical file browser for selecting music directories.
-         * It includes navigation controls, filtering, and directory/file distinction.
-         *
-         * Key Features:
-         * - Hierarchical navigation with breadcrumb-style path display
-         * - Real-time filtering of entries by filename
-         * - Visual distinction between directories and files
-         * - Double-click navigation into directories
-         * - Keyboard and mouse interaction support
-         */
-
-        // Display current path for user orientation
-        ImGui::Text("Current Path: %s", m_currentBrowserPath.c_str());
-
-        // Navigation controls section
-        if (ImGui::Button("Go Up")) {
-            // Navigate to parent directory if available
-            std::filesystem::path currentPath(m_currentBrowserPath);
-            if (currentPath.has_parent_path()) {
-                m_currentBrowserPath = currentPath.parent_path().string();
-                RefreshBrowserEntries();
-                m_selectedEntry = -1; // Clear selection when navigating
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Home")) {
-            // Return to default music directory
-            m_currentBrowserPath = m_defaultDirectory;
-            RefreshBrowserEntries();
-            m_selectedEntry = -1;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Refresh")) {
-            // Reload current directory contents
-            RefreshBrowserEntries();
-        }
-
-        ImGui::Separator();
-
-        // Real-time filtering section
-        ImGui::Text("Filter:");
-        ImGui::SameLine();
-        if (ImGui::InputText("##filter", m_browserFilter, sizeof(m_browserFilter))) {
-            // Apply filter immediately as user types
-            RefreshBrowserEntries();
-        }
-
-        ImGui::Separator();
-
-        // File/directory list with scrollable area
-        ImGui::BeginChild("##browser_list", ImVec2(0, 250), true);
-
-        for (int i = 0; i < static_cast<int>(m_browserEntries.size()); ++i) {
-            const auto& entry = m_browserEntries[i];
-            std::string displayName = entry.filename().string();
-
-            // Apply case-insensitive filter to current entry
-            if (strlen(m_browserFilter) > 0) {
-                std::string filter(m_browserFilter);
-                std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
-                std::string lowerName = displayName;
-                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-                if (lowerName.find(filter) == std::string::npos) {
-                    continue; // Skip entries that don't match filter
-                }
-            }
-
-            // Create selectable item with current selection state
-            bool isSelected = (m_selectedEntry == i);
-            if (ImGui::Selectable(displayName.c_str(), isSelected)) {
-                m_selectedEntry = i; // Update selection on click
-            }
-
-            // Handle double-click navigation into directories
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                if (std::filesystem::is_directory(entry)) {
-                    m_currentBrowserPath = entry.string();
-                    RefreshBrowserEntries();
-                    m_selectedEntry = -1; // Clear selection after navigation
-                }
-            }
-
-            // Visual indicators for file types
-            ImGui::SameLine();
-            if (std::filesystem::is_directory(entry)) {
-                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f),
-                                   "[DIR]"); // Yellow for directories
-            } else {
-                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[FILE]"); // Gray for files
-            }
-        }
-
-        ImGui::EndChild();
-
-        ImGui::Separator();
-
-        // Action buttons for final selection
-        if (ImGui::Button("Select Directory")) {
-            if (m_selectedEntry >= 0 &&
-                m_selectedEntry < static_cast<int>(m_browserEntries.size())) {
-                // User selected a specific entry
-                const auto& selectedEntry = m_browserEntries[m_selectedEntry];
-                if (std::filesystem::is_directory(selectedEntry)) {
-                    // Copy selected directory path to input field and apply
-                    std::string selectedPath = selectedEntry.string();
-                    strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
-                    m_dirInput[DIR_INPUT_SIZE - 1] = '\0'; // Ensure null termination
-                    m_controller->setMusicDirectory(selectedPath);
-                    ImGui::CloseCurrentPopup();
-                    m_showFileDialog = false;
-                }
-            } else {
-                // No specific entry selected, use current path
-                strncpy(m_dirInput, m_currentBrowserPath.c_str(), DIR_INPUT_SIZE);
-                m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
-                m_controller->setMusicDirectory(m_currentBrowserPath);
-                ImGui::CloseCurrentPopup();
-                m_showFileDialog = false;
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            // Close dialog without making changes
-            ImGui::CloseCurrentPopup();
-            m_showFileDialog = false;
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
-void TesterView::RefreshBrowserEntries() {
-    /**
-     * Refresh Browser Entries - File System Scanner
-     *
-     * This method scans the current directory and populates the browser entries list.
-     * It handles file system errors gracefully and provides intelligent sorting.
-     *
-     * Features:
-     * - Scans current directory for files and subdirectories
-     * - Filters out hidden files (Unix-style .files)
-     * - Sorts entries with directories first, then alphabetical files
-     * - Graceful error handling for inaccessible directories
-     * - Thread-safe file system operations
-     */
-
-    m_browserEntries.clear();
-
-    try {
-        std::filesystem::path currentPath(m_currentBrowserPath);
-        if (std::filesystem::exists(currentPath) && std::filesystem::is_directory(currentPath)) {
-            // Iterate through all entries in the current directory
-            for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
-                // Skip hidden files on Unix-like systems (files starting with '.')
-                std::string filename = entry.path().filename().string();
-                if (filename.empty() || filename[0] == '.') {
-                    continue; // Skip empty filenames and hidden files
-                }
-                m_browserEntries.push_back(entry.path());
-            }
-
-            // Sort entries with intelligent ordering: directories first, then files alphabetically
-            std::sort(m_browserEntries.begin(), m_browserEntries.end(),
-                      [](const std::filesystem::path& a, const std::filesystem::path& b) {
-                          bool aIsDir = std::filesystem::is_directory(a);
-                          bool bIsDir = std::filesystem::is_directory(b);
-                          if (aIsDir != bIsDir) {
-                              return aIsDir > bIsDir; // Directories first (true > false)
-                          }
-                          return a.filename().string() <
-                                 b.filename().string(); // Alphabetical within each type
-                      });
-        }
-    } catch (const std::exception& e) {
-        // Handle file system errors gracefully by clearing the list
-        // This prevents crashes when accessing protected or non-existent directories
-        m_browserEntries.clear();
-    }
-}
-
-void TesterView::RenderMenuBar() {
-    if (ImGui::BeginMainMenuBar()) {
-        // File menu
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Master")) {
-                m_showNewMasterDialog = true;
-                strcpy(m_newMasterName, "");
-            }
-            if (ImGui::MenuItem("New Song")) {
-                m_showNewSongDialog = true;
-                strcpy(m_newSongName, "");
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Browse...")) {
-                m_showFileDialog = true;
-            }
-            if (ImGui::MenuItem("Load Current")) {
-                m_controller->setMusicDirectory(m_dirInput);
-            }
-            ImGui::EndMenu();
-        }
-
-        // Unified Project/Song dropdown
-        RenderProjectSongDropdown();
-
-        // Directory input in menu bar
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
-        ImGui::Text("Directory:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(300.0f);
-        if (ImGui::InputText("##dir_menu", m_dirInput, DIR_INPUT_SIZE,
-                             ImGuiInputTextFlags_EnterReturnsTrue)) {
-            m_controller->setMusicDirectory(m_dirInput);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Enter directory path and press Enter to load tracks and songs");
-        }
-
-        // Playback controls in menu bar
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
-        const auto& state = m_controller->getState();
-        if (ImGui::Button(state.globalPlaying ? "Pause" : "Play")) {
-            m_controller->toggleGlobalPlayback();
-        }
-
-        ImGui::EndMainMenuBar();
-    }
-}
-
-std::string TesterView::GetWindowTitle() {
-    std::string currentSong = m_controller->getCurrentSong();
-    if (!currentSong.empty()) {
-        return "Dynamix - " + currentSong;
-    } else {
-        return "Dynamix - Music Tester";
-    }
+    // Use the FileBrowser component to render the directory selection dialog
+    m_directoryBrowser.render(m_showFileDialog);
 }
 
 void TesterView::RenderOggFileDialog() {
-    ImGui::OpenPopup("Add .ogg File to Song");
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-
-    if (ImGui::BeginPopupModal("Add .ogg File to Song", &m_showOggFileDialog)) {
-        // Initialize browser path if empty
-        if (m_currentOggBrowserPath.empty()) {
-            m_currentOggBrowserPath = m_defaultDirectory;
-            RefreshOggBrowserEntries();
-        }
-
-        std::string currentSong = m_controller->getCurrentSong();
-        ImGui::Text("Adding .ogg file to song: %s", currentSong.c_str());
-        ImGui::Separator();
-
-        // Path display and navigation
-        ImGui::Text("Current Path: %s", m_currentOggBrowserPath.c_str());
-
-        if (ImGui::Button("Go Up")) {
-            std::filesystem::path currentPath(m_currentOggBrowserPath);
-            if (currentPath.has_parent_path()) {
-                m_currentOggBrowserPath = currentPath.parent_path().string();
-                RefreshOggBrowserEntries();
-                m_selectedOggEntry = -1;
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Home")) {
-            m_currentOggBrowserPath = m_defaultDirectory;
-            RefreshOggBrowserEntries();
-            m_selectedOggEntry = -1;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Refresh")) {
-            RefreshOggBrowserEntries();
-        }
-
-        ImGui::Separator();
-
-        // Filter input
-        ImGui::Text("Filter:");
-        ImGui::SameLine();
-        if (ImGui::InputText("##ogg_filter", m_oggBrowserFilter, sizeof(m_oggBrowserFilter))) {
-            RefreshOggBrowserEntries();
-        }
-
-        ImGui::Separator();
-
-        // File list (only .ogg files)
-        ImGui::BeginChild("##ogg_browser_list", ImVec2(0, 250), true);
-
-        for (int i = 0; i < static_cast<int>(m_oggBrowserEntries.size()); ++i) {
-            const auto& entry = m_oggBrowserEntries[i];
-            std::string displayName = entry.filename().string();
-
-            // Apply filter
-            if (strlen(m_oggBrowserFilter) > 0) {
-                std::string filter(m_oggBrowserFilter);
-                std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
-                std::string lowerName = displayName;
-                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-                if (lowerName.find(filter) == std::string::npos) {
-                    continue;
-                }
-            }
-
-            // Selectable item
-            bool isSelected = (m_selectedOggEntry == i);
-            if (ImGui::Selectable(displayName.c_str(), isSelected)) {
-                m_selectedOggEntry = i;
-            }
-
-            // Double-click to navigate into directories
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                if (std::filesystem::is_directory(entry)) {
-                    m_currentOggBrowserPath = entry.string();
-                    RefreshOggBrowserEntries();
-                    m_selectedOggEntry = -1;
-                }
-            }
-
-            // Show icon or indicator
-            ImGui::SameLine();
-            if (std::filesystem::is_directory(entry)) {
-                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "[DIR]");
-            } else {
-                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "[OGG]");
-            }
-        }
-
-        ImGui::EndChild();
-
-        ImGui::Separator();
-
-        // Action buttons
-        if (ImGui::Button("Add Selected File")) {
-            // Debug logging
-            std::cout << "Add Selected File button clicked!" << std::endl;
-            std::cout << "Selected entry: " << m_selectedOggEntry << std::endl;
-            std::cout << "Browser entries size: " << m_oggBrowserEntries.size() << std::endl;
-
-            if (m_selectedOggEntry >= 0 &&
-                m_selectedOggEntry < static_cast<int>(m_oggBrowserEntries.size())) {
-                const auto& selectedEntry = m_oggBrowserEntries[m_selectedOggEntry];
-                std::cout << "Selected entry path: " << selectedEntry.string() << std::endl;
-
-                if (std::filesystem::is_regular_file(selectedEntry)) {
-                    std::string sourcePath = selectedEntry.string();
-                    std::string filename = selectedEntry.filename().string();
-                    std::cout << "Source path: " << sourcePath << std::endl;
-                    std::cout << "Filename: " << filename << std::endl;
-
-                    // Check if file already exists in the song folder
-                    std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
-                    std::filesystem::path destPath = songFolderPath / filename;
-                    std::cout << "Destination path: " << destPath.string() << std::endl;
-
-                    if (std::filesystem::exists(destPath)) {
-                        // File already exists - show specific error
-                        std::cout << "File already exists!" << std::endl;
-                        strcpy(m_errorMessage,
-                               ("File '" + filename + "' already exists in this song").c_str());
-                        m_showErrorPopup = true;
-                    } else {
-                        // Try to copy the file
-                        std::cout << "Attempting to copy file..." << std::endl;
-                        if (CopyOggFileToSong(sourcePath, currentSong)) {
-                            std::cout << "Copy successful!" << std::endl;
-                            // Add to current event
-                            if (!m_controller->addTrackToCurrentEvent(filename)) {
-                                std::cout
-                                    << "Failed to add track to current event or already present."
-                                    << std::endl;
-                            }
-                            ImGui::CloseCurrentPopup();
-                            m_showOggFileDialog = false;
-                            // Don't reload the directory - this causes audio system state reset
-                            // The track is already added to the system via addTrackToCurrentEvent
-                        } else {
-                            std::cout << "Copy failed!" << std::endl;
-                            strcpy(m_errorMessage, "Failed to copy .ogg file to song folder");
-                            m_showErrorPopup = true;
-                        }
-                    }
-                } else {
-                    std::cout << "Selected entry is not a regular file" << std::endl;
-                }
-            } else {
-                std::cout << "No file selected or invalid selection" << std::endl;
-                strcpy(m_errorMessage, "Please select a .ogg file to add");
-                m_showErrorPopup = true;
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            ImGui::CloseCurrentPopup();
-            m_showOggFileDialog = false;
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
-void TesterView::RefreshOggBrowserEntries() {
-    m_oggBrowserEntries.clear();
-
-    std::cout << "Refreshing .ogg browser entries from: " << m_currentOggBrowserPath << std::endl;
-
-    try {
-        std::filesystem::path currentPath(m_currentOggBrowserPath);
-        if (std::filesystem::exists(currentPath) && std::filesystem::is_directory(currentPath)) {
-            for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
-                // Skip hidden files on Unix-like systems
-                std::string filename = entry.path().filename().string();
-                if (filename.empty() || filename[0] == '.') {
-                    continue;
-                }
-
-                // Only show directories and .ogg files
-                if (std::filesystem::is_directory(entry)) {
-                    m_oggBrowserEntries.push_back(entry.path());
-                    std::cout << "Found directory: " << filename << std::endl;
-                } else if (std::filesystem::is_regular_file(entry)) {
-                    std::string ext = entry.path().extension().string();
-                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                    if (ext == ".ogg") {
-                        m_oggBrowserEntries.push_back(entry.path());
-                        std::cout << "Found .ogg file: " << filename << std::endl;
-                    }
-                }
-            }
-
-            std::cout << "Total entries found: " << m_oggBrowserEntries.size() << std::endl;
-
-            // Sort entries: directories first, then files
-            std::sort(m_oggBrowserEntries.begin(), m_oggBrowserEntries.end(),
-                      [](const std::filesystem::path& a, const std::filesystem::path& b) {
-                          bool aIsDir = std::filesystem::is_directory(a);
-                          bool bIsDir = std::filesystem::is_directory(b);
-                          if (aIsDir != bIsDir) {
-                              return aIsDir > bIsDir; // Directories first
-                          }
-                          return a.filename().string() < b.filename().string(); // Alphabetical
-                      });
-        } else {
-            std::cout << "Path does not exist or is not a directory: " << m_currentOggBrowserPath
-                      << std::endl;
-        }
-    } catch (const std::exception& e) {
-        // Handle errors gracefully
-        std::cout << "Exception in RefreshOggBrowserEntries: " << e.what() << std::endl;
-        m_oggBrowserEntries.clear();
-    }
+    // Use the FileBrowser component to render the OGG file selection dialog
+    m_oggFileBrowser.render(m_showOggFileDialog);
 }
 
 bool TesterView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
@@ -2056,4 +1623,103 @@ void TesterView::ClearLastTriggeredEvents() {
     m_lastTriggeredMasterEvent = "";
     m_lastTriggeredSongEvent = "";
     m_lastTriggeredSongName = "";
+}
+
+void TesterView::onDirectorySelected(const std::filesystem::path& path) {
+    // Handle directory selection for the main file browser
+    std::string selectedPath = path.string();
+    strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
+    m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+    m_controller->setMusicDirectory(selectedPath);
+}
+
+void TesterView::onOggFileSelected(const std::filesystem::path& path) {
+    // Handle OGG file selection for adding to songs
+    std::string currentSong = m_controller->getCurrentSong();
+
+    if (std::filesystem::is_regular_file(path)) {
+        std::string sourcePath = path.string();
+        std::string filename = path.filename().string();
+
+        // Check if file already exists in the song folder
+        std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
+        std::filesystem::path destPath = songFolderPath / filename;
+
+        if (std::filesystem::exists(destPath)) {
+            // File already exists - show specific error
+            strcpy(m_errorMessage, ("File '" + filename + "' already exists in this song").c_str());
+            m_showErrorPopup = true;
+        } else {
+            // Try to copy the file
+            if (CopyOggFileToSong(sourcePath, currentSong)) {
+                // Add to current event
+                if (!m_controller->addTrackToCurrentEvent(filename)) {
+                    // Track already present or failed to add
+                }
+            } else {
+                strcpy(m_errorMessage, "Failed to copy .ogg file to song folder");
+                m_showErrorPopup = true;
+            }
+        }
+    }
+}
+
+void TesterView::RenderMenuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open Directory", "Ctrl+O")) {
+                m_showFileDialog = true;
+            }
+            if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
+                m_showOggFileDialog = true;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
+                // Signal to exit - this will be handled by the main loop
+                m_isRunning = false;
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Playback")) {
+            if (ImGui::MenuItem("Play", "Space")) {
+                m_controller->resumePlayback();
+            }
+            if (ImGui::MenuItem("Pause", "Space")) {
+                m_controller->pausePlayback();
+            }
+            if (ImGui::MenuItem("Stop", "S")) {
+                m_controller->toggleGlobalPlayback();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
+            if (ImGui::MenuItem("About")) {
+                // TODO: Implement about dialog
+                // For now, just show a simple message
+                strcpy(
+                    m_errorMessage,
+                    "Music Tester v0.1.0\nA tool for testing music synchronization and effects.");
+                m_showErrorPopup = true;
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+std::string TesterView::GetWindowTitle() {
+    std::string title = "Music Tester";
+
+    if (!m_controller->getCurrentSong().empty()) {
+        title += " - " + m_controller->getCurrentSong();
+    }
+
+    if (!m_currentProject.empty()) {
+        title += " [" + m_currentProject + "]";
+    }
+
+    return title;
 }

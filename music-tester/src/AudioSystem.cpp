@@ -1461,4 +1461,110 @@ namespace AudioTester {
         return false;
     }
 
+    void AudioSystem::calculateMasterDuration() {
+        if (m_tracks.empty()) {
+            m_syncState.masterDuration = 0.0;
+            m_syncState.masterTrackIndex = 0;
+            return;
+        }
+
+        // Find the shortest track duration (master clock)
+        double shortestDuration = std::numeric_limits<double>::max();
+        size_t shortestIndex = 0;
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            if (m_tracks[i].duration < shortestDuration) {
+                shortestDuration = m_tracks[i].duration;
+                shortestIndex = i;
+            }
+        }
+
+        m_syncState.masterDuration = shortestDuration;
+        m_syncState.masterTrackIndex = shortestIndex;
+
+        LOG_INFO("Master duration set to: " + std::to_string(m_syncState.masterDuration) +
+                 "s (track " + std::to_string(shortestIndex) + ")");
+    }
+
+    void AudioSystem::playAllTracks() {
+        if (!m_isInitialized || m_tracks.empty()) {
+            return;
+        }
+
+        // Only reset state if this is the very first play
+        if (!m_hasEverPlayed) {
+            // Stop all tracks first (only on first play)
+            stopAllTracks();
+
+            // Start all tracks simultaneously
+            for (size_t i = 0; i < m_tracks.size(); ++i) {
+                playTrack(i);
+            }
+
+            m_syncState.isPlaying = true;
+            m_syncState.globalTime = 0.0;
+            m_syncState.lastSyncCheck = 0.0;
+            m_hasEverPlayed = true;
+
+            LOG_INFO("Started synchronized playback of " + std::to_string(m_tracks.size()) +
+                     " tracks");
+        } else {
+            // Tracks have been played before - this should not happen in normal pause/resume flow
+            // But if it does, just resume from current state
+            LOG_INFO("playAllTracks called but tracks have been played before - resuming instead");
+            resumeAllTracks();
+        }
+    }
+
+    void AudioSystem::stopAllTracks() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            stopTrack(i);
+        }
+
+        m_syncState.isPlaying = false;
+        m_syncState.globalTime = 0.0;
+    }
+
+    void AudioSystem::pauseAllTracks() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        // Store current global time before pausing
+        if (m_syncState.isPlaying && m_syncState.masterTrackIndex < m_tracks.size() &&
+            m_tracks[m_syncState.masterTrackIndex].isPlaying) {
+            m_syncState.globalTime =
+                m_engine->get().getStreamPosition(m_tracks[m_syncState.masterTrackIndex].handle);
+        }
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            pauseTrack(i);
+        }
+
+        m_syncState.isPlaying = false;
+        // Don't reset globalTime - preserve it for resume
+    }
+
+    void AudioSystem::resumeAllTracks() {
+        if (!m_isInitialized || m_tracks.empty()) {
+            return;
+        }
+
+        // Resume all tracks from their paused positions
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            resumeTrack(i);
+        }
+
+        m_syncState.isPlaying = true;
+        // globalTime is already set from pause, just update lastSyncCheck
+        m_syncState.lastSyncCheck = m_syncState.globalTime;
+
+        LOG_INFO("Resumed synchronized playback of " + std::to_string(m_tracks.size()) +
+                 " tracks from position " + std::to_string(m_syncState.globalTime));
+    }
+
 } // namespace AudioTester
