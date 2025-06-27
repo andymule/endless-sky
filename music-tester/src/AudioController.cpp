@@ -117,28 +117,35 @@ namespace AudioTester {
 
     void AudioController::toggleGlobalPlayback() {
         if (m_state.globalPlaying) {
-            stopPlayback();
+            pausePlayback();
         } else {
-            startPlayback();
+            resumePlayback();
         }
     }
 
-    void AudioController::startPlayback() {
+    void AudioController::pausePlayback() {
         if (!m_isInitialized) {
             return;
         }
 
-        m_audioSystem.playAllTracks(); // Use synchronized playback
-        m_state.setGlobalPlaying(true);
-    }
-
-    void AudioController::stopPlayback() {
-        if (!m_isInitialized) {
-            return;
-        }
-
-        m_audioSystem.stopAllTracks(); // Use synchronized stop
+        m_audioSystem.pauseAllTracks(); // Use synchronized pause
         m_state.setGlobalPlaying(false);
+    }
+
+    void AudioController::resumePlayback() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        // Only resume from pause - if no tracks are paused, we need to start fresh
+        if (m_audioSystem.hasPausedTracks()) {
+            m_audioSystem.resumeAllTracks(); // Resume from paused position
+        } else {
+            // No paused tracks - this means we're starting fresh
+            // This should only happen on the very first play
+            m_audioSystem.playAllTracks(); // Start fresh
+        }
+        m_state.setGlobalPlaying(true);
     }
 
     void AudioController::setTrackVolume(size_t index, float volume) {

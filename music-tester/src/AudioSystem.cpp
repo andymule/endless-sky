@@ -148,6 +148,27 @@ namespace AudioTester {
             m_engine->get().stop(m_tracks[index].handle);
             m_tracks[index].handle = 0;
             m_tracks[index].isPlaying = false;
+            m_tracks[index].isPaused = false;
+        }
+    }
+
+    void AudioSystem::pauseTrack(size_t index) {
+        if (!m_isInitialized || index >= m_tracks.size())
+            return;
+
+        if (m_tracks[index].isPlaying && m_tracks[index].handle != 0) {
+            m_engine->get().setPause(m_tracks[index].handle, true);
+            m_tracks[index].isPaused = true;
+        }
+    }
+
+    void AudioSystem::resumeTrack(size_t index) {
+        if (!m_isInitialized || index >= m_tracks.size())
+            return;
+
+        if (m_tracks[index].isPaused && m_tracks[index].handle != 0) {
+            m_engine->get().setPause(m_tracks[index].handle, false);
+            m_tracks[index].isPaused = false;
         }
     }
 
@@ -1025,19 +1046,29 @@ namespace AudioTester {
             return;
         }
 
-        // Stop all tracks first
-        stopAllTracks();
+        // Only reset state if this is the very first play
+        if (!m_hasEverPlayed) {
+            // Stop all tracks first (only on first play)
+            stopAllTracks();
 
-        // Start all tracks simultaneously
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            playTrack(i);
+            // Start all tracks simultaneously
+            for (size_t i = 0; i < m_tracks.size(); ++i) {
+                playTrack(i);
+            }
+
+            m_syncState.isPlaying = true;
+            m_syncState.globalTime = 0.0;
+            m_syncState.lastSyncCheck = 0.0;
+            m_hasEverPlayed = true;
+
+            LOG_INFO("Started synchronized playback of " + std::to_string(m_tracks.size()) +
+                     " tracks");
+        } else {
+            // Tracks have been played before - this should not happen in normal pause/resume flow
+            // But if it does, just resume from current state
+            LOG_INFO("playAllTracks called but tracks have been played before - resuming instead");
+            resumeAllTracks();
         }
-
-        m_syncState.isPlaying = true;
-        m_syncState.globalTime = 0.0;
-        m_syncState.lastSyncCheck = 0.0;
-
-        LOG_INFO("Started synchronized playback of " + std::to_string(m_tracks.size()) + " tracks");
     }
 
     void AudioSystem::stopAllTracks() {
@@ -1051,6 +1082,44 @@ namespace AudioTester {
 
         m_syncState.isPlaying = false;
         m_syncState.globalTime = 0.0;
+    }
+
+    void AudioSystem::pauseAllTracks() {
+        if (!m_isInitialized) {
+            return;
+        }
+
+        // Store current global time before pausing
+        if (m_syncState.isPlaying && m_syncState.masterTrackIndex < m_tracks.size() &&
+            m_tracks[m_syncState.masterTrackIndex].isPlaying) {
+            m_syncState.globalTime =
+                m_engine->get().getStreamPosition(m_tracks[m_syncState.masterTrackIndex].handle);
+        }
+
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            pauseTrack(i);
+        }
+
+        m_syncState.isPlaying = false;
+        // Don't reset globalTime - preserve it for resume
+    }
+
+    void AudioSystem::resumeAllTracks() {
+        if (!m_isInitialized || m_tracks.empty()) {
+            return;
+        }
+
+        // Resume all tracks from their paused positions
+        for (size_t i = 0; i < m_tracks.size(); ++i) {
+            resumeTrack(i);
+        }
+
+        m_syncState.isPlaying = true;
+        // globalTime is already set from pause, just update lastSyncCheck
+        m_syncState.lastSyncCheck = m_syncState.globalTime;
+
+        LOG_INFO("Resumed synchronized playback of " + std::to_string(m_tracks.size()) +
+                 " tracks from position " + std::to_string(m_syncState.globalTime));
     }
 
     void AudioSystem::updateSync() {
@@ -1344,6 +1413,15 @@ namespace AudioTester {
         }
 
         return false; // Don't auto-enable for non-wet parameters of new filters
+    }
+
+    bool AudioSystem::hasPausedTracks() const {
+        for (const auto& track : m_tracks) {
+            if (track.isPaused) {
+                return true;
+            }
+        }
+        return false;
     }
 
 } // namespace AudioTester

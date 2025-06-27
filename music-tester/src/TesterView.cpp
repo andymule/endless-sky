@@ -152,7 +152,8 @@ void TesterView::RenderDirectoryInput() {
 void TesterView::RenderGlobalControls() {
     const auto& state = m_controller->getState();
 
-    if (ImGui::Button(state.globalPlaying ? "Stop" : "Play")) {
+    // Only show Pause/Play, never Stop
+    if (ImGui::Button(state.globalPlaying ? "Pause" : "Play")) {
         m_controller->toggleGlobalPlayback();
     }
 }

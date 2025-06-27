@@ -35,8 +35,8 @@ namespace AudioTester {
 
         // Playback control
         void toggleGlobalPlayback();
-        void startPlayback();
-        void stopPlayback();
+        void pausePlayback();
+        void resumePlayback();
 
         // Synchronization
         void updateSync(); // Call this regularly to maintain sync

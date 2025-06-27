@@ -143,6 +143,7 @@ namespace AudioTester {
         double duration = 0.0;   // Track duration in seconds
         unsigned int handle = 0; // SoLoud voice handle
         bool isPlaying = false;
+        bool isPaused = false;         // Track is paused (preserves position)
         double lastSyncCheck = 0.0;    // Last time we checked sync
         double expectedPosition = 0.0; // Expected playback position
     };
@@ -169,16 +170,21 @@ namespace AudioTester {
         void loadTrack(const std::string& path);
         void playTrack(size_t index);
         void stopTrack(size_t index);
+        void pauseTrack(size_t index);
+        void resumeTrack(size_t index);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
-        void playAllTracks(); // Play all tracks with sync
-        void stopAllTracks(); // Stop all tracks
+        void playAllTracks();   // Play all tracks with sync
+        void stopAllTracks();   // Stop all tracks
+        void pauseAllTracks();  // Pause all tracks (preserves position)
+        void resumeAllTracks(); // Resume all tracks from paused position
 
         // Synchronization
         void updateSync(); // Call this regularly to maintain sync
         double getMasterDuration() const { return m_syncState.masterDuration; }
         double getGlobalTime() const { return m_syncState.globalTime; }
         bool isPlaying() const { return m_syncState.isPlaying; }
+        bool hasPausedTracks() const; // Check if any tracks are paused
 
         // Bus management
         void setBusVolume(float volume);
@@ -275,6 +281,7 @@ namespace AudioTester {
         float m_granularTempo = 1.0f;     // Granular tempo multiplier (0.5x - 2.0x)
         float m_internalTapeSpeed = 1.0f; // Hidden: userTapeSpeed * granularTempo
         float m_pitchCompensation = 1.0f; // Hidden: 1.0 / granularTempo
+        bool m_hasEverPlayed = false;     // Track if tracks have ever been played
     };
 
 } // namespace AudioTester
