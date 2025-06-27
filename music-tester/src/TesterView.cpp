@@ -108,6 +108,8 @@ void TesterView::DiscoverAvailableProjects() {
                     // Use folder name instead of song name
                     std::string folderName = songs[0].folderPath.filename().string();
                     m_controller->setCurrentSong(folderName);
+                    // Clear last triggered events when auto-loading first song
+                    ClearLastTriggeredEvents();
                 }
             }
         }
@@ -824,9 +826,25 @@ void TesterView::RenderMasterEvents() {
             for (const auto& event : masterBus.events) {
                 ImGui::PushID(("master_" + event.name).c_str());
 
+                // Highlight if this is the last triggered master event
+                bool isLastTriggered = (event.name == m_lastTriggeredMasterEvent);
+
+                // Draw background highlight if this is the last triggered event
+                if (isLastTriggered) {
+                    ImGui::GetWindowDrawList()->AddRectFilled(
+                        ImGui::GetCursorScreenPos(),
+                        ImVec2(ImGui::GetCursorScreenPos().x + ImGui::GetWindowWidth() - 20,
+                               ImGui::GetCursorScreenPos().y +
+                                   ImGui::GetTextLineHeightWithSpacing()),
+                        ImGui::ColorConvertFloat4ToU32(
+                            ImVec4(1.0f, 1.0f, 0.8f, 0.3f)) // Light yellow
+                    );
+                }
+
                 // Event name and trigger button
                 if (ImGui::Button(("Trigger##" + event.name).c_str())) {
                     m_controller->triggerMasterEvent(event.name);
+                    SetLastTriggeredMasterEvent(event.name);
                 }
                 ImGui::SameLine();
 
@@ -840,6 +858,9 @@ void TesterView::RenderMasterEvents() {
                     ImGui::Text("Granular Tempo: %.2fx", event.state.granularTempo);
                     ImGui::Text("Volume: %.2f", event.state.volume);
                     ImGui::Text("Effects: %d", static_cast<int>(event.state.effects.size()));
+                    if (isLastTriggered) {
+                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Last Triggered");
+                    }
                     ImGui::EndTooltip();
                 }
 
@@ -849,6 +870,10 @@ void TesterView::RenderMasterEvents() {
                 if (RenderDeleteButton(deleteId, event.name.c_str())) {
                     // Event deletion confirmed
                     m_controller->deleteMasterEvent(event.name);
+                    // Clear tracking if this was the last triggered event
+                    if (isLastTriggered) {
+                        ClearLastTriggeredEvents();
+                    }
                 }
 
                 // Save button (disk icon) - new feature
@@ -904,10 +929,30 @@ void TesterView::RenderSongEvents() {
                         for (const auto& event : song.events) {
                             ImGui::PushID(event.name.c_str());
 
+                            // Highlight if this is the last triggered song event
+                            bool isLastTriggered =
+                                (song.folderPath.filename().string() == m_lastTriggeredSongName &&
+                                 event.name == m_lastTriggeredSongEvent);
+
+                            // Draw background highlight if this is the last triggered event
+                            if (isLastTriggered) {
+                                ImGui::GetWindowDrawList()->AddRectFilled(
+                                    ImGui::GetCursorScreenPos(),
+                                    ImVec2(ImGui::GetCursorScreenPos().x + ImGui::GetWindowWidth() -
+                                               20,
+                                           ImGui::GetCursorScreenPos().y +
+                                               ImGui::GetTextLineHeightWithSpacing()),
+                                    ImGui::ColorConvertFloat4ToU32(
+                                        ImVec4(1.0f, 1.0f, 0.8f, 0.3f)) // Light yellow
+                                );
+                            }
+
                             // Event trigger button
                             if (ImGui::Button(("Trigger##" + event.name).c_str())) {
                                 m_controller->triggerSongEvent(song.folderPath.filename().string(),
                                                                event.name);
+                                SetLastTriggeredSongEvent(song.folderPath.filename().string(),
+                                                          event.name);
                             }
                             ImGui::SameLine();
 
@@ -929,6 +974,10 @@ void TesterView::RenderSongEvents() {
                                                 track.file.c_str(), track.volume,
                                                 track.volume > 0.0f ? "audible" : "silent");
                                 }
+                                if (isLastTriggered) {
+                                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
+                                                       "Last Triggered");
+                                }
                                 ImGui::EndTooltip();
                             }
 
@@ -940,6 +989,10 @@ void TesterView::RenderSongEvents() {
                                 // Event deletion confirmed
                                 m_controller->deleteSongEvent(song.folderPath.filename().string(),
                                                               event.name);
+                                // Clear tracking if this was the last triggered event
+                                if (isLastTriggered) {
+                                    ClearLastTriggeredEvents();
+                                }
                             }
 
                             // Save button (disk icon) - new feature
@@ -1836,6 +1889,8 @@ void TesterView::RenderProjectSongDropdown() {
                         // Use folder name instead of song name
                         std::string folderName = songs[0].folderPath.filename().string();
                         m_controller->setCurrentSong(folderName);
+                        // Clear last triggered events when switching projects
+                        ClearLastTriggeredEvents();
                     }
                 }
             }
@@ -1872,6 +1927,8 @@ void TesterView::RenderProjectSongDropdown() {
 
                 if (ImGui::Selectable(("🎵 " + folderName).c_str(), songSelected)) {
                     m_controller->setCurrentSong(folderName);
+                    // Clear last triggered events when switching songs
+                    ClearLastTriggeredEvents();
                 }
 
                 if (songSelected) {
@@ -1897,4 +1954,23 @@ void TesterView::RenderProjectSongDropdown() {
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Refresh project list");
     }
+}
+
+// Event tracking methods implementation
+void TesterView::SetLastTriggeredMasterEvent(const std::string& eventName) {
+    m_lastTriggeredMasterEvent = eventName;
+    // Don't clear song event tracking - allow both to be highlighted independently
+}
+
+void TesterView::SetLastTriggeredSongEvent(const std::string& songName,
+                                           const std::string& eventName) {
+    m_lastTriggeredSongEvent = eventName;
+    m_lastTriggeredSongName = songName;
+    // Don't clear master event tracking - allow both to be highlighted independently
+}
+
+void TesterView::ClearLastTriggeredEvents() {
+    m_lastTriggeredMasterEvent = "";
+    m_lastTriggeredSongEvent = "";
+    m_lastTriggeredSongName = "";
 }

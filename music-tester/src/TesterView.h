@@ -68,6 +68,11 @@ public:
     void RenderMenuBar();
     std::string GetWindowTitle();
 
+    // Event tracking methods
+    void SetLastTriggeredMasterEvent(const std::string& eventName);
+    void SetLastTriggeredSongEvent(const std::string& songName, const std::string& eventName);
+    void ClearLastTriggeredEvents();
+
 private:
     void cleanup();
     void RenderMainWindow();
@@ -162,6 +167,11 @@ private:
     enum class EventCreationType { MASTER, SONG };
     EventCreationType m_eventCreationType = EventCreationType::MASTER;
     std::string m_targetSongName = ""; // For song events
+
+    // Last triggered event tracking (persists between song switches)
+    std::string m_lastTriggeredMasterEvent = "";
+    std::string m_lastTriggeredSongEvent = "";
+    std::string m_lastTriggeredSongName = ""; // Which song the last song event was from
 
     // Modular hold-to-action state (replaces old delete state)
     HoldActionState m_holdActionState;
