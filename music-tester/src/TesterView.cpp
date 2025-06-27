@@ -1504,106 +1504,154 @@ void TesterView::cleanup() {
     ImGui::DestroyContext();
 }
 
-void TesterView::RenderProjectSongDropdown() {
-    // Discover projects if needed
-    if (m_availableProjects.empty()) {
-        DiscoverAvailableProjects();
-    }
+void TesterView::RenderMenuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open Directory", "Ctrl+O")) {
+                m_showFileDialog = true;
+            }
+            if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
+                m_showOggFileDialog = true;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
+                // Signal to exit - this will be handled by the main loop
+                m_isRunning = false;
+            }
+            ImGui::EndMenu();
+        }
 
-    // Get current song
-    std::string currentSong = m_controller->getCurrentSong();
+        if (ImGui::BeginMenu("Playback")) {
+            if (ImGui::MenuItem("Play", "Space")) {
+                m_controller->resumePlayback();
+            }
+            if (ImGui::MenuItem("Pause", "Space")) {
+                m_controller->pausePlayback();
+            }
+            if (ImGui::MenuItem("Stop", "S")) {
+                m_controller->toggleGlobalPlayback();
+            }
+            ImGui::EndMenu();
+        }
 
-    // Project dropdown
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
-    ImGui::Text("Project:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(200.0f);
+        if (ImGui::BeginMenu("Help")) {
+            if (ImGui::MenuItem("About")) {
+                // TODO: Implement about dialog
+                // For now, just show a simple message
+                strcpy(
+                    m_errorMessage,
+                    "Music Tester v0.1.0\nA tool for testing music synchronization and effects.");
+                m_showErrorPopup = true;
+            }
+            ImGui::EndMenu();
+        }
 
-    std::string projectDisplayText = m_currentProject.empty() ? "No Project" : m_currentProject;
-    if (ImGui::BeginCombo("##project", projectDisplayText.c_str())) {
-        for (const auto& project : m_availableProjects) {
-            bool isSelected = (project == m_currentProject);
+        // Add spacing to push project/song dropdowns to the right
+        ImGui::SameLine(ImGui::GetWindowWidth() - 400);
 
-            if (ImGui::Selectable(("📁 " + project).c_str(), isSelected)) {
-                m_currentProject = project;
-                // Load the project directory
-                std::string projectPath = m_defaultDirectory + "/" + project;
-                m_controller->setMusicDirectory(projectPath);
+        // Project dropdown on menu bar
+        ImGui::Text("Project:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120.0f);
 
-                // Auto-select the first song in the new project
-                const auto* songManager = m_controller->getSongManager();
-                if (songManager) {
-                    const auto& songs = songManager->getSongs();
-                    if (!songs.empty()) {
-                        // Use folder name instead of song name
-                        std::string folderName = songs[0].folderPath.filename().string();
-                        m_controller->setCurrentSong(folderName);
-                        // Clear last triggered events when switching projects
-                        ClearLastTriggeredEvents();
+        // Discover projects if needed
+        if (m_availableProjects.empty()) {
+            DiscoverAvailableProjects();
+        }
+
+        std::string projectDisplayText = m_currentProject.empty() ? "No Project" : m_currentProject;
+        if (ImGui::BeginCombo("##project_menu", projectDisplayText.c_str())) {
+            for (const auto& project : m_availableProjects) {
+                bool isSelected = (project == m_currentProject);
+                if (ImGui::Selectable(("📁 " + project).c_str(), isSelected)) {
+                    m_currentProject = project;
+                    // Load the project directory
+                    std::string projectPath = m_defaultDirectory + "/" + project;
+                    m_controller->setMusicDirectory(projectPath);
+
+                    // Auto-select the first song in the new project
+                    const auto* songManager = m_controller->getSongManager();
+                    if (songManager) {
+                        const auto& songs = songManager->getSongs();
+                        if (!songs.empty()) {
+                            // Use folder name instead of song name
+                            std::string folderName = songs[0].folderPath.filename().string();
+                            m_controller->setCurrentSong(folderName);
+                            // Clear last triggered events when switching projects
+                            ClearLastTriggeredEvents();
+                        }
                     }
                 }
-            }
-
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-
-        if (m_availableProjects.empty()) {
-            ImGui::TextDisabled("No projects found");
-        }
-
-        ImGui::EndCombo();
-    }
-
-    // Song dropdown
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10.0f);
-    ImGui::Text("Song:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(200.0f);
-
-    std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
-    if (ImGui::BeginCombo("##song", songDisplayText.c_str())) {
-        const auto* songManager = m_controller->getSongManager();
-        if (songManager) {
-            const auto& songs = songManager->getSongs();
-
-            for (const auto& song : songs) {
-                // Use folder name instead of song name for consistency
-                std::string folderName = song.folderPath.filename().string();
-                bool songSelected = (folderName == currentSong);
-
-                if (ImGui::Selectable(("🎵 " + folderName).c_str(), songSelected)) {
-                    m_controller->setCurrentSong(folderName);
-                    // Clear last triggered events when switching songs
-                    ClearLastTriggeredEvents();
-                }
-
-                if (songSelected) {
+                if (isSelected) {
                     ImGui::SetItemDefaultFocus();
                 }
             }
-
-            if (songs.empty()) {
-                ImGui::TextDisabled("No songs in project");
-            }
-        } else {
-            ImGui::TextDisabled("No song manager");
+            ImGui::EndCombo();
         }
 
-        ImGui::EndCombo();
+        // Song dropdown on menu bar
+        ImGui::SameLine();
+        ImGui::Text("Song:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120.0f);
+
+        std::string currentSong = m_controller->getCurrentSong();
+        std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
+        if (ImGui::BeginCombo("##song_menu", songDisplayText.c_str())) {
+            const auto* songManager = m_controller->getSongManager();
+            if (songManager) {
+                const auto& songs = songManager->getSongs();
+
+                for (const auto& song : songs) {
+                    // Use folder name instead of song name for consistency
+                    std::string folderName = song.folderPath.filename().string();
+                    bool songSelected = (folderName == currentSong);
+
+                    if (ImGui::Selectable(("🎵 " + folderName).c_str(), songSelected)) {
+                        m_controller->setCurrentSong(folderName);
+                        // Clear last triggered events when switching songs
+                        ClearLastTriggeredEvents();
+                    }
+
+                    if (songSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+
+                if (songs.empty()) {
+                    ImGui::TextDisabled("No songs in project");
+                }
+            } else {
+                ImGui::TextDisabled("No song manager");
+            }
+            ImGui::EndCombo();
+        }
+
+        // Refresh button on menu bar
+        ImGui::SameLine();
+        if (ImGui::Button("🔄")) {
+            DiscoverAvailableProjects();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Refresh project list");
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+std::string TesterView::GetWindowTitle() {
+    std::string title = "Music Tester";
+
+    if (!m_controller->getCurrentSong().empty()) {
+        title += " - " + m_controller->getCurrentSong();
     }
 
-    // Refresh button
-    ImGui::SameLine();
-    if (ImGui::Button("🔄")) {
-        DiscoverAvailableProjects();
+    if (!m_currentProject.empty()) {
+        title += " [" + m_currentProject + "]";
     }
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Refresh project list");
-    }
+
+    return title;
 }
 
 // Event tracking methods implementation
@@ -1662,64 +1710,4 @@ void TesterView::onOggFileSelected(const std::filesystem::path& path) {
             }
         }
     }
-}
-
-void TesterView::RenderMenuBar() {
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open Directory", "Ctrl+O")) {
-                m_showFileDialog = true;
-            }
-            if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
-                m_showOggFileDialog = true;
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
-                // Signal to exit - this will be handled by the main loop
-                m_isRunning = false;
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Playback")) {
-            if (ImGui::MenuItem("Play", "Space")) {
-                m_controller->resumePlayback();
-            }
-            if (ImGui::MenuItem("Pause", "Space")) {
-                m_controller->pausePlayback();
-            }
-            if (ImGui::MenuItem("Stop", "S")) {
-                m_controller->toggleGlobalPlayback();
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Help")) {
-            if (ImGui::MenuItem("About")) {
-                // TODO: Implement about dialog
-                // For now, just show a simple message
-                strcpy(
-                    m_errorMessage,
-                    "Music Tester v0.1.0\nA tool for testing music synchronization and effects.");
-                m_showErrorPopup = true;
-            }
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMainMenuBar();
-    }
-}
-
-std::string TesterView::GetWindowTitle() {
-    std::string title = "Music Tester";
-
-    if (!m_controller->getCurrentSong().empty()) {
-        title += " - " + m_controller->getCurrentSong();
-    }
-
-    if (!m_currentProject.empty()) {
-        title += " [" + m_currentProject + "]";
-    }
-
-    return title;
 }
