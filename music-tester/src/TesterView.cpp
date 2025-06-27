@@ -215,6 +215,14 @@ void TesterView::RenderTrackControls() {
         std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
         ImGui::Text("[%s] %s", keyText.c_str(), track.name.c_str());
 
+        // Delete button for track (positioned to the right)
+        ImGui::SameLine();
+        std::string trackDeleteId = "track_delete_" + track.name;
+        if (RenderDeleteButton(trackDeleteId, track.name.c_str())) {
+            // Track was deleted
+            m_controller->removeTrackFromCurrentSong(track.name);
+        }
+
         // Volume slider (primary control for enable/disable)
         float volume = track.volume;
         if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
@@ -228,7 +236,6 @@ void TesterView::RenderTrackControls() {
         }
 
         ImGui::PopID();
-        ImGui::Separator();
     }
 }
 
@@ -1602,8 +1609,8 @@ void TesterView::RenderOggFileDialog() {
                             }
                             ImGui::CloseCurrentPopup();
                             m_showOggFileDialog = false;
-                            // Reload the directory to show the new file
-                            m_controller->setMusicDirectory(m_controller->getCurrentDirectory());
+                            // Don't reload the directory - this causes audio system state reset
+                            // The track is already added to the system via addTrackToCurrentEvent
                         } else {
                             std::cout << "Copy failed!" << std::endl;
                             strcpy(m_errorMessage, "Failed to copy .ogg file to song folder");

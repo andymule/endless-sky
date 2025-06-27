@@ -188,6 +188,29 @@ namespace AudioTester {
         m_tracks[index].wav->setLooping(looping);
     }
 
+    void AudioSystem::removeTrack(size_t index) {
+        if (!m_isInitialized || index >= m_tracks.size())
+            return;
+
+        // Stop the track if it's playing
+        if (m_tracks[index].isPlaying && m_tracks[index].handle != 0) {
+            m_engine->get().stop(m_tracks[index].handle);
+        }
+
+        // Remove the track from the tracks vector
+        m_tracks.erase(m_tracks.begin() + index);
+
+        // Remove the corresponding filter data
+        if (index < m_trackFilters.size()) {
+            m_trackFilters.erase(m_trackFilters.begin() + index);
+        }
+
+        // Recalculate master duration since track count changed
+        calculateMasterDuration();
+
+        LOG_INFO("Removed track " + std::to_string(index) + " from audio system");
+    }
+
     void AudioSystem::setBusVolume(float volume) {
         m_busVolume = volume;
         if (m_busHandle)

@@ -95,6 +95,13 @@ namespace AudioTester {
             notifyChanged();
         }
 
+        void removeTrack(size_t index) {
+            if (index < tracks.size()) {
+                tracks.erase(tracks.begin() + index);
+                notifyChanged();
+            }
+        }
+
         void setTrackVolume(size_t index, float volume) {
             if (index < tracks.size()) {
                 tracks[index].volume = volume;

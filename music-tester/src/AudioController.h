@@ -121,6 +121,9 @@ namespace AudioTester {
         // New method to add a track to the current event of the current song and save the song JSON
         bool addTrackToCurrentEvent(const std::string& filename);
 
+        // Remove a track from the current song's events
+        bool removeTrackFromCurrentSong(const std::string& filename);
+
     private:
         void syncTrackToAudioSystem(size_t index);
         void syncAllTracksToAudioSystem();

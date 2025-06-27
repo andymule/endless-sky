@@ -67,14 +67,14 @@ namespace AudioTester {
             song.name = json.value("name", songFolder.filename().string());
             song.folderPath = songFolder;
 
-            // Discover tracks in the folder
+            // Discover tracks in the folder (this is the source of truth)
             auto trackFiles = discoverTracks(songFolder);
             if (trackFiles.empty()) {
                 logError("No audio tracks found in: " + songFolder.string());
                 return false;
             }
 
-            // Parse events
+            // Parse events and ensure all folder tracks are included
             if (json.contains("events") && json["events"].is_array()) {
                 for (const auto& eventJson : json["events"]) {
                     SongEvent event;
@@ -88,13 +88,50 @@ namespace AudioTester {
                         }
                     }
 
+                    // Ensure all tracks from the folder are included in this event
+                    for (const auto& trackFile : trackFiles) {
+                        // Check if this track is already in the event
+                        bool trackExists = false;
+                        for (const auto& existingTrack : event.state.tracks) {
+                            if (existingTrack.file == trackFile) {
+                                trackExists = true;
+                                break;
+                            }
+                        }
+
+                        // If track is not in the event, add it with default settings
+                        if (!trackExists) {
+                            TrackStateExtended newTrack;
+                            newTrack.file = trackFile;
+                            newTrack.volume = 1.0f; // Default volume
+                            event.state.tracks.push_back(newTrack);
+                            logInfo("Added missing track to event: " + trackFile);
+                        }
+                    }
+
                     song.events.push_back(event);
                 }
+            } else {
+                // No events in JSON, create a default event with all tracks
+                SongEvent defaultEvent;
+                defaultEvent.name = "Default";
+                defaultEvent.fadeTime = 1.0f;
+
+                for (const auto& trackFile : trackFiles) {
+                    TrackStateExtended track;
+                    track.file = trackFile;
+                    track.volume = 1.0f;
+                    defaultEvent.state.tracks.push_back(track);
+                }
+
+                song.events.push_back(defaultEvent);
+                logInfo("Created default event with " + std::to_string(trackFiles.size()) +
+                        " tracks");
             }
 
             m_songs.push_back(song);
             logInfo("Loaded song: " + song.name + " (" + std::to_string(song.events.size()) +
-                    " events)");
+                    " events, " + std::to_string(trackFiles.size()) + " tracks)");
             return true;
 
         } catch (const std::exception& e) {

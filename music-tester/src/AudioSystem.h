@@ -174,8 +174,10 @@ namespace AudioTester {
         void resumeTrack(size_t index);
         void setTrackVolume(size_t index, float volume);
         void setTrackLooping(size_t index, bool looping);
-        void playAllTracks();   // Play all tracks with sync
-        void stopAllTracks();   // Stop all tracks
+        void removeTrack(size_t index); // Remove track completely from audio system
+        size_t getTrackCount() const { return m_tracks.size(); } // Get number of tracks
+        void playAllTracks();                                    // Play all tracks with sync
+        void stopAllTracks();                                    // Stop all tracks
         void pauseAllTracks();  // Pause all tracks (preserves position)
         void resumeAllTracks(); // Resume all tracks from paused position
 

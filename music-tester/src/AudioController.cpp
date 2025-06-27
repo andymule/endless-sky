@@ -734,6 +734,7 @@ namespace AudioTester {
             if (track.file == filename)
                 return false; // Already present
         }
+
         // Add new track with default volume and no effects
         TrackStateExtended newTrack;
         newTrack.file = filename;
@@ -744,8 +745,103 @@ namespace AudioTester {
         if (!mgr->saveSongJson(song->name))
             return false;
 
-        // Reload songs from directory to update UI
-        loadMusicFromDirectory();
+        // Smart track addition: only add the new track to the system
+        // Find the track file in the song folder
+        std::filesystem::path trackPath = song->folderPath / filename;
+        if (std::filesystem::exists(trackPath)) {
+            // Add to state with the track filename as the name
+            m_state.addTrack(filename, trackPath.string());
+            // Load into audio system
+            m_audioSystem.loadTrack(trackPath.string());
+            // Get the actual track index from AudioSystem (should be the last one)
+            size_t trackIndex = m_audioSystem.getTrackCount() - 1;
+            // Ensure track is set to loop (tracks should always loop in a song)
+            m_audioSystem.setTrackLooping(trackIndex, true);
+
+            // Sync the new track to audio system
+            syncTrackToAudioSystem(trackIndex);
+
+            // If the song is currently playing, start the new track at the current position
+            if (m_audioSystem.isPlaying()) {
+                // Get current playback position from the master track
+                double currentTime = m_audioSystem.getGlobalTime();
+                // Start the new track at the current position
+                m_audioSystem.playTrack(trackIndex);
+                // Seek to the current position to sync with other tracks
+                if (currentTime > 0.0) {
+                    // Note: SoLoud will handle the seeking automatically when the track starts
+                    // The track will be in sync with the others
+                }
+            }
+
+            LOG_INFO_COMP("AudioController", "Smart-added track: " + filename + " to system");
+            return true;
+        } else {
+            LOG_ERROR_COMP("AudioController", "Track file not found: " + trackPath.string());
+            return false;
+        }
+    }
+
+    bool AudioController::removeTrackFromCurrentSong(const std::string& filename) {
+        // Get the current song
+        SongManager* mgr = getSongManagerMutable();
+        if (!mgr)
+            return false;
+        Song* song = const_cast<Song*>(mgr->findSong(m_currentSongName));
+        if (!song)
+            return false;
+
+        // Delete the actual file from the song folder
+        std::filesystem::path filePath = song->folderPath / filename;
+        if (std::filesystem::exists(filePath)) {
+            try {
+                std::filesystem::remove(filePath);
+                LOG_INFO_COMP("AudioController", "Deleted file: " + filePath.string());
+            } catch (const std::exception& e) {
+                LOG_ERROR_COMP("AudioController",
+                               "Failed to delete file: " + std::string(e.what()));
+                return false;
+            }
+        } else {
+            LOG_WARN_COMP("AudioController", "File not found for deletion: " + filePath.string());
+        }
+
+        bool trackRemoved = false;
+
+        // Remove the track from all events in the song
+        for (auto& event : song->events) {
+            auto it = std::find_if(
+                event.state.tracks.begin(), event.state.tracks.end(),
+                [&filename](const TrackStateExtended& track) { return track.file == filename; });
+            if (it != event.state.tracks.end()) {
+                event.state.tracks.erase(it);
+                trackRemoved = true;
+            }
+        }
+
+        if (!trackRemoved) {
+            LOG_WARN_COMP("AudioController", "Track not found in song events: " + filename);
+            // Still return true since we deleted the file
+            return true;
+        }
+
+        // Save song JSON
+        if (!mgr->saveSongJson(song->name)) {
+            LOG_ERROR_COMP("AudioController", "Failed to save song after removing track");
+            return false;
+        }
+
+        // Remove from AudioState and AudioSystem
+        int trackIndex = findTrackByFilename(filename);
+        if (trackIndex >= 0) {
+            // Remove from AudioSystem completely
+            m_audioSystem.removeTrack(trackIndex);
+
+            // Remove from AudioState
+            m_state.removeTrack(trackIndex);
+        }
+
+        LOG_INFO_COMP("AudioController", "Removed track: " + filename + " from song");
         return true;
     }
 
