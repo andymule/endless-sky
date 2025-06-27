@@ -4,6 +4,7 @@
 #include "SongManager.h"
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <set>
 
 namespace AudioTester {
@@ -114,45 +115,25 @@ namespace AudioTester {
         LOG_INFO_COMP("EventSystem",
                       "Starting song transition (" + std::to_string(fadeTime) + "s)");
 
-        // For elegant cancelling: Always capture the current LIVE state
-        // If we're mid-transition, this gets the interpolated state, not the original start
-        if (m_inTransition && m_transitionType == TransitionType::SONG) {
-            // We're already in a song transition - capture the current interpolated state
-            float rawT = m_currentTime / m_targetTime;
-            float easedT = easeInOut(rawT);
+        // Always capture the current LIVE audio system state
+        // This ensures we always lerp from the actual current position, not from interpolated
+        // states
+        m_startState = captureCurrentSongState();
 
-            // Create current interpolated state as new starting point
-            StateSnapshot currentState;
-            currentState.masterTempo =
-                lerp(m_startState.masterTempo, m_targetState.masterTempo, easedT);
-            currentState.granularTempo =
-                lerp(m_startState.granularTempo, m_targetState.granularTempo, easedT);
-
-            // Interpolate current track states
-            size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
-            currentState.tracks.resize(maxTracks);
-
-            for (size_t i = 0; i < maxTracks; ++i) {
-                if (i < m_startState.tracks.size() && i < m_targetState.tracks.size()) {
-                    const auto& startTrack = m_startState.tracks[i];
-                    const auto& targetTrack = m_targetState.tracks[i];
-
-                    TrackStateExtended& currentTrack = currentState.tracks[i];
-                    currentTrack.file = targetTrack.file;
-                    currentTrack.volume = lerp(startTrack.volume, targetTrack.volume, easedT);
-
-                    // For effects, use target effects (simplified for now)
-                    currentTrack.effects = targetTrack.effects;
-                } else if (i < m_targetState.tracks.size()) {
-                    currentState.tracks[i] = m_targetState.tracks[i];
+        // Debug: Show what was captured in the start state
+        LOG_INFO_COMP("EventSystem", "Captured start state:");
+        for (const auto& track : m_startState.tracks) {
+            std::string trackInfo =
+                "  Track: " + track.file + " (vol: " + std::to_string(track.volume) + ")";
+            if (!track.effects.empty()) {
+                trackInfo += " Effects: ";
+                for (const auto& [effectName, effect] : track.effects) {
+                    auto wetIt = effect.parameters.find("0");
+                    float wet = (wetIt != effect.parameters.end()) ? wetIt->second : 0.0f;
+                    trackInfo += effectName + "(" + std::to_string(wet) + ") ";
                 }
             }
-
-            m_startState = currentState;
-        } else {
-            // Not in transition or different transition type - capture fresh state
-            // This handles cross-transition (master->song) elegantly
-            m_startState = captureCurrentSongState();
+            LOG_INFO_COMP("EventSystem", trackInfo);
         }
 
         m_targetState = target;
@@ -169,30 +150,10 @@ namespace AudioTester {
         LOG_INFO_COMP("EventSystem",
                       "Starting master transition (" + std::to_string(fadeTime) + "s)");
 
-        // For elegant cancelling: Always capture the current LIVE state
-        if (m_inTransition && m_transitionType == TransitionType::MASTER) {
-            // We're already in a master transition - capture the current interpolated state
-            float rawT = m_currentTime / m_targetTime;
-            float easedT = easeInOut(rawT);
-
-            // Create current interpolated state as new starting point
-            MasterBusState currentState;
-            currentState.masterTempo =
-                lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, easedT);
-            currentState.granularTempo =
-                lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, easedT);
-            currentState.volume =
-                lerp(m_startMasterState.volume, m_targetMasterState.volume, easedT);
-
-            // For effects, use target effects (simplified for now)
-            currentState.effects = m_targetMasterState.effects;
-
-            m_startMasterState = currentState;
-        } else {
-            // Not in transition or different transition type - capture fresh state
-            // This handles cross-transition (song->master) elegantly
-            m_startMasterState = captureCurrentMasterState();
-        }
+        // Always capture the current LIVE audio system state
+        // This ensures we always lerp from the actual current position, not from interpolated
+        // states
+        m_startMasterState = captureCurrentMasterState();
 
         m_targetMasterState = target;
 
@@ -211,60 +172,158 @@ namespace AudioTester {
             lerpedState.granularTempo =
                 lerp(m_startState.granularTempo, m_targetState.granularTempo, t);
 
-            size_t maxTracks = std::max(m_startState.tracks.size(), m_targetState.tracks.size());
-            lerpedState.tracks.resize(maxTracks);
+            // Create maps for efficient track lookup by filename
+            std::map<std::string, const TrackStateExtended*> startTracks;
+            std::map<std::string, const TrackStateExtended*> targetTracks;
 
-            for (size_t i = 0; i < maxTracks; ++i) {
-                // Defensive: check bounds for both start and target
-                const TrackStateExtended* targetTrack =
-                    (i < m_targetState.tracks.size()) ? &m_targetState.tracks[i] : nullptr;
+            for (const auto& track : m_startState.tracks) {
+                startTracks[track.file] = &track;
+            }
+            for (const auto& track : m_targetState.tracks) {
+                targetTracks[track.file] = &track;
+            }
+
+            // Get all unique track filenames from both states
+            std::set<std::string> allTrackFiles;
+            for (const auto& track : m_startState.tracks) {
+                allTrackFiles.insert(track.file);
+            }
+            for (const auto& track : m_targetState.tracks) {
+                allTrackFiles.insert(track.file);
+            }
+
+            // Process each unique track
+            for (const auto& trackFile : allTrackFiles) {
                 const TrackStateExtended* startTrack =
-                    (i < m_startState.tracks.size()) ? &m_startState.tracks[i] : nullptr;
-                TrackStateExtended& lerpedTrack = lerpedState.tracks[i];
+                    startTracks.count(trackFile) ? startTracks[trackFile] : nullptr;
+                const TrackStateExtended* targetTrack =
+                    targetTracks.count(trackFile) ? targetTracks[trackFile] : nullptr;
 
-                if (targetTrack)
-                    lerpedTrack.file = targetTrack->file;
-                else if (startTrack)
-                    lerpedTrack.file = startTrack->file;
-                else
-                    lerpedTrack.file = "";
+                // Create lerped track
+                TrackStateExtended lerpedTrack;
+                lerpedTrack.file = trackFile;
 
                 // Volume
                 float startVol = startTrack ? startTrack->volume : 1.0f;
                 float targetVol = targetTrack ? targetTrack->volume : 1.0f;
                 lerpedTrack.volume = lerp(startVol, targetVol, t);
 
-                // Effects: union of all effect names in start and target
-                std::set<std::string> allEffects;
-                if (startTrack)
-                    for (const auto& [ename, _] : startTrack->effects) allEffects.insert(ename);
-                if (targetTrack)
-                    for (const auto& [ename, _] : targetTrack->effects) allEffects.insert(ename);
+                // Debug logging only at start (t=0) and end (t=1) of transition
+                if (t < 0.001f || t > 0.999f) {
+                    if (startVol > 0.0f || targetVol > 0.0f) {
+                        LOG_INFO_COMP("EventSystem",
+                                      "Lerping volume - Start vol: " + std::to_string(startVol) +
+                                          ", End vol: " + std::to_string(targetVol) +
+                                          ", t: " + std::to_string(t));
+                    }
 
-                for (const auto& effectName : allEffects) {
-                    const EffectState* startEff =
-                        (startTrack && startTrack->effects.count(effectName))
-                            ? &startTrack->effects.at(effectName)
-                            : nullptr;
-                    const EffectState* targetEff =
-                        (targetTrack && targetTrack->effects.count(effectName))
-                            ? &targetTrack->effects.at(effectName)
-                            : nullptr;
+                    // Show which track is being processed
+                    LOG_INFO_COMP("EventSystem", "Processing track: " + trackFile);
 
-                    if (startEff && targetEff) {
-                        lerpEffectState(*startEff, *targetEff, lerpedTrack.effects[effectName], t);
-                    } else if (targetEff) {
-                        // No start, lerp from zero wet
-                        EffectState zeroStart = *targetEff;
-                        zeroStart.parameters["0"] = 0.0f;
-                        lerpEffectState(zeroStart, *targetEff, lerpedTrack.effects[effectName], t);
-                    } else if (startEff) {
-                        // No target, lerp to zero wet
-                        EffectState zeroTarget = *startEff;
-                        zeroTarget.parameters["0"] = 0.0f;
-                        lerpEffectState(*startEff, zeroTarget, lerpedTrack.effects[effectName], t);
+                    // Show track matching info
+                    if (targetTrack && startTrack) {
+                        LOG_INFO_COMP("EventSystem", "  Track matched: " + targetTrack->file +
+                                                         " (target) with " + startTrack->file +
+                                                         " (start)");
+                    } else if (targetTrack) {
+                        LOG_INFO_COMP("EventSystem", "  Track target only: " + targetTrack->file);
+                    } else if (startTrack) {
+                        LOG_INFO_COMP("EventSystem", "  Track start only: " + startTrack->file);
                     }
                 }
+
+                // Effects processing - process ALL tracks
+                if (targetTrack) {
+                    // Track is specified in target event - process its effects
+                    std::set<std::string> allEffects;
+                    // Include all effects from current state (to handle fade-outs)
+                    if (startTrack) {
+                        for (const auto& [ename, _] : startTrack->effects) {
+                            allEffects.insert(ename);
+                        }
+                    }
+                    // Include all effects from target state (to handle fade-ins)
+                    for (const auto& [ename, _] : targetTrack->effects) {
+                        allEffects.insert(ename);
+                    }
+
+                    // Debug logging only at start (t=0) and end (t=1) of transition
+                    if (t < 0.001f || t > 0.999f) {
+                        // Show effects being processed for this track
+                        if (!allEffects.empty()) {
+                            std::string effectList = "Track effects: ";
+                            for (const auto& effect : allEffects) {
+                                effectList += effect + " ";
+                            }
+                            LOG_INFO_COMP("EventSystem", effectList);
+                        }
+                    }
+
+                    for (const auto& effectName : allEffects) {
+                        const EffectState* startEff =
+                            (startTrack && startTrack->effects.count(effectName))
+                                ? &startTrack->effects.at(effectName)
+                                : nullptr;
+                        const EffectState* targetEff = targetTrack->effects.count(effectName)
+                                                           ? &targetTrack->effects.at(effectName)
+                                                           : nullptr;
+
+                        if (startEff && targetEff) {
+                            // Both states have this effect - lerp between them
+                            lerpEffectState(*startEff, *targetEff, lerpedTrack.effects[effectName],
+                                            t);
+                        } else if (targetEff) {
+                            // Only target has this effect - fade in from zero
+                            EffectState zeroStart;
+                            // Create a proper zero state with all parameters at 0
+                            for (const auto& [paramName, targetValue] : targetEff->parameters) {
+                                zeroStart.parameters[paramName] = 0.0f;
+                            }
+                            lerpEffectState(zeroStart, *targetEff, lerpedTrack.effects[effectName],
+                                            t);
+                        } else if (startEff) {
+                            // Only start has this effect - fade out to zero
+                            EffectState zeroTarget = *startEff;
+                            zeroTarget.parameters["0"] = 0.0f; // Set wet to 0
+
+                            // Debug logging only at start (t=0) and end (t=1) of transition
+                            if (t < 0.001f || t > 0.999f) {
+                                LOG_INFO_COMP("EventSystem",
+                                              "Fading out effect: " + effectName + " from wet: " +
+                                                  std::to_string(startEff->parameters.count("0")
+                                                                     ? startEff->parameters.at("0")
+                                                                     : 0.0f) +
+                                                  " to 0.0");
+                            }
+
+                            lerpEffectState(*startEff, zeroTarget, lerpedTrack.effects[effectName],
+                                            t);
+                        }
+                    }
+                } else if (startTrack) {
+                    // Track is NOT in target event but exists in current state - fade out ALL
+                    // effects
+                    for (const auto& [effectName, startEffect] : startTrack->effects) {
+                        EffectState zeroTarget = startEffect;
+                        zeroTarget.parameters["0"] = 0.0f; // Set wet to 0
+
+                        // Debug logging only at start (t=0) and end (t=1) of transition
+                        if (t < 0.001f || t > 0.999f) {
+                            LOG_INFO_COMP("EventSystem",
+                                          "Fading out effect: " + effectName + " from wet: " +
+                                              std::to_string(startEffect.parameters.count("0")
+                                                                 ? startEffect.parameters.at("0")
+                                                                 : 0.0f) +
+                                              " to 0.0 (track not in target)");
+                        }
+
+                        lerpEffectState(startEffect, zeroTarget, lerpedTrack.effects[effectName],
+                                        t);
+                    }
+                }
+
+                // Add the lerped track to the result
+                lerpedState.tracks.push_back(lerpedTrack);
             }
             applyStateSnapshot(lerpedState);
         } else if (m_transitionType == TransitionType::MASTER) {
@@ -275,9 +334,11 @@ namespace AudioTester {
                 lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, t);
             lerpedState.volume = lerp(m_startMasterState.volume, m_targetMasterState.volume, t);
 
-            // Effects: union of all effect names in start and target
+            // Effects: process ALL effects from current state, plus any new effects in target
             std::set<std::string> allEffects;
+            // Include all effects from current state (to handle fade-outs)
             for (const auto& [ename, _] : m_startMasterState.effects) allEffects.insert(ename);
+            // Include all effects from target state (to handle fade-ins)
             for (const auto& [ename, _] : m_targetMasterState.effects) allEffects.insert(ename);
 
             for (const auto& effectName : allEffects) {
@@ -289,14 +350,20 @@ namespace AudioTester {
                                                    : nullptr;
 
                 if (startEff && targetEff) {
+                    // Both states have this effect - lerp between them
                     lerpEffectState(*startEff, *targetEff, lerpedState.effects[effectName], t);
                 } else if (targetEff) {
-                    EffectState zeroStart = *targetEff;
-                    zeroStart.parameters["0"] = 0.0f;
+                    // Only target has this effect - fade in from zero
+                    EffectState zeroStart;
+                    // Create a proper zero state with all parameters at 0
+                    for (const auto& [paramName, targetValue] : targetEff->parameters) {
+                        zeroStart.parameters[paramName] = 0.0f;
+                    }
                     lerpEffectState(zeroStart, *targetEff, lerpedState.effects[effectName], t);
                 } else if (startEff) {
+                    // Only start has this effect - fade out to zero
                     EffectState zeroTarget = *startEff;
-                    zeroTarget.parameters["0"] = 0.0f;
+                    zeroTarget.parameters["0"] = 0.0f; // Set wet to 0
                     lerpEffectState(*startEff, zeroTarget, lerpedState.effects[effectName], t);
                 }
             }
@@ -410,7 +477,7 @@ namespace AudioTester {
         state.masterTempo = m_controller->getMasterTempo();
         state.granularTempo = m_controller->getGranularTempo();
 
-        // Capture tracks with complete effect states
+        // Capture tracks with complete effect states from CURRENT audio system
         const auto& audioState = m_controller->getState();
         const auto& audioSystem = m_controller->getAudioSystem();
 
@@ -422,14 +489,17 @@ namespace AudioTester {
             extendedTrack.file = std::filesystem::path(track.filepath).filename().string();
             extendedTrack.volume = track.volume;
 
-            // Capture only effects with wet > 0 (enabled effects)
+            // Capture only effects with wet > 0 from current audio system
             for (const auto& [filterName, filterInstance] : trackFilters) {
-                if (filterInstance.enabled) {
+                // Check if this effect has wet > 0 (is actually active)
+                auto wetParam = filterInstance.parameters.find(0); // Wet is usually param ID 0
+                if (wetParam != filterInstance.parameters.end() && wetParam->second.value > 0.0f) {
                     EffectState effectState;
-                    // Store all parameters including wet level
+                    // Store all parameters including the ACTUAL current wet level
                     for (const auto& [paramId, param] : filterInstance.parameters) {
                         effectState.parameters[std::to_string(paramId)] = param.value;
                     }
+                    // Only include effects that are actually active (wet > 0)
                     extendedTrack.effects[filterName] = effectState;
                 }
             }
@@ -453,17 +523,20 @@ namespace AudioTester {
         // Capture bus volume
         state.volume = m_controller->getState().busVolume;
 
-        // Capture master effects with complete effect states
+        // Capture ALL master effects from current audio system with their ACTUAL wet levels
         const auto& busFilters = m_controller->getAudioSystem().getBusFilters();
 
-        // Capture only effects with wet > 0 (enabled effects)
+        // Capture only effects with wet > 0 from current audio system
         for (const auto& [filterName, filterInstance] : busFilters) {
-            if (filterInstance.enabled) {
+            // Check if this effect has wet > 0 (is actually active)
+            auto wetParam = filterInstance.parameters.find(0); // Wet is usually param ID 0
+            if (wetParam != filterInstance.parameters.end() && wetParam->second.value > 0.0f) {
                 EffectState effectState;
-                // Store all parameters including wet level
+                // Store all parameters including the ACTUAL current wet level
                 for (const auto& [paramId, param] : filterInstance.parameters) {
                     effectState.parameters[std::to_string(paramId)] = param.value;
                 }
+                // Only include effects that are actually active (wet > 0)
                 state.effects[filterName] = effectState;
             }
         }
@@ -491,6 +564,17 @@ namespace AudioTester {
             endWet = it->second;
             hasEndWet = true;
         }
+
+        // Debug logging only at start (t=0) and end (t=1) of transition
+        if (t < 0.001f || t > 0.999f) {
+            if (startWet > 0.0f || endWet > 0.0f) {
+                LOG_INFO_COMP("EventSystem",
+                              "Lerping effect - Start wet: " + std::to_string(startWet) +
+                                  ", End wet: " + std::to_string(endWet) +
+                                  ", t: " + std::to_string(t));
+            }
+        }
+
         if (hasStartWet && hasEndWet) {
             result.parameters["0"] = lerp(startWet, endWet, t);
             // Only lerp other parameters if either wet level > 0
