@@ -16,6 +16,45 @@ TesterView::TesterView() {
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
+
+    // Initialize default directory
+    InitializeDefaultDirectory();
+}
+
+void TesterView::InitializeDefaultDirectory() {
+    // Get user's Music folder
+    const char* musicDir = nullptr;
+
+#ifdef __APPLE__
+    // On macOS, use the Music folder in the user's home directory
+    const char* homeDir = getenv("HOME");
+    if (homeDir) {
+        m_defaultDirectory = std::string(homeDir) + "/Music/Dynamix";
+    } else {
+        m_defaultDirectory = "./Music/Dynamix";
+    }
+#elif defined(_WIN32)
+    // On Windows, use the Music folder
+    const char* userProfile = getenv("USERPROFILE");
+    if (userProfile) {
+        m_defaultDirectory = std::string(userProfile) + "\\Music\\Dynamix";
+    } else {
+        m_defaultDirectory = ".\\Music\\Dynamix";
+    }
+#else
+    // On Linux/Unix, use the Music folder in the user's home directory
+    const char* homeDir = getenv("HOME");
+    if (homeDir) {
+        m_defaultDirectory = std::string(homeDir) + "/Music/Dynamix";
+    } else {
+        m_defaultDirectory = "./Music/Dynamix";
+    }
+#endif
+
+    // Create the directory if it doesn't exist
+    if (!m_defaultDirectory.empty()) {
+        std::filesystem::create_directories(m_defaultDirectory);
+    }
 }
 
 TesterView::~TesterView() { cleanup(); }
@@ -93,6 +132,9 @@ void TesterView::Render() {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
+    // Render the menu bar
+    RenderMenuBar();
+
     RenderMainWindow();
     RenderControlsWindow();
 
@@ -115,47 +157,27 @@ void TesterView::Render() {
 
 void TesterView::RenderMainWindow() {
     ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Music Tester");
+    ImGui::Begin(GetWindowTitle().c_str());
 
     // Track if this window is focused for keyboard input routing
     m_mainWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
-    RenderDirectoryInput();
-    ImGui::Separator();
-    RenderGlobalControls();
-    ImGui::Separator();
     RenderTrackControls();
     ImGui::Separator();
     RenderBusControls();
 
+    // Show dialogs
+    if (m_showNewMasterDialog) {
+        RenderNewMasterDialog();
+    }
+    if (m_showNewSongDialog) {
+        RenderNewSongDialog();
+    }
+    if (m_showFileDialog) {
+        RenderFileDialog();
+    }
+
     ImGui::End();
-}
-
-void TesterView::RenderDirectoryInput() {
-    ImGui::Text("Music Directory:");
-    if (ImGui::InputText("##dir", m_dirInput, DIR_INPUT_SIZE,
-                         ImGuiInputTextFlags_EnterReturnsTrue)) {
-        m_controller->setMusicDirectory(m_dirInput);
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Load")) {
-        m_controller->setMusicDirectory(m_dirInput);
-    }
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip(
-            "Load tracks and songs from directory (automatically loads both tracks and events)");
-    }
-}
-
-void TesterView::RenderGlobalControls() {
-    const auto& state = m_controller->getState();
-
-    // Only show Pause/Play, never Stop
-    if (ImGui::Button(state.globalPlaying ? "Pause" : "Play")) {
-        m_controller->toggleGlobalPlayback();
-    }
 }
 
 void TesterView::RenderTrackControls() {
@@ -1097,6 +1119,328 @@ bool TesterView::RenderSaveButton(const std::string& eventId, const char* eventN
         ImVec4(0.2f, 0.8f, 0.2f, 1.0f),                       // Green progress
         ImVec4(0.2f, 0.8f, 0.2f, 0.3f)                        // Light green background
     );
+}
+
+void TesterView::RenderNewMasterDialog() {
+    ImGui::OpenPopup("New Master Directory");
+    ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("New Master Directory", &m_showNewMasterDialog)) {
+        ImGui::Text("Create new master directory:");
+        ImGui::Separator();
+
+        ImGui::Text("Directory name:");
+        ImGui::InputText("##master_name", m_newMasterName, sizeof(m_newMasterName));
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Create")) {
+            if (strlen(m_newMasterName) > 0) {
+                bool success = m_controller->createNewMasterDirectory(m_newMasterName);
+                if (success) {
+                    ImGui::CloseCurrentPopup();
+                    m_showNewMasterDialog = false;
+                } else {
+                    strcpy(m_errorMessage, "Failed to create master directory");
+                    m_showErrorPopup = true;
+                }
+            } else {
+                strcpy(m_errorMessage, "Directory name is required");
+                m_showErrorPopup = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+            m_showNewMasterDialog = false;
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void TesterView::RenderNewSongDialog() {
+    ImGui::OpenPopup("New Song Folder");
+    ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("New Song Folder", &m_showNewSongDialog)) {
+        ImGui::Text("Create new song folder:");
+        ImGui::Separator();
+
+        ImGui::Text("Song name:");
+        ImGui::InputText("##song_name", m_newSongName, sizeof(m_newSongName));
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Create")) {
+            if (strlen(m_newSongName) > 0) {
+                bool success = m_controller->createNewSongFolder(m_newSongName);
+                if (success) {
+                    ImGui::CloseCurrentPopup();
+                    m_showNewSongDialog = false;
+                } else {
+                    strcpy(m_errorMessage, "Failed to create song folder");
+                    m_showErrorPopup = true;
+                }
+            } else {
+                strcpy(m_errorMessage, "Song name is required");
+                m_showErrorPopup = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+            m_showNewSongDialog = false;
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void TesterView::RenderFileDialog() {
+    ImGui::OpenPopup("File Browser");
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("File Browser", &m_showFileDialog)) {
+        // Initialize browser path if empty
+        if (m_currentBrowserPath.empty()) {
+            m_currentBrowserPath = m_defaultDirectory;
+            RefreshBrowserEntries();
+        }
+
+        // Path display and navigation
+        ImGui::Text("Current Path: %s", m_currentBrowserPath.c_str());
+
+        if (ImGui::Button("Go Up")) {
+            std::filesystem::path currentPath(m_currentBrowserPath);
+            if (currentPath.has_parent_path()) {
+                m_currentBrowserPath = currentPath.parent_path().string();
+                RefreshBrowserEntries();
+                m_selectedEntry = -1;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Home")) {
+            m_currentBrowserPath = m_defaultDirectory;
+            RefreshBrowserEntries();
+            m_selectedEntry = -1;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh")) {
+            RefreshBrowserEntries();
+        }
+
+        ImGui::Separator();
+
+        // Filter input
+        ImGui::Text("Filter:");
+        ImGui::SameLine();
+        if (ImGui::InputText("##filter", m_browserFilter, sizeof(m_browserFilter))) {
+            RefreshBrowserEntries();
+        }
+
+        ImGui::Separator();
+
+        // File/directory list
+        ImGui::BeginChild("##browser_list", ImVec2(0, 250), true);
+
+        for (int i = 0; i < static_cast<int>(m_browserEntries.size()); ++i) {
+            const auto& entry = m_browserEntries[i];
+            std::string displayName = entry.filename().string();
+
+            // Apply filter
+            if (strlen(m_browserFilter) > 0) {
+                std::string filter(m_browserFilter);
+                std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+                std::string lowerName = displayName;
+                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+                if (lowerName.find(filter) == std::string::npos) {
+                    continue;
+                }
+            }
+
+            // Selectable item
+            bool isSelected = (m_selectedEntry == i);
+            if (ImGui::Selectable(displayName.c_str(), isSelected)) {
+                m_selectedEntry = i;
+            }
+
+            // Double-click to navigate
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                if (std::filesystem::is_directory(entry)) {
+                    m_currentBrowserPath = entry.string();
+                    RefreshBrowserEntries();
+                    m_selectedEntry = -1;
+                }
+            }
+
+            // Show icon or indicator
+            ImGui::SameLine();
+            if (std::filesystem::is_directory(entry)) {
+                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "[DIR]");
+            } else {
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "[FILE]");
+            }
+        }
+
+        ImGui::EndChild();
+
+        ImGui::Separator();
+
+        // Action buttons
+        if (ImGui::Button("Select Directory")) {
+            if (m_selectedEntry >= 0 &&
+                m_selectedEntry < static_cast<int>(m_browserEntries.size())) {
+                const auto& selectedEntry = m_browserEntries[m_selectedEntry];
+                if (std::filesystem::is_directory(selectedEntry)) {
+                    std::string selectedPath = selectedEntry.string();
+                    strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
+                    m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+                    m_controller->setMusicDirectory(selectedPath);
+                    ImGui::CloseCurrentPopup();
+                    m_showFileDialog = false;
+                }
+            } else {
+                // Use current path
+                strncpy(m_dirInput, m_currentBrowserPath.c_str(), DIR_INPUT_SIZE);
+                m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+                m_controller->setMusicDirectory(m_currentBrowserPath);
+                ImGui::CloseCurrentPopup();
+                m_showFileDialog = false;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+            m_showFileDialog = false;
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void TesterView::RefreshBrowserEntries() {
+    m_browserEntries.clear();
+
+    try {
+        std::filesystem::path currentPath(m_currentBrowserPath);
+        if (std::filesystem::exists(currentPath) && std::filesystem::is_directory(currentPath)) {
+            for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
+                // Skip hidden files on Unix-like systems
+                std::string filename = entry.path().filename().string();
+                if (filename.empty() || filename[0] == '.') {
+                    continue;
+                }
+                m_browserEntries.push_back(entry.path());
+            }
+
+            // Sort entries: directories first, then files
+            std::sort(m_browserEntries.begin(), m_browserEntries.end(),
+                      [](const std::filesystem::path& a, const std::filesystem::path& b) {
+                          bool aIsDir = std::filesystem::is_directory(a);
+                          bool bIsDir = std::filesystem::is_directory(b);
+                          if (aIsDir != bIsDir) {
+                              return aIsDir > bIsDir; // Directories first
+                          }
+                          return a.filename().string() < b.filename().string(); // Alphabetical
+                      });
+        }
+    } catch (const std::exception& e) {
+        // Handle errors gracefully
+        m_browserEntries.clear();
+    }
+}
+
+void TesterView::RenderMenuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        // File menu
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Master")) {
+                m_showNewMasterDialog = true;
+                strcpy(m_newMasterName, "");
+            }
+            if (ImGui::MenuItem("New Song")) {
+                m_showNewSongDialog = true;
+                strcpy(m_newSongName, "");
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Browse...")) {
+                m_showFileDialog = true;
+            }
+            if (ImGui::MenuItem("Load Current")) {
+                m_controller->setMusicDirectory(m_dirInput);
+            }
+            ImGui::EndMenu();
+        }
+
+        // Songs menu
+        if (ImGui::BeginMenu("Songs")) {
+            const auto* songManager = m_controller->getSongManager();
+            if (songManager) {
+                const auto& songs = songManager->getSongs();
+                std::string currentSong = m_controller->getCurrentSong();
+
+                for (const auto& song : songs) {
+                    bool isSelected = (song.name == currentSong);
+                    if (ImGui::MenuItem(song.name.c_str(), nullptr, isSelected)) {
+                        m_controller->setCurrentSong(song.name);
+                    }
+                }
+
+                if (songs.empty()) {
+                    ImGui::TextDisabled("No songs loaded");
+                }
+            } else {
+                ImGui::TextDisabled("No song manager");
+            }
+            ImGui::EndMenu();
+        }
+
+        // Directory input in menu bar
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+        ImGui::Text("Directory:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(300.0f);
+        if (ImGui::InputText("##dir_menu", m_dirInput, DIR_INPUT_SIZE,
+                             ImGuiInputTextFlags_EnterReturnsTrue)) {
+            m_controller->setMusicDirectory(m_dirInput);
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enter directory path and press Enter to load tracks and songs");
+        }
+
+        // Playback controls in menu bar
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+        const auto& state = m_controller->getState();
+        if (ImGui::Button(state.globalPlaying ? "Pause" : "Play")) {
+            m_controller->toggleGlobalPlayback();
+        }
+
+        // Current song display
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+        std::string currentSong = m_controller->getCurrentSong();
+        if (!currentSong.empty()) {
+            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "Song: %s", currentSong.c_str());
+        } else {
+            ImGui::TextDisabled("No song loaded");
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+std::string TesterView::GetWindowTitle() {
+    std::string currentSong = m_controller->getCurrentSong();
+    if (!currentSong.empty()) {
+        return "Dynamix - " + currentSong;
+    } else {
+        return "Dynamix - Music Tester";
+    }
 }
 
 void TesterView::cleanup() {

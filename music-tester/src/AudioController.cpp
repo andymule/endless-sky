@@ -2,6 +2,8 @@
 #include "EventSystem.h"
 #include "Logger.h"
 #include <algorithm>
+#include <ctime>
+#include <fstream>
 #include <iostream>
 #include <set>
 
@@ -56,6 +58,14 @@ namespace AudioTester {
         try {
             // First load songs/events from the directory (unified loading)
             m_songManager.loadSongsFromDirectory(m_currentDirectory);
+
+            // Set the first song as current if no song is currently set
+            if (m_currentSongName.empty()) {
+                const auto& songs = m_songManager.getSongs();
+                if (!songs.empty()) {
+                    setCurrentSong(songs[0].name);
+                }
+            }
 
             // Collect all unique track files referenced in songs
             std::set<std::string> songTrackFiles;
@@ -573,6 +583,106 @@ namespace AudioTester {
     bool AudioController::deleteMasterEvent(const std::string& eventName) {
         LOG_INFO_COMP("AudioController", "Deleting master event: " + eventName);
         return m_songManager.deleteMasterEvent(eventName);
+    }
+
+    bool AudioController::createNewMasterDirectory(const std::string& directoryName) {
+        if (m_currentDirectory.empty()) {
+            LOG_ERROR_COMP("AudioController", "No current directory set");
+            return false;
+        }
+
+        std::filesystem::path newDirPath =
+            std::filesystem::path(m_currentDirectory) / directoryName;
+
+        try {
+            if (std::filesystem::exists(newDirPath)) {
+                LOG_ERROR_COMP("AudioController",
+                               "Directory already exists: " + newDirPath.string());
+                return false;
+            }
+
+            if (!std::filesystem::create_directories(newDirPath)) {
+                LOG_ERROR_COMP("AudioController",
+                               "Failed to create directory: " + newDirPath.string());
+                return false;
+            }
+
+            // Create empty _master.json file
+            std::filesystem::path masterJsonPath = newDirPath / "_master.json";
+            std::ofstream masterFile(masterJsonPath);
+            if (!masterFile.is_open()) {
+                LOG_ERROR_COMP("AudioController",
+                               "Failed to create _master.json: " + masterJsonPath.string());
+                return false;
+            }
+            masterFile << "{\n  \"events\": []\n}\n";
+            masterFile.close();
+
+            LOG_INFO_COMP("AudioController",
+                          "Created new master directory: " + newDirPath.string());
+            return true;
+        } catch (const std::exception& e) {
+            LOG_ERROR_COMP("AudioController",
+                           "Exception creating directory: " + std::string(e.what()));
+            return false;
+        }
+    }
+
+    bool AudioController::createNewSongFolder(const std::string& songName) {
+        if (m_currentDirectory.empty()) {
+            LOG_ERROR_COMP("AudioController", "No current directory set");
+            return false;
+        }
+
+        std::filesystem::path songDirPath = std::filesystem::path(m_currentDirectory) / songName;
+
+        try {
+            if (std::filesystem::exists(songDirPath)) {
+                LOG_ERROR_COMP("AudioController",
+                               "Song folder already exists: " + songDirPath.string());
+                return false;
+            }
+
+            if (!std::filesystem::create_directories(songDirPath)) {
+                LOG_ERROR_COMP("AudioController",
+                               "Failed to create song folder: " + songDirPath.string());
+                return false;
+            }
+
+            // Create empty song JSON file
+            std::filesystem::path songJsonPath = songDirPath / (songName + ".json");
+            std::ofstream songFile(songJsonPath);
+            if (!songFile.is_open()) {
+                LOG_ERROR_COMP("AudioController",
+                               "Failed to create song JSON: " + songJsonPath.string());
+                return false;
+            }
+            songFile << "{\n  \"events\": []\n}\n";
+            songFile.close();
+
+            LOG_INFO_COMP("AudioController", "Created new song folder: " + songDirPath.string());
+            return true;
+        } catch (const std::exception& e) {
+            LOG_ERROR_COMP("AudioController",
+                           "Exception creating song folder: " + std::string(e.what()));
+            return false;
+        }
+    }
+
+    void AudioController::createNewMaster() {
+        // Create a new master directory with a default name
+        std::string defaultName = "master_" + std::to_string(std::time(nullptr));
+        if (createNewMasterDirectory(defaultName)) {
+            LOG_INFO_COMP("AudioController", "Created new master directory: " + defaultName);
+        }
+    }
+
+    void AudioController::createNewSong() {
+        // Create a new song folder with a default name
+        std::string defaultName = "song_" + std::to_string(std::time(nullptr));
+        if (createNewSongFolder(defaultName)) {
+            LOG_INFO_COMP("AudioController", "Created new song folder: " + defaultName);
+        }
     }
 
 } // namespace AudioTester

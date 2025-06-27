@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 // Pure View class that only handles UI rendering
 class TesterView {
@@ -46,6 +47,17 @@ public:
 
     // Window focus tracking
     void UpdateActiveWindow();
+
+    // File menu methods
+    void RenderNewMasterDialog();
+    void RenderNewSongDialog();
+    void RenderFileDialog();
+    void InitializeDefaultDirectory();
+    void RefreshBrowserEntries();
+
+    // Menu bar methods
+    void RenderMenuBar();
+    std::string GetWindowTitle();
 
 private:
     void cleanup();
@@ -108,6 +120,22 @@ private:
     char m_errorMessage[512] = "";
     char m_newEventName[256] = "";
     float m_newEventFadeTime = 1.0f;
+
+    // File menu state
+    bool m_showNewMasterDialog = false;
+    bool m_showNewSongDialog = false;
+    char m_newMasterName[256] = "";
+    char m_newSongName[256] = "";
+
+    // File dialog state
+    bool m_showFileDialog = false;
+    std::string m_defaultDirectory = "";
+
+    // Custom file browser state
+    std::string m_currentBrowserPath = "";
+    std::vector<std::filesystem::path> m_browserEntries;
+    int m_selectedEntry = -1;
+    char m_browserFilter[256] = "";
 
     // Event creation state
     enum class EventCreationType { MASTER, SONG };

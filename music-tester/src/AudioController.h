@@ -30,6 +30,7 @@ namespace AudioTester {
 
         // Song management (read-only access)
         void setCurrentSong(const std::string& songName);
+        const std::string& getCurrentSong() const { return m_currentSongName; }
         const SongManager* getSongManager() const { return &m_songManager; }
         SongManager* getSongManagerMutable() { return &m_songManager; }
 
@@ -108,6 +109,12 @@ namespace AudioTester {
         // Event deletion methods
         bool deleteSongEvent(const std::string& songName, const std::string& eventName);
         bool deleteMasterEvent(const std::string& eventName);
+
+        // File creation methods
+        bool createNewMasterDirectory(const std::string& directoryName);
+        bool createNewSongFolder(const std::string& songName);
+        void createNewMaster();
+        void createNewSong();
 
     private:
         void syncTrackToAudioSystem(size_t index);
