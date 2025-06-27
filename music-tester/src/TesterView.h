@@ -64,8 +64,27 @@ private:
     void ShowCreateEventDialog();
     AudioTester::StateSnapshot CaptureCurrentState();
 
-    // Delete button helper
+    // Modular hold-to-action button system
+    enum class HoldActionType { DELETE, SAVE };
+    struct HoldActionState {
+        std::string actionId = ""; // Unique identifier for the action
+        float holdTime = 0.0f;
+        bool isHolding = false;
+        bool hasTriggered = false; // Prevent multiple actions per button press
+        HoldActionType actionType = HoldActionType::DELETE;
+        static constexpr float HOLD_DURATION = 1.0f; // 1 second
+    };
+
+    // Generic hold-to-action button renderer
+    bool RenderHoldActionButton(const std::string& actionId, const char* buttonText,
+                                const char* tooltipText, HoldActionType actionType,
+                                const ImVec4& textColor = ImVec4(0.9f, 0.2f, 0.2f, 1.0f),
+                                const ImVec4& progressColor = ImVec4(0.9f, 0.2f, 0.2f, 1.0f),
+                                const ImVec4& bgColor = ImVec4(0.9f, 0.2f, 0.2f, 0.3f));
+
+    // Specific button renderers (use the generic one)
     bool RenderDeleteButton(const std::string& eventId, const char* eventName);
+    bool RenderSaveButton(const std::string& eventId, const char* eventName);
 
     // Input handling helpers
     void handleNumberKeyPress(int keyNumber);
@@ -85,6 +104,8 @@ private:
     // Events UI state
     bool m_showEventsWindow = true;
     bool m_showCreateEventDialog = false;
+    bool m_showErrorPopup = false;
+    char m_errorMessage[512] = "";
     char m_newEventName[256] = "";
     float m_newEventFadeTime = 1.0f;
 
@@ -93,14 +114,8 @@ private:
     EventCreationType m_eventCreationType = EventCreationType::MASTER;
     std::string m_targetSongName = ""; // For song events
 
-    // Hold-to-delete state
-    struct DeleteHoldState {
-        std::string eventId = ""; // "master_eventName" or "song_songName_eventName"
-        float holdTime = 0.0f;
-        bool isHolding = false;
-        static constexpr float HOLD_DURATION = 1.0f; // 1 second
-    };
-    DeleteHoldState m_deleteHoldState;
+    // Modular hold-to-action state (replaces old delete state)
+    HoldActionState m_holdActionState;
 
     // Controller reference (managed externally)
     AudioTester::AudioController* m_controller = nullptr;
@@ -108,6 +123,10 @@ private:
     // SDL/OpenGL
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_glContext = nullptr;
+
+    // Fonts
+    ImFont* m_mainFont = nullptr;
+    ImFont* m_iconFont = nullptr;
 
     // Local UI state for tempo control to avoid ImGui slider issues
     float m_masterTempoUI = 1.0f;

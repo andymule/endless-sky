@@ -34,6 +34,21 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
+    // Load MesloLGS NF font (includes icons)
+    std::string fontPath = "assets/fonts/MesloLGS_NF_Regular.ttf";
+    if (std::filesystem::exists(fontPath)) {
+        m_mainFont = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 16.0f);
+        if (m_mainFont) {
+            LOG_INFO_COMP("TesterView", "Loaded MesloLGS NF font successfully");
+            // Set as default font
+            io.FontDefault = m_mainFont;
+        } else {
+            LOG_ERROR_COMP("TesterView", "Failed to load MesloLGS NF font");
+        }
+    } else {
+        LOG_ERROR_COMP("TesterView", "Font file not found: " + fontPath);
+    }
+
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
         LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui SDL2 backend");
@@ -701,6 +716,19 @@ void TesterView::RenderMasterEvents() {
                     m_controller->deleteMasterEvent(event.name);
                 }
 
+                // Save button (disk icon) - new feature
+                ImGui::SameLine();
+                std::string saveId = "save_master_" + event.name;
+                if (RenderSaveButton(saveId, event.name.c_str())) {
+                    // Event save confirmed - overwrite with current state
+                    bool success = m_controller->overwriteMasterEvent(event.name, event.fadeTime);
+                    if (!success) {
+                        strcpy(m_errorMessage,
+                               ("Failed to overwrite master event '" + event.name + "'").c_str());
+                        m_showErrorPopup = true;
+                    }
+                }
+
                 ImGui::PopID();
             }
         }
@@ -723,8 +751,9 @@ void TesterView::RenderSongEvents() {
             for (const auto& song : songs) {
                 ImGui::PushID(song.name.c_str());
 
-                // Song header
-                bool songOpen = ImGui::TreeNode(song.name.c_str());
+                // Song header - also expanded by default
+                bool songOpen =
+                    ImGui::TreeNodeEx(song.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
                     ImGui::Text("Song: %s", song.name.c_str());
@@ -773,6 +802,22 @@ void TesterView::RenderSongEvents() {
                             if (RenderDeleteButton(deleteId, event.name.c_str())) {
                                 // Event deletion confirmed
                                 m_controller->deleteSongEvent(song.name, event.name);
+                            }
+
+                            // Save button (disk icon) - new feature
+                            ImGui::SameLine();
+                            std::string saveId = "save_song_" + song.name + "_" + event.name;
+                            if (RenderSaveButton(saveId, event.name.c_str())) {
+                                // Event save confirmed - overwrite with current state
+                                bool success = m_controller->overwriteSongEvent(
+                                    song.name, event.name, event.fadeTime);
+                                if (!success) {
+                                    strcpy(m_errorMessage,
+                                           ("Failed to overwrite song event '" + event.name +
+                                            "' in song '" + song.name + "'")
+                                               .c_str());
+                                    m_showErrorPopup = true;
+                                }
                             }
 
                             ImGui::PopID();
@@ -832,30 +877,49 @@ void TesterView::ShowCreateEventDialog() {
                 bool success = false;
 
                 if (m_eventCreationType == EventCreationType::MASTER) {
-                    success = m_controller->createMasterEvent(m_newEventName, m_newEventFadeTime);
-                    if (success) {
-                        printf("SUCCESS: Created master event '%s' with fade time %.1f\n",
-                               m_newEventName, m_newEventFadeTime);
+                    // Check for duplicate before creating
+                    if (m_controller->hasMasterEvent(m_newEventName)) {
+                        strcpy(m_errorMessage,
+                               ("Master event '" + std::string(m_newEventName) +
+                                "' already exists. Use the save button to overwrite.")
+                                   .c_str());
+                        m_showErrorPopup = true;
                     } else {
-                        printf("FAILED: Could not create master event '%s'\n", m_newEventName);
+                        success =
+                            m_controller->createMasterEvent(m_newEventName, m_newEventFadeTime);
+                        if (success) {
+                            printf("SUCCESS: Created master event '%s' with fade time %.1f\n",
+                                   m_newEventName, m_newEventFadeTime);
+                        } else {
+                            printf("FAILED: Could not create master event '%s'\n", m_newEventName);
+                        }
                     }
                 } else {
-                    success = m_controller->createSongEvent(m_targetSongName, m_newEventName,
-                                                            m_newEventFadeTime);
-                    if (success) {
-                        printf(
-                            "SUCCESS: Created song event '%s' for song '%s' with fade time %.1f\n",
-                            m_newEventName, m_targetSongName.c_str(), m_newEventFadeTime);
+                    // Check for duplicate before creating
+                    if (m_controller->hasSongEvent(m_targetSongName, m_newEventName)) {
+                        strcpy(m_errorMessage, ("Song event '" + std::string(m_newEventName) +
+                                                "' already exists in song '" + m_targetSongName +
+                                                "'. Use the save button to overwrite.")
+                                                   .c_str());
+                        m_showErrorPopup = true;
                     } else {
-                        printf("FAILED: Could not create song event '%s' for song '%s'\n",
-                               m_newEventName, m_targetSongName.c_str());
+                        success = m_controller->createSongEvent(m_targetSongName, m_newEventName,
+                                                                m_newEventFadeTime);
+                        if (success) {
+                            printf("SUCCESS: Created song event '%s' for song '%s' with fade time "
+                                   "%.1f\n",
+                                   m_newEventName, m_targetSongName.c_str(), m_newEventFadeTime);
+                        } else {
+                            printf("FAILED: Could not create song event '%s' for song '%s'\n",
+                                   m_newEventName, m_targetSongName.c_str());
+                        }
                     }
                 }
 
                 if (success) {
                     ImGui::CloseCurrentPopup();
                     m_showCreateEventDialog = false;
-                } else {
+                } else if (!m_showErrorPopup) {
                     ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Failed to create event");
                 }
             } else {
@@ -869,6 +933,26 @@ void TesterView::ShowCreateEventDialog() {
         }
 
         ImGui::EndPopup();
+    }
+
+    // Show Error Popup
+    if (m_showErrorPopup) {
+        ImGui::OpenPopup("Error");
+        ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
+
+        if (ImGui::BeginPopupModal("Error", &m_showErrorPopup)) {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Error");
+            ImGui::Separator();
+            ImGui::TextWrapped("%s", m_errorMessage);
+            ImGui::Separator();
+
+            if (ImGui::Button("OK")) {
+                ImGui::CloseCurrentPopup();
+                m_showErrorPopup = false;
+            }
+
+            ImGui::EndPopup();
+        }
     }
 }
 
@@ -899,14 +983,17 @@ AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
     return snapshot;
 }
 
-bool TesterView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
-    ImGui::PushID(("delete_" + eventId).c_str());
+bool TesterView::RenderHoldActionButton(const std::string& actionId, const char* buttonText,
+                                        const char* tooltipText, HoldActionType actionType,
+                                        const ImVec4& textColor, const ImVec4& progressColor,
+                                        const ImVec4& bgColor) {
+    ImGui::PushID(("hold_action_" + actionId).c_str());
 
     // Check if this is the button being held
-    bool isThisButton = (m_deleteHoldState.eventId == eventId);
+    bool isThisButton = (m_holdActionState.actionId == actionId);
 
-    // Set up red text color for X, but transparent background
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.2f, 0.2f, 1.0f)); // Red text
+    // Set up text color and transparent background
+    ImGui::PushStyleColor(ImGuiCol_Text, textColor);
     ImGui::PushStyleColor(ImGuiCol_Button,
                           ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent background
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
@@ -914,8 +1001,8 @@ bool TesterView::RenderDeleteButton(const std::string& eventId, const char* even
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,
                           ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent active
 
-    // Render the X button
-    bool buttonPressed = ImGui::Button("X", ImVec2(20, 20));
+    // Render the button
+    bool buttonPressed = ImGui::Button(buttonText, ImVec2(20, 20));
 
     // Get button position for drawing progress circle
     ImVec2 buttonMin = ImGui::GetItemRectMin();
@@ -930,39 +1017,46 @@ bool TesterView::RenderDeleteButton(const std::string& eventId, const char* even
     float deltaTime = ImGui::GetIO().DeltaTime;
 
     if (isPressed && isHovered) {
-        if (!m_deleteHoldState.isHolding || !isThisButton) {
+        if (!m_holdActionState.isHolding || !isThisButton) {
             // Start holding
-            m_deleteHoldState.eventId = eventId;
-            m_deleteHoldState.holdTime = 0.0f;
-            m_deleteHoldState.isHolding = true;
+            m_holdActionState.actionId = actionId;
+            m_holdActionState.holdTime = 0.0f;
+            m_holdActionState.isHolding = true;
+            m_holdActionState.hasTriggered = false; // Reset trigger flag
+            m_holdActionState.actionType = actionType;
         } else {
             // Continue holding
-            m_deleteHoldState.holdTime += deltaTime;
+            m_holdActionState.holdTime += deltaTime;
         }
     } else {
         // Released or not hovering
         if (isThisButton) {
-            m_deleteHoldState.isHolding = false;
-            m_deleteHoldState.holdTime = 0.0f;
-            m_deleteHoldState.eventId = "";
+            m_holdActionState.isHolding = false;
+            m_holdActionState.holdTime = 0.0f;
+            m_holdActionState.hasTriggered = false; // Reset trigger flag
+            m_holdActionState.actionId = "";
         }
     }
 
     // Draw progress circle if holding
-    if (isThisButton && m_deleteHoldState.isHolding) {
-        float progress = m_deleteHoldState.holdTime / m_deleteHoldState.HOLD_DURATION;
+    if (isThisButton && m_holdActionState.isHolding) {
+        float progress = m_holdActionState.holdTime / m_holdActionState.HOLD_DURATION;
         progress = std::min(progress, 1.0f);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         float radius = 9.0f;
 
-        // Draw background circle (light red)
-        ImU32 bgColor = IM_COL32(255, 150, 150, 80);
-        drawList->AddCircleFilled(center, radius, bgColor);
+        // Draw background circle
+        ImU32 bgColorU32 =
+            IM_COL32(static_cast<int>(bgColor.x * 255), static_cast<int>(bgColor.y * 255),
+                     static_cast<int>(bgColor.z * 255), static_cast<int>(bgColor.w * 255));
+        drawList->AddCircleFilled(center, radius, bgColorU32);
 
         // Draw progress pie slice
         if (progress > 0.0f) {
-            ImU32 progressColor = IM_COL32(255, 80, 80, 180);
+            ImU32 progressColorU32 = IM_COL32(
+                static_cast<int>(progressColor.x * 255), static_cast<int>(progressColor.y * 255),
+                static_cast<int>(progressColor.z * 255), static_cast<int>(progressColor.w * 255));
             float startAngle = -M_PI * 0.5f; // Start at top
             float endAngle = startAngle + (2.0f * M_PI * progress);
 
@@ -977,30 +1071,51 @@ bool TesterView::RenderDeleteButton(const std::string& eventId, const char* even
                     ImVec2(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius);
             }
 
-            drawList->AddConvexPolyFilled(points, numPoints, progressColor);
+            drawList->AddConvexPolyFilled(points, numPoints, progressColorU32);
         }
 
-        // Check if hold is complete
-        if (progress >= 1.0f) {
-            // Reset state
-            m_deleteHoldState.isHolding = false;
-            m_deleteHoldState.holdTime = 0.0f;
-            m_deleteHoldState.eventId = "";
+        // Check if hold is complete and hasn't been triggered yet
+        if (progress >= 1.0f && !m_holdActionState.hasTriggered) {
+            // Mark as triggered to prevent multiple actions
+            m_holdActionState.hasTriggered = true;
 
             ImGui::PopStyleColor(4);
             ImGui::PopID();
-            return true; // Delete should happen
+            return true; // Action should happen
         }
     }
 
     // Show tooltip on hover
     if (isHovered) {
-        ImGui::SetTooltip("Hold for 1 second to delete \"%s\"", eventName);
+        ImGui::SetTooltip("%s", tooltipText);
     }
 
     ImGui::PopStyleColor(4);
     ImGui::PopID();
-    return false; // No deletion
+    return false; // No action
+}
+
+bool TesterView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
+    return RenderHoldActionButton(
+        eventId, "X", ("Hold for 1 second to delete \"" + std::string(eventName) + "\"").c_str(),
+        HoldActionType::DELETE, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
+        ImVec4(0.9f, 0.2f, 0.2f, 1.0f),                         // Red progress
+        ImVec4(0.9f, 0.2f, 0.2f, 0.3f)                          // Light red background
+    );
+}
+
+bool TesterView::RenderSaveButton(const std::string& eventId, const char* eventName) {
+    // Use Nerd Font disk icon if font is loaded, otherwise fallback to ASCII
+    const char* iconText =
+        (m_mainFont != nullptr) ? "󰆓" : "S"; // Nerd Font disk icon or ASCII fallback
+
+    return RenderHoldActionButton(
+        eventId, iconText,
+        ("Hold for 1 second to save (overwrite) \"" + std::string(eventName) + "\"").c_str(),
+        HoldActionType::SAVE, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), // Green text
+        ImVec4(0.2f, 0.8f, 0.2f, 1.0f),                       // Green progress
+        ImVec4(0.2f, 0.8f, 0.2f, 0.3f)                        // Light green background
+    );
 }
 
 void TesterView::cleanup() {

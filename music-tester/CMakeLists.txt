@@ -92,6 +92,9 @@ set(MUSIC_TESTER_HEADERS
     src/FilterManager.h
 )
 
+# Copy assets to build directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # Add the executable target
 add_executable(music-tester ${MUSIC_TESTER_SOURCES})
 

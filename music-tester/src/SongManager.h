@@ -32,6 +32,10 @@ namespace AudioTester {
         // Event management
         bool addSongEvent(const std::string& songName, const SongEvent& event);
         bool addMasterEvent(const MasterEvent& event);
+        bool overwriteSongEvent(const std::string& songName, const SongEvent& event);
+        bool overwriteMasterEvent(const MasterEvent& event);
+        bool hasSongEvent(const std::string& songName, const std::string& eventName) const;
+        bool hasMasterEvent(const std::string& eventName) const;
         bool saveSongJson(const std::string& songName);
         bool saveMasterJson();
 

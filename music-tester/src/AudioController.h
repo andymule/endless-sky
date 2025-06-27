@@ -95,10 +95,15 @@ namespace AudioTester {
         // Current directory access
         const std::string& getCurrentDirectory() const { return m_currentDirectory; }
 
-        // Event creation methods
+        // Event creation and management
         bool createSongEvent(const std::string& songName, const std::string& eventName,
                              float fadeTime);
         bool createMasterEvent(const std::string& eventName, float fadeTime);
+        bool overwriteSongEvent(const std::string& songName, const std::string& eventName,
+                                float fadeTime);
+        bool overwriteMasterEvent(const std::string& eventName, float fadeTime);
+        bool hasSongEvent(const std::string& songName, const std::string& eventName) const;
+        bool hasMasterEvent(const std::string& eventName) const;
 
         // Event deletion methods
         bool deleteSongEvent(const std::string& songName, const std::string& eventName);

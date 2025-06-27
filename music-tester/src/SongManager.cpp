@@ -336,6 +336,18 @@ namespace AudioTester {
     bool SongManager::addSongEvent(const std::string& songName, const SongEvent& event) {
         for (auto& song : m_songs) {
             if (song.name == songName) {
+                // Check for duplicate event name
+                auto existingIt = std::find_if(song.events.begin(), song.events.end(),
+                                               [&event](const SongEvent& existingEvent) {
+                                                   return existingEvent.name == event.name;
+                                               });
+
+                if (existingIt != song.events.end()) {
+                    logError("Event '" + event.name + "' already exists in song '" + songName +
+                             "'. Use overwrite instead.");
+                    return false;
+                }
+
                 song.events.push_back(event);
                 logInfo("Added event '" + event.name + "' to song '" + songName + "'");
                 return true;
@@ -346,9 +358,83 @@ namespace AudioTester {
     }
 
     bool SongManager::addMasterEvent(const MasterEvent& event) {
+        // Check for duplicate event name
+        auto existingIt = std::find_if(m_masterBus.events.begin(), m_masterBus.events.end(),
+                                       [&event](const MasterEvent& existingEvent) {
+                                           return existingEvent.name == event.name;
+                                       });
+
+        if (existingIt != m_masterBus.events.end()) {
+            logError("Master event '" + event.name + "' already exists. Use overwrite instead.");
+            return false;
+        }
+
         m_masterBus.events.push_back(event);
         logInfo("Added master event: " + event.name);
         return true;
+    }
+
+    bool SongManager::overwriteSongEvent(const std::string& songName, const SongEvent& event) {
+        for (auto& song : m_songs) {
+            if (song.name == songName) {
+                // Find existing event to overwrite
+                auto existingIt = std::find_if(song.events.begin(), song.events.end(),
+                                               [&event](const SongEvent& existingEvent) {
+                                                   return existingEvent.name == event.name;
+                                               });
+
+                if (existingIt != song.events.end()) {
+                    // Overwrite the existing event while preserving its position
+                    *existingIt = event;
+                    logInfo("Overwrote event '" + event.name + "' in song '" + songName + "'");
+                    return true;
+                } else {
+                    logError("Event '" + event.name + "' not found in song '" + songName +
+                             "' for overwrite");
+                    return false;
+                }
+            }
+        }
+        logError("Song not found: " + songName);
+        return false;
+    }
+
+    bool SongManager::overwriteMasterEvent(const MasterEvent& event) {
+        // Find existing event to overwrite
+        auto existingIt = std::find_if(m_masterBus.events.begin(), m_masterBus.events.end(),
+                                       [&event](const MasterEvent& existingEvent) {
+                                           return existingEvent.name == event.name;
+                                       });
+
+        if (existingIt != m_masterBus.events.end()) {
+            // Overwrite the existing event while preserving its position
+            *existingIt = event;
+            logInfo("Overwrote master event: " + event.name);
+            return true;
+        } else {
+            logError("Master event '" + event.name + "' not found for overwrite");
+            return false;
+        }
+    }
+
+    bool SongManager::hasSongEvent(const std::string& songName,
+                                   const std::string& eventName) const {
+        for (const auto& song : m_songs) {
+            if (song.name == songName) {
+                auto it = std::find_if(
+                    song.events.begin(), song.events.end(),
+                    [&eventName](const SongEvent& event) { return event.name == eventName; });
+                return it != song.events.end();
+            }
+        }
+        return false;
+    }
+
+    bool SongManager::hasMasterEvent(const std::string& eventName) const {
+        auto it = std::find_if(
+            m_masterBus.events.begin(), m_masterBus.events.end(),
+            [&eventName](const MasterEvent& event) { return event.name == eventName; });
+        return it != m_masterBus.events.end();
     }
 
     bool SongManager::saveSongJson(const std::string& songName) {

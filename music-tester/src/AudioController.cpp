@@ -314,6 +314,13 @@ namespace AudioTester {
 
     bool AudioController::createSongEvent(const std::string& songName, const std::string& eventName,
                                           float fadeTime) {
+        // Check if event already exists
+        if (m_songManager.hasSongEvent(songName, eventName)) {
+            LOG_ERROR_COMP("AudioController", "Event '" + eventName + "' already exists in song '" +
+                                                  songName + "'. Use overwrite instead.");
+            return false;
+        }
+
         // Capture current state
         StateSnapshot currentState;
         currentState.masterTempo = getMasterTempo();
@@ -361,7 +368,63 @@ namespace AudioTester {
         return false;
     }
 
+    bool AudioController::overwriteSongEvent(const std::string& songName,
+                                             const std::string& eventName, float fadeTime) {
+        // Capture current state
+        StateSnapshot currentState;
+        currentState.masterTempo = getMasterTempo();
+        currentState.granularTempo = getGranularTempo();
+
+        // Capture track states with effects
+        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
+            const auto& track = m_state.getTrack(i);
+
+            TrackStateExtended trackState;
+            trackState.file = std::filesystem::path(track.filepath).filename().string();
+            trackState.volume = track.volume;
+
+            // Capture only enabled effect states from AudioSystem
+            const auto& trackFilters = m_audioSystem.getFilters(i);
+            for (const auto& [filterName, filterInstance] : trackFilters) {
+                // Only capture effects that are enabled (wet > 0)
+                if (filterInstance.enabled) {
+                    EffectState effectState;
+
+                    // Capture all parameters using their IDs, not names (to avoid validation
+                    // issues)
+                    for (const auto& [paramId, param] : filterInstance.parameters) {
+                        // Store parameter by ID as string key for JSON compatibility
+                        effectState.parameters[std::to_string(paramId)] = param.value;
+                    }
+
+                    trackState.effects[filterName] = effectState;
+                }
+            }
+
+            currentState.tracks.push_back(trackState);
+        }
+
+        // Create the event
+        SongEvent event;
+        event.name = eventName;
+        event.fadeTime = fadeTime;
+        event.state = currentState;
+
+        // Overwrite existing event and save
+        if (m_songManager.overwriteSongEvent(songName, event)) {
+            return m_songManager.saveSongJson(songName);
+        }
+        return false;
+    }
+
     bool AudioController::createMasterEvent(const std::string& eventName, float fadeTime) {
+        // Check if event already exists
+        if (m_songManager.hasMasterEvent(eventName)) {
+            LOG_ERROR_COMP("AudioController", "Master event '" + eventName +
+                                                  "' already exists. Use overwrite instead.");
+            return false;
+        }
+
         LOG_INFO_COMP("AudioController", "Creating master event: " + eventName);
 
         // Capture current master state
@@ -413,6 +476,69 @@ namespace AudioTester {
             LOG_ERROR_COMP("AudioController", "Failed to add event to memory");
             return false;
         }
+    }
+
+    bool AudioController::overwriteMasterEvent(const std::string& eventName, float fadeTime) {
+        LOG_INFO_COMP("AudioController", "Overwriting master event: " + eventName);
+
+        // Capture current master state
+        MasterBusState masterState;
+        masterState.masterTempo = getMasterTempo();
+        masterState.granularTempo = getGranularTempo();
+        masterState.volume = m_state.busVolume;
+
+        // Capture only enabled master effects from AudioSystem
+        const auto& busFilters = m_audioSystem.getBusFilters();
+        for (const auto& [filterName, filterInstance] : busFilters) {
+            // Only capture effects that are enabled (wet > 0)
+            if (filterInstance.enabled) {
+                EffectState effectState;
+
+                // Capture all parameters using their IDs, not names (for consistency with song
+                // events)
+                for (const auto& [paramId, param] : filterInstance.parameters) {
+                    // Store parameter by ID as string key for JSON compatibility
+                    effectState.parameters[std::to_string(paramId)] = param.value;
+                }
+
+                masterState.effects[filterName] = effectState;
+            }
+        }
+
+        // Create the event
+        MasterEvent event;
+        event.name = eventName;
+        event.fadeTime = fadeTime;
+        event.state = masterState;
+
+        LOG_INFO_COMP("AudioController",
+                      "Event state captured - Tempo: " + std::to_string(masterState.masterTempo) +
+                          ", Volume: " + std::to_string(masterState.volume) +
+                          ", Effects: " + std::to_string(masterState.effects.size()));
+
+        // Overwrite existing event and save
+        if (m_songManager.overwriteMasterEvent(event)) {
+            LOG_INFO_COMP("AudioController", "Event overwritten in memory, now saving...");
+            bool saveResult = m_songManager.saveMasterJson();
+            if (saveResult) {
+                LOG_INFO_COMP("AudioController", "Event saved successfully!");
+            } else {
+                LOG_ERROR_COMP("AudioController", "Failed to save event to JSON");
+            }
+            return saveResult;
+        } else {
+            LOG_ERROR_COMP("AudioController", "Failed to overwrite event in memory");
+            return false;
+        }
+    }
+
+    bool AudioController::hasSongEvent(const std::string& songName,
+                                       const std::string& eventName) const {
+        return m_songManager.hasSongEvent(songName, eventName);
+    }
+
+    bool AudioController::hasMasterEvent(const std::string& eventName) const {
+        return m_songManager.hasMasterEvent(eventName);
     }
 
     bool AudioController::deleteSongEvent(const std::string& songName,
