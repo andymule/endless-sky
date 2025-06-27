@@ -338,3 +338,13 @@ if(BUNDLE_SDL2 AND SDL2_DYLIB)
 endif()
 
 # The OAML-related definition has been removed 
+
+add_custom_target(static_build ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/static_build"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:music-tester>" "${CMAKE_SOURCE_DIR}/static_build/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE_DIR:music-tester>/libSDL2-2.0.0.dylib" "${CMAKE_SOURCE_DIR}/static_build/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${CMAKE_SOURCE_DIR}/static_build/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "${CMAKE_SOURCE_DIR}/static_build/sound_staging"
+    COMMENT "Creating static_build folder with only the required files"
+    DEPENDS music-tester
+) 
