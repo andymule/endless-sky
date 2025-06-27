@@ -345,17 +345,26 @@ void TesterView::RenderTrackControls() {
         // Get volume from AudioState if available, otherwise default to 1.0
         const auto& state = m_controller->getState();
         float volume = 1.0f;
-        if (i < state.getTrackCount()) {
-            volume = state.getTrack(i).volume;
+
+        // Find the actual track index by filename to ensure we get the right volume
+        int actualTrackIndex = m_controller->findTrackByFilename(trackFile);
+        if (actualTrackIndex >= 0 && actualTrackIndex < static_cast<int>(state.getTrackCount())) {
+            volume = state.getTrack(actualTrackIndex).volume;
         }
 
         if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
-            m_controller->setTrackVolume(i, volume);
+            // Use the actual track index, not the loop index
+            if (actualTrackIndex >= 0) {
+                m_controller->setTrackVolume(actualTrackIndex, volume);
+            }
         }
 
         // Collapsible filter controls (start collapsed)
         if (ImGui::TreeNodeEx("Effects", ImGuiTreeNodeFlags_None)) {
-            drawFilterControls(i);
+            // Use actual track index for filter controls too
+            if (actualTrackIndex >= 0) {
+                drawFilterControls(actualTrackIndex);
+            }
             ImGui::TreePop();
         }
 

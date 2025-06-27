@@ -146,6 +146,7 @@ namespace AudioTester {
         bool isPaused = false;         // Track is paused (preserves position)
         double lastSyncCheck = 0.0;    // Last time we checked sync
         double expectedPosition = 0.0; // Expected playback position
+        float volume = 1.0f;           // Track volume (0.0 to 1.0)
     };
 
     struct SyncState {

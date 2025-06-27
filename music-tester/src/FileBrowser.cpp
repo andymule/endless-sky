@@ -38,7 +38,7 @@ namespace AudioTester {
         }
 
         ImGui::SetNextWindowSize(m_config.windowSize, ImGuiCond_FirstUseEver);
-        if (ImGui::BeginPopupModal(m_config.title.c_str(), &isOpen)) {
+        if (ImGui::Begin(m_config.title.c_str(), &isOpen)) {
             // Display current path for user orientation
             ImGui::Text("Current Path: %s", m_currentPath.c_str());
 
@@ -110,17 +110,15 @@ namespace AudioTester {
                     if (m_selectionCallback) {
                         m_selectionCallback(selectedEntry.path);
                     }
-                    ImGui::CloseCurrentPopup();
                     isOpen = false;
                 }
             }
             ImGui::SameLine();
             if (ImGui::Button(m_config.cancelButtonText.c_str())) {
-                ImGui::CloseCurrentPopup();
                 isOpen = false;
             }
 
-            ImGui::EndPopup();
+            ImGui::End();
         }
 
         return isOpen;

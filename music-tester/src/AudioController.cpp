@@ -815,6 +815,7 @@ namespace AudioTester {
             }
 
             LOG_INFO_COMP("AudioController", "Smart-added track: " + filename + " to system");
+
             return true;
         } else {
             LOG_ERROR_COMP("AudioController", "Track file not found: " + trackPath.string());
@@ -891,8 +892,6 @@ namespace AudioTester {
         }
 
         LOG_INFO_COMP("AudioController", "Removed track: " + filename + " from song");
-        // Reload the song to ensure GUI and state are in sync
-        loadMusicFromDirectory();
         return true;
     }
 
