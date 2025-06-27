@@ -148,7 +148,6 @@ namespace AudioTester {
             m_engine->get().stop(m_tracks[index].handle);
             m_tracks[index].handle = 0;
             m_tracks[index].isPlaying = false;
-            m_tracks[index].isPaused = false;
         }
     }
 
@@ -1039,125 +1038,38 @@ namespace AudioTester {
     }
 
     // Synchronization methods
-    void AudioSystem::calculateMasterDuration() {
-        if (m_tracks.empty()) {
-            m_syncState.masterDuration = 0.0;
-            m_syncState.masterTrackIndex = 0;
-            return;
-        }
-
-        // Find the shortest track duration (master clock)
-        double shortestDuration = std::numeric_limits<double>::max();
-        size_t shortestIndex = 0;
-
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            if (m_tracks[i].duration < shortestDuration) {
-                shortestDuration = m_tracks[i].duration;
-                shortestIndex = i;
-            }
-        }
-
-        m_syncState.masterDuration = shortestDuration;
-        m_syncState.masterTrackIndex = shortestIndex;
-
-        LOG_INFO("Master duration set to: " + std::to_string(m_syncState.masterDuration) +
-                 "s (track " + std::to_string(shortestIndex) + ")");
-    }
-
-    void AudioSystem::playAllTracks() {
-        if (!m_isInitialized || m_tracks.empty()) {
-            return;
-        }
-
-        // Only reset state if this is the very first play
-        if (!m_hasEverPlayed) {
-            // Stop all tracks first (only on first play)
-            stopAllTracks();
-
-            // Start all tracks simultaneously
-            for (size_t i = 0; i < m_tracks.size(); ++i) {
-                playTrack(i);
-            }
-
-            m_syncState.isPlaying = true;
-            m_syncState.globalTime = 0.0;
-            m_syncState.lastSyncCheck = 0.0;
-            m_hasEverPlayed = true;
-
-            LOG_INFO("Started synchronized playback of " + std::to_string(m_tracks.size()) +
-                     " tracks");
-        } else {
-            // Tracks have been played before - this should not happen in normal pause/resume flow
-            // But if it does, just resume from current state
-            LOG_INFO("playAllTracks called but tracks have been played before - resuming instead");
-            resumeAllTracks();
-        }
-    }
-
-    void AudioSystem::stopAllTracks() {
-        if (!m_isInitialized) {
-            return;
-        }
-
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            stopTrack(i);
-        }
-
-        m_syncState.isPlaying = false;
-        m_syncState.globalTime = 0.0;
-    }
-
-    void AudioSystem::pauseAllTracks() {
-        if (!m_isInitialized) {
-            return;
-        }
-
-        // Store current global time before pausing
-        if (m_syncState.isPlaying && m_syncState.masterTrackIndex < m_tracks.size() &&
-            m_tracks[m_syncState.masterTrackIndex].isPlaying) {
-            m_syncState.globalTime =
-                m_engine->get().getStreamPosition(m_tracks[m_syncState.masterTrackIndex].handle);
-        }
-
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            pauseTrack(i);
-        }
-
-        m_syncState.isPlaying = false;
-        // Don't reset globalTime - preserve it for resume
-    }
-
-    void AudioSystem::resumeAllTracks() {
-        if (!m_isInitialized || m_tracks.empty()) {
-            return;
-        }
-
-        // Resume all tracks from their paused positions
-        for (size_t i = 0; i < m_tracks.size(); ++i) {
-            resumeTrack(i);
-        }
-
-        m_syncState.isPlaying = true;
-        // globalTime is already set from pause, just update lastSyncCheck
-        m_syncState.lastSyncCheck = m_syncState.globalTime;
-
-        LOG_INFO("Resumed synchronized playback of " + std::to_string(m_tracks.size()) +
-                 " tracks from position " + std::to_string(m_syncState.globalTime));
-    }
-
+    /**
+     * Updates audio synchronization across all tracks.
+     *
+     * This method maintains perfect synchronization between multiple audio tracks
+     * by detecting and correcting drift. It uses a master track as the reference
+     * clock and periodically checks all other tracks for timing discrepancies.
+     *
+     * The synchronization process:
+     * 1. Updates global time based on master track position
+     * 2. Checks for sync issues every 100ms (SYNC_CHECK_INTERVAL)
+     * 3. Detects tracks that have drifted beyond tolerance (1ms)
+     * 4. Corrects drifted tracks by seeking to the correct position
+     *
+     * This ensures all tracks stay perfectly synchronized even during long playback
+     * sessions where small timing differences can accumulate.
+     */
     void AudioSystem::updateSync() {
+        // Early exit if system not ready or no tracks playing
         if (!m_isInitialized || !m_syncState.isPlaying || m_tracks.empty()) {
             return;
         }
 
-        // Update global time based on master track
+        // Update global time based on master track position
+        // The master track serves as the reference clock for all other tracks
         if (m_syncState.masterTrackIndex < m_tracks.size() &&
             m_tracks[m_syncState.masterTrackIndex].isPlaying) {
             m_syncState.globalTime =
                 m_engine->get().getStreamPosition(m_tracks[m_syncState.masterTrackIndex].handle);
         }
 
-        // Check for sync issues every 100ms
+        // PERFORMANCE OPTIMIZATION: Check for sync issues every 100ms
+        // This prevents excessive checking while still catching drift quickly
         double currentTime = m_syncState.globalTime;
         if (currentTime - m_syncState.lastSyncCheck < SyncState::SYNC_CHECK_INTERVAL) {
             return;
@@ -1165,15 +1077,28 @@ namespace AudioTester {
         m_syncState.lastSyncCheck = currentTime;
 
         // Check each track for drift and correct if needed
+        // This is the core synchronization logic
         checkAndCorrectSync();
     }
 
+    /**
+     * Checks all tracks for synchronization drift and corrects any issues.
+     *
+     * This method iterates through all tracks (except the master) and checks
+     * if they have drifted beyond the tolerance threshold. If drift is detected,
+     * the track is corrected by seeking to the correct position.
+     *
+     * The master track is skipped since it serves as the reference clock.
+     * Only playing tracks are checked to avoid unnecessary processing.
+     */
     void AudioSystem::checkAndCorrectSync() {
         for (size_t i = 0; i < m_tracks.size(); ++i) {
+            // Skip the master track - it's our reference clock
             if (i == m_syncState.masterTrackIndex) {
-                continue; // Skip master track
+                continue;
             }
 
+            // Only check tracks that are currently playing
             if (m_tracks[i].isPlaying && isTrackDrifting(i)) {
                 LOG_INFO("Track " + std::to_string(i) + " drifting, correcting...");
                 correctTrackSync(i, m_syncState.globalTime);
@@ -1181,18 +1106,34 @@ namespace AudioTester {
         }
     }
 
+    /**
+     * Corrects synchronization drift for a specific track.
+     *
+     * This method compares the track's current position with the target time
+     * (from the master track). If the difference exceeds the drift tolerance
+     * (1ms), the track is seeked to the correct position.
+     *
+     * The correction uses our custom seek method for accurate positioning
+     * and updates the track's expected position to prevent future drift.
+     *
+     * @param trackIndex Index of the track to correct
+     * @param targetTime Target time position from master track
+     */
     void AudioSystem::correctTrackSync(size_t trackIndex, double targetTime) {
+        // Safety check: ensure track exists and is playing
         if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
             return;
         }
 
-        // Get current position of this track
+        // Get current position of this track from SoLoud
         double currentTime = getTrackCurrentTime(trackIndex);
         double timeDiff = std::abs(targetTime - currentTime);
 
-        // If drift is significant (>3ms), seek to correct position
+        // Only correct if drift is significant (>1ms tolerance)
+        // This prevents unnecessary seeking for minor timing differences
         if (timeDiff > SyncState::DRIFT_TOLERANCE) {
             // Use our custom seek method for accurate positioning
+            // This ensures the track jumps to exactly the right position
             m_engine->get().seek(m_tracks[trackIndex].handle, targetTime);
             m_tracks[trackIndex].expectedPosition = targetTime;
             LOG_INFO("Track " + std::to_string(trackIndex) +
@@ -1200,6 +1141,15 @@ namespace AudioTester {
         }
     }
 
+    /**
+     * Gets the current playback time for a specific track.
+     *
+     * This method queries SoLoud for the current stream position of the track.
+     * It includes safety checks to ensure the track exists and is playing.
+     *
+     * @param trackIndex Index of the track to query
+     * @return Current playback time in seconds, or 0.0 if track not available
+     */
     double AudioSystem::getTrackCurrentTime(size_t trackIndex) const {
         if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
             return 0.0;
@@ -1207,15 +1157,30 @@ namespace AudioTester {
         return m_engine->get().getStreamPosition(m_tracks[trackIndex].handle);
     }
 
+    /**
+     * Checks if a track has drifted beyond the synchronization tolerance.
+     *
+     * This method compares the track's current position with the master track's
+     * position. If the difference exceeds the drift tolerance (1ms), the track
+     * is considered to be drifting and needs correction.
+     *
+     * The tolerance is set to 1ms to catch drift early while avoiding
+     * unnecessary corrections for minor timing differences.
+     *
+     * @param trackIndex Index of the track to check
+     * @return true if track is drifting, false otherwise
+     */
     bool AudioSystem::isTrackDrifting(size_t trackIndex) const {
         if (trackIndex >= m_tracks.size() || !m_tracks[trackIndex].isPlaying) {
             return false;
         }
 
+        // Get current positions
         double trackTime = getTrackCurrentTime(trackIndex);
         double masterTime = m_syncState.globalTime;
         double timeDiff = std::abs(masterTime - trackTime);
 
+        // Check if difference exceeds tolerance (1ms)
         return timeDiff > SyncState::DRIFT_TOLERANCE;
     }
 
@@ -1242,38 +1207,61 @@ namespace AudioTester {
     SoLoud::AudioSourceInstance* SyncWav::createInstance() { return new SyncWavInstance(this); }
 
     // Dual tape speed architecture implementation
+    /**
+     * Updates the dual tape speed architecture for granular tempo control.
+     *
+     * This method implements the dual tape speed architecture that allows independent
+     * control of tempo and pitch. The architecture works as follows:
+     *
+     * 1. User Tape Speed: Direct playback rate control (0.1x - 4.0x)
+     * 2. Granular Tempo: Pitch-preserving tempo multiplier (0.5x - 2.0x)
+     * 3. Internal Tape Speed: Hidden calculation = userTapeSpeed * granularTempo
+     * 4. Pitch Compensation: Hidden calculation = 1.0 / granularTempo
+     *
+     * This eliminates complex buffering by maintaining perfect sample ratios while
+     * achieving independent pitch and tempo control. SoLoud handles time changes
+     * through tape speed, while Signalsmith Stretch handles pitch compensation.
+     *
+     * The method only updates when values actually change to avoid unnecessary
+     * processing and logging.
+     */
     void AudioSystem::updateDualTapeSpeed() {
         if (!m_isInitialized) {
             return;
         }
 
-        // Calculate internal tape speed = userTapeSpeed * granularTempo
+        // Calculate the hidden internal values that make the architecture work
         float newInternalTapeSpeed = calculateInternalTapeSpeed();
         float newPitchCompensation = calculatePitchCompensation();
 
-        // Only update and log if values actually changed
+        // PERFORMANCE OPTIMIZATION: Only update if values actually changed
+        // This prevents unnecessary processing and reduces log spam
         bool valuesChanged = (std::abs(newInternalTapeSpeed - m_internalTapeSpeed) > 0.0001f) ||
                              (std::abs(newPitchCompensation - m_pitchCompensation) > 0.0001f);
 
+        // Update the hidden internal values
         m_internalTapeSpeed = newInternalTapeSpeed;
         m_pitchCompensation = newPitchCompensation;
 
         // Apply internal tape speed to all currently playing tracks
+        // This is what SoLoud actually uses for playback rate control
         for (size_t i = 0; i < m_tracks.size(); ++i) {
             if (m_tracks[i].isPlaying && m_tracks[i].handle != 0) {
                 m_engine->get().setRelativePlaySpeed(m_tracks[i].handle, m_internalTapeSpeed);
             }
         }
 
-        // Store for future tracks
+        // Store for future tracks that get loaded
         m_globalPlaybackRate = m_internalTapeSpeed;
 
         // Update Signalsmith Stretch with pitch compensation
+        // This handles the pitch preservation part of the architecture
         if (m_granularProcessor && m_granularProcessor->isReady()) {
             // Set pitch compensation in the AudioStreamProcessor
+            // This counteracts the tempo change to preserve pitch
             m_granularProcessor->setPitchCompensation(m_pitchCompensation);
 
-            // Only log when values actually change
+            // Only log when values actually change to reduce log spam
             if (valuesChanged) {
                 LOG_INFO("Dual tape speed update: userSpeed=" + std::to_string(m_userTapeSpeed) +
                          ", granularTempo=" + std::to_string(m_granularTempo) +
@@ -1283,10 +1271,36 @@ namespace AudioTester {
         }
     }
 
+    /**
+     * Calculates the internal tape speed for the dual tape speed architecture.
+     *
+     * This is the hidden calculation that combines user tape speed and granular tempo:
+     * Internal Tape Speed = userTapeSpeed * granularTempo
+     *
+     * The internal tape speed is what SoLoud actually uses for playback rate control.
+     * By combining both user controls, we achieve the desired tempo while maintaining
+     * the architecture's ability to preserve pitch through separate compensation.
+     *
+     * @return The calculated internal tape speed multiplier
+     */
     float AudioSystem::calculateInternalTapeSpeed() const {
         return m_userTapeSpeed * m_granularTempo;
     }
 
+    /**
+     * Calculates the pitch compensation factor for the dual tape speed architecture.
+     *
+     * This is the hidden calculation that preserves pitch during tempo changes:
+     * Pitch Compensation = 1.0 / granularTempo
+     *
+     * When granular tempo changes the playback speed, this compensation factor
+     * is applied by Signalsmith Stretch to counteract the pitch shift. This allows
+     * independent control of tempo and pitch.
+     *
+     * The calculation includes a safety check to prevent division by zero.
+     *
+     * @return The calculated pitch compensation factor
+     */
     float AudioSystem::calculatePitchCompensation() const {
         return (m_granularTempo != 0.0f) ? (1.0f / m_granularTempo) : 1.0f;
     }

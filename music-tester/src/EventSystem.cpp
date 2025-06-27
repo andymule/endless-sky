@@ -162,17 +162,36 @@ namespace AudioTester {
         m_currentTime = 0.0f;
     }
 
+    /**
+     * Performs smooth state interpolation between start and target states.
+     *
+     * This is the core method for dynamic music transitions, handling:
+     * - Tempo changes with musical interval easing
+     * - Volume interpolation with logarithmic easing for perceived linearity
+     * - Effect parameter transitions with wet level logic
+     * - Track fade-in/fade-out scenarios
+     * - Master bus state transitions
+     *
+     * The method processes both song events (affecting individual tracks) and
+     * master events (affecting global bus state).
+     *
+     * @param t Interpolation factor (0.0 = start state, 1.0 = target state)
+     */
     void EventSystem::lerpStates(float t) {
         if (m_transitionType == TransitionType::SONG) {
+            // SONG TRANSITION: Interpolate between two complete song states
             StateSnapshot lerpedState;
-            // Use musical interval easing for tempo changes to preserve harmonic relationships
+
+            // Apply musical interval easing to tempo changes to preserve harmonic relationships
+            // This prevents jarring tempo shifts that could break musical flow
             float easedT = tempoEase(t);
             lerpedState.masterTempo =
                 lerp(m_startState.masterTempo, m_targetState.masterTempo, easedT);
             lerpedState.granularTempo =
                 lerp(m_startState.granularTempo, m_targetState.granularTempo, easedT);
 
-            // Create maps for efficient track lookup by filename
+            // Create efficient lookup maps for track matching by filename
+            // This avoids O(n²) nested loops when processing tracks
             std::map<std::string, const TrackStateExtended*> startTracks;
             std::map<std::string, const TrackStateExtended*> targetTracks;
 
@@ -183,7 +202,8 @@ namespace AudioTester {
                 targetTracks[track.file] = &track;
             }
 
-            // Get all unique track filenames from both states
+            // Build set of all unique track filenames from both states
+            // This ensures we process tracks that exist in either start or target
             std::set<std::string> allTrackFiles;
             for (const auto& track : m_startState.tracks) {
                 allTrackFiles.insert(track.file);
@@ -192,25 +212,32 @@ namespace AudioTester {
                 allTrackFiles.insert(track.file);
             }
 
-            // Process each unique track
+            // Process each unique track - this handles all possible scenarios:
+            // 1. Track exists in both states (normal transition)
+            // 2. Track only in start state (fade out)
+            // 3. Track only in target state (fade in)
             for (const auto& trackFile : allTrackFiles) {
                 const TrackStateExtended* startTrack =
                     startTracks.count(trackFile) ? startTracks[trackFile] : nullptr;
                 const TrackStateExtended* targetTrack =
                     targetTracks.count(trackFile) ? targetTracks[trackFile] : nullptr;
 
-                // Create lerped track
+                // Create the interpolated track state
                 TrackStateExtended lerpedTrack;
                 lerpedTrack.file = trackFile;
 
-                // Volume
+                // VOLUME INTERPOLATION
+                // Handle cases where track might not exist in one state
                 float startVol = startTrack ? startTrack->volume : 1.0f;
                 float targetVol = targetTrack ? targetTrack->volume : 1.0f;
-                // Use logarithmic easing for perceived linear volume changes
+
+                // Use logarithmic easing for volume changes to achieve perceived linearity
+                // Human hearing is logarithmic, so linear interpolation sounds non-linear
                 float easedT = volumeEase(t);
                 lerpedTrack.volume = lerp(startVol, targetVol, easedT);
 
-                // Debug logging only at start (t=0) and end (t=1) of transition
+                // DEBUG LOGGING: Only log at transition boundaries to avoid spam
+                // This helps with debugging while keeping performance high
                 if (t < 0.001f || t > 0.999f) {
                     if (startVol > 0.0f || targetVol > 0.0f) {
                         LOG_INFO_COMP("EventSystem",
@@ -222,7 +249,7 @@ namespace AudioTester {
                     // Show which track is being processed
                     LOG_INFO_COMP("EventSystem", "Processing track: " + trackFile);
 
-                    // Show track matching info
+                    // Show track matching info for debugging
                     if (targetTrack && startTrack) {
                         LOG_INFO_COMP("EventSystem", "  Track matched: " + targetTrack->file +
                                                          " (target) with " + startTrack->file +
@@ -234,24 +261,26 @@ namespace AudioTester {
                     }
                 }
 
-                // Effects processing - process ALL tracks
+                // EFFECTS PROCESSING - Handle all possible effect transition scenarios
                 if (targetTrack) {
-                    // Track is specified in target event - process its effects
+                    // Track exists in target event - process its effects
                     std::set<std::string> allEffects;
+
                     // Include all effects from current state (to handle fade-outs)
+                    // This ensures effects that should fade out are processed
                     if (startTrack) {
                         for (const auto& [ename, _] : startTrack->effects) {
                             allEffects.insert(ename);
                         }
                     }
                     // Include all effects from target state (to handle fade-ins)
+                    // This ensures new effects that should fade in are processed
                     for (const auto& [ename, _] : targetTrack->effects) {
                         allEffects.insert(ename);
                     }
 
-                    // Debug logging only at start (t=0) and end (t=1) of transition
+                    // Debug logging for effect processing
                     if (t < 0.001f || t > 0.999f) {
-                        // Show effects being processed for this track
                         if (!allEffects.empty()) {
                             std::string effectList = "Track effects: ";
                             for (const auto& effect : allEffects) {
@@ -261,6 +290,7 @@ namespace AudioTester {
                         }
                     }
 
+                    // Process each effect with sophisticated transition logic
                     for (const auto& effectName : allEffects) {
                         const EffectState* startEff =
                             (startTrack && startTrack->effects.count(effectName))
@@ -271,24 +301,26 @@ namespace AudioTester {
                                                            : nullptr;
 
                         if (startEff && targetEff) {
-                            // Both states have this effect - lerp between them
+                            // SCENARIO 1: Both states have this effect - smooth transition between
+                            // them
                             lerpEffectState(*startEff, *targetEff, lerpedTrack.effects[effectName],
                                             t);
                         } else if (targetEff) {
-                            // Only target has this effect - fade in from zero
+                            // SCENARIO 2: Only target has this effect - fade in from zero
                             EffectState zeroStart;
                             // Create a proper zero state with all parameters at 0
+                            // This ensures clean fade-in without artifacts
                             for (const auto& [paramName, targetValue] : targetEff->parameters) {
                                 zeroStart.parameters[paramName] = 0.0f;
                             }
                             lerpEffectState(zeroStart, *targetEff, lerpedTrack.effects[effectName],
                                             t);
                         } else if (startEff) {
-                            // Only start has this effect - fade out to zero
+                            // SCENARIO 3: Only start has this effect - fade out to zero
                             EffectState zeroTarget = *startEff;
-                            zeroTarget.parameters["0"] = 0.0f; // Set wet to 0
+                            zeroTarget.parameters["0"] = 0.0f; // Set wet to 0 to disable effect
 
-                            // Debug logging only at start (t=0) and end (t=1) of transition
+                            // Debug logging for fade-out effects
                             if (t < 0.001f || t > 0.999f) {
                                 LOG_INFO_COMP("EventSystem",
                                               "Fading out effect: " + effectName + " from wet: " +
@@ -303,13 +335,13 @@ namespace AudioTester {
                         }
                     }
                 } else if (startTrack) {
-                    // Track is NOT in target event but exists in current state - fade out ALL
-                    // effects
+                    // SCENARIO 4: Track is NOT in target event but exists in current state
+                    // This means the track should completely fade out (all effects disabled)
                     for (const auto& [effectName, startEffect] : startTrack->effects) {
                         EffectState zeroTarget = startEffect;
-                        zeroTarget.parameters["0"] = 0.0f; // Set wet to 0
+                        zeroTarget.parameters["0"] = 0.0f; // Set wet to 0 to disable effect
 
-                        // Debug logging only at start (t=0) and end (t=1) of transition
+                        // Debug logging for complete track fade-out
                         if (t < 0.001f || t > 0.999f) {
                             LOG_INFO_COMP("EventSystem",
                                           "Fading out effect: " + effectName + " from wet: " +
@@ -324,13 +356,19 @@ namespace AudioTester {
                     }
                 }
 
-                // Add the lerped track to the result
+                // Add the fully processed track to the result state
                 lerpedState.tracks.push_back(lerpedTrack);
             }
+
+            // Apply the interpolated state to the audio system
             applyStateSnapshot(lerpedState);
+
         } else if (m_transitionType == TransitionType::MASTER) {
+            // MASTER TRANSITION: Interpolate between two master bus states
+            // This affects global settings that persist across song switches
             MasterBusState lerpedState;
-            // Use musical interval easing for tempo changes to preserve harmonic relationships
+
+            // Apply musical interval easing to tempo changes (same as song transitions)
             float easedT = tempoEase(t);
             lerpedState.masterTempo =
                 lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, easedT);
@@ -338,13 +376,17 @@ namespace AudioTester {
                 lerp(m_startMasterState.granularTempo, m_targetMasterState.granularTempo, easedT);
             lerpedState.volume = lerp(m_startMasterState.volume, m_targetMasterState.volume, t);
 
-            // Effects: process ALL effects from current state, plus any new effects in target
+            // MASTER EFFECTS PROCESSING
+            // Process ALL effects from current state, plus any new effects in target
+            // This ensures complete effect state management at the master level
             std::set<std::string> allEffects;
+
             // Include all effects from current state (to handle fade-outs)
             for (const auto& [ename, _] : m_startMasterState.effects) allEffects.insert(ename);
             // Include all effects from target state (to handle fade-ins)
             for (const auto& [ename, _] : m_targetMasterState.effects) allEffects.insert(ename);
 
+            // Process each master effect with the same logic as track effects
             for (const auto& effectName : allEffects) {
                 const EffectState* startEff = m_startMasterState.effects.count(effectName)
                                                   ? &m_startMasterState.effects.at(effectName)
@@ -371,6 +413,8 @@ namespace AudioTester {
                     lerpEffectState(*startEff, zeroTarget, lerpedState.effects[effectName], t);
                 }
             }
+
+            // Apply the interpolated master state to the audio system
             applyMasterBusState(lerpedState);
         }
     }
