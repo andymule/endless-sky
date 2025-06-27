@@ -529,13 +529,13 @@ namespace AudioTester {
         const auto& audioState = m_controller->getState();
         const auto& audioSystem = m_controller->getAudioSystem();
 
-        for (size_t i = 0; i < audioState.getTrackCount(); ++i) {
+        for (size_t i = 0; i < audioSystem.getTrackCount(); ++i) {
             const auto& track = audioState.getTrack(i);
             const auto& trackFilters = audioSystem.getFilters(i);
 
             TrackStateExtended extendedTrack;
             extendedTrack.file = std::filesystem::path(track.filepath).filename().string();
-            extendedTrack.volume = track.volume;
+            extendedTrack.volume = audioSystem.getTrackVolume(i); // Get from single source of truth
 
             // Capture only effects with wet > 0 from current audio system
             for (const auto& [filterName, filterInstance] : trackFilters) {

@@ -175,9 +175,19 @@ namespace AudioTester {
         if (!m_isInitialized || index >= m_tracks.size())
             return;
 
+        // Store volume in TrackInfo (single source of truth)
+        m_tracks[index].volume = volume;
+
         if (m_tracks[index].isPlaying && m_tracks[index].handle != 0) {
             m_engine->get().setVolume(m_tracks[index].handle, volume);
         }
+    }
+
+    float AudioSystem::getTrackVolume(size_t index) const {
+        if (!m_isInitialized || index >= m_tracks.size())
+            return 1.0f; // Default volume if track doesn't exist
+
+        return m_tracks[index].volume; // Return from single source of truth
     }
 
     void AudioSystem::setTrackLooping(size_t index, bool looping) {

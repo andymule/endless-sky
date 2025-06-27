@@ -242,8 +242,9 @@ namespace AudioTester {
     }
 
     void AudioController::setTrackVolume(size_t index, float volume) {
-        m_state.setTrackVolume(index, volume);
-        syncTrackToAudioSystem(index);
+        // Use AudioSystem as single source of truth for track volume
+        m_audioSystem.setTrackVolume(index, volume);
+        // Note: No longer need to sync since AudioSystem is the source of truth
     }
 
     void AudioController::setTrackLooping(size_t index, bool looping) {
@@ -310,21 +311,20 @@ namespace AudioTester {
     }
 
     void AudioController::syncTrackToAudioSystem(size_t index) {
-        if (index >= m_state.getTrackCount()) {
+        if (index >= m_audioSystem.getTrackCount()) {
             return;
         }
 
-        const auto& track = m_state.getTrack(index);
-        // Apply volume directly - no active state check needed
-        m_audioSystem.setTrackVolume(index, track.volume);
+        // Get volume from AudioSystem (single source of truth) and apply to audio engine
+        float volume = m_audioSystem.getTrackVolume(index);
+        m_audioSystem.setTrackVolume(index, volume);
     }
 
     void AudioController::syncAllTracksToAudioSystem() {
-        // Optimized: sync all tracks directly without method call overhead
-        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            const auto& track = m_state.getTrack(i);
-            // Apply volume directly - no active state check needed
-            m_audioSystem.setTrackVolume(i, track.volume);
+        // Sync all tracks from AudioSystem (single source of truth)
+        for (size_t i = 0; i < m_audioSystem.getTrackCount(); ++i) {
+            float volume = m_audioSystem.getTrackVolume(i);
+            m_audioSystem.setTrackVolume(i, volume);
         }
     }
 
@@ -420,12 +420,11 @@ namespace AudioTester {
         currentState.granularTempo = getGranularTempo();
 
         // Capture track states with effects
-        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            const auto& track = m_state.getTrack(i);
-
+        for (size_t i = 0; i < m_audioSystem.getTrackCount(); ++i) {
             TrackStateExtended trackState;
-            trackState.file = std::filesystem::path(track.filepath).filename().string();
-            trackState.volume = track.volume;
+            trackState.file =
+                std::filesystem::path(m_state.getTrack(i).filepath).filename().string();
+            trackState.volume = m_audioSystem.getTrackVolume(i); // Get from single source of truth
 
             // Capture only enabled effect states from AudioSystem
             const auto& trackFilters = m_audioSystem.getFilters(i);
@@ -469,12 +468,11 @@ namespace AudioTester {
         currentState.granularTempo = getGranularTempo();
 
         // Capture track states with effects
-        for (size_t i = 0; i < m_state.getTrackCount(); ++i) {
-            const auto& track = m_state.getTrack(i);
-
+        for (size_t i = 0; i < m_audioSystem.getTrackCount(); ++i) {
             TrackStateExtended trackState;
-            trackState.file = std::filesystem::path(track.filepath).filename().string();
-            trackState.volume = track.volume;
+            trackState.file =
+                std::filesystem::path(m_state.getTrack(i).filepath).filename().string();
+            trackState.volume = m_audioSystem.getTrackVolume(i); // Get from single source of truth
 
             // Capture only enabled effect states from AudioSystem
             const auto& trackFilters = m_audioSystem.getFilters(i);

@@ -174,6 +174,7 @@ namespace AudioTester {
         void pauseTrack(size_t index);
         void resumeTrack(size_t index);
         void setTrackVolume(size_t index, float volume);
+        float getTrackVolume(size_t index) const; // Get track volume from single source of truth
         void setTrackLooping(size_t index, bool looping);
         void removeTrack(size_t index); // Remove track completely from audio system
         size_t getTrackCount() const { return m_tracks.size(); } // Get number of tracks

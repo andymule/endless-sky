@@ -66,9 +66,9 @@ namespace AudioTester {
         struct TrackState {
             std::string name;
             std::string filepath;
-            float volume = 1.0f;
             bool looping = true;
             bool isPlaying = false;
+            // Note: volume is now managed by AudioSystem::TrackInfo as single source of truth
         };
 
         // State data
@@ -97,13 +97,6 @@ namespace AudioTester {
         void removeTrack(size_t index) {
             if (index < tracks.size()) {
                 tracks.erase(tracks.begin() + index);
-                notifyChanged();
-            }
-        }
-
-        void setTrackVolume(size_t index, float volume) {
-            if (index < tracks.size()) {
-                tracks[index].volume = volume;
                 notifyChanged();
             }
         }

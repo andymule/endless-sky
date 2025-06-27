@@ -380,11 +380,12 @@ void TesterView::RenderTrackControls() {
         }
 
         // Volume slider with track name as overlay
-        // Get volume from AudioState if available, otherwise default to 1.0
+        // Get volume from AudioSystem (single source of truth), otherwise default to 1.0
         float volume = 1.0f;
 
-        if (actualTrackIndex >= 0 && actualTrackIndex < static_cast<int>(state.getTrackCount())) {
-            volume = state.getTrack(actualTrackIndex).volume;
+        if (actualTrackIndex >= 0 &&
+            actualTrackIndex < static_cast<int>(m_controller->getAudioSystem().getTrackCount())) {
+            volume = m_controller->getAudioSystem().getTrackVolume(actualTrackIndex);
         }
 
         // Create track title with keyboard shortcut
@@ -875,9 +876,10 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
             case ActiveWindow::MAIN:
                 // Main window tracks - toggle volume between 0.0 and 1.0
                 {
-                    const auto& track = state.getTrack(trackIndex);
+                    // Get current volume from AudioSystem (single source of truth)
+                    float currentVolume = m_controller->getAudioSystem().getTrackVolume(trackIndex);
                     // Toggle logic: if volume > 50%, mute it; otherwise, set to full
-                    float newVolume = (track.volume > 0.5f) ? 0.0f : 1.0f;
+                    float newVolume = (currentVolume > 0.5f) ? 0.0f : 1.0f;
                     m_controller->setTrackVolume(trackIndex, newVolume);
                 }
                 break;
@@ -1323,12 +1325,13 @@ AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
     const auto& state = m_controller->getState();
 
     // Capture track states
-    for (size_t i = 0; i < state.getTrackCount(); ++i) {
+    for (size_t i = 0; i < m_controller->getAudioSystem().getTrackCount(); ++i) {
         const auto& track = state.getTrack(i);
 
         AudioTester::TrackStateExtended trackState;
         trackState.file = track.name; // Use name as file reference
-        trackState.volume = track.volume;
+        trackState.volume =
+            m_controller->getAudioSystem().getTrackVolume(i); // Get from single source of truth
         // Note: active field removed - tracks are always active, use volume for enable/disable
         // TODO: Capture effect states from AudioSystem
 
