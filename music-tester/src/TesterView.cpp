@@ -1,7 +1,7 @@
 #include "TesterView.h"
 #include "Logger.h"
 #include "imgui_impl_opengl3.h"
-#include "imgui_impl_sdl2.h" g
+#include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
 #include <algorithm>
 #include <chrono>
@@ -478,7 +478,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
     const auto& filters = audioSystem.getFilters(trackIndex);
 
     // Iterate through all available filter types
-    for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
+    for (const auto& filterName : AudioTester::FilterManager::getAvailableFilters()) {
         // Check if filter is currently enabled (based on wet parameter > 0)
         // This provides real-time feedback of the actual filter state
         bool effectivelyEnabled = audioSystem.isFilterEnabled(trackIndex, filterName);
@@ -631,7 +631,7 @@ void TesterView::RenderBusControls() {
     ImGui::Text("Bus FX");
     const auto& busFilters = audioSystem.getBusFilters();
 
-    for (const auto& filterName : AudioTester::AudioSystem::AVAILABLE_FILTERS) {
+    for (const auto& filterName : AudioTester::FilterManager::getAvailableFilters()) {
         // Check if filter is currently enabled (based on wet parameter > 0)
         bool effectivelyEnabled = audioSystem.isBusFilterEnabled(filterName);
 

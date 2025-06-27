@@ -220,9 +220,6 @@ namespace AudioTester {
                                           const std::string& paramName) const;
         const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
 
-        // Static members
-        static const std::vector<std::string> AVAILABLE_FILTERS;
-
     private:
         void applyFiltersToTrack(size_t trackIndex);
         void updateBusFilterParams();

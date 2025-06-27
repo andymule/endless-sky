@@ -43,12 +43,13 @@ The Music Tester project has evolved into a complex audio system with several ar
   - [x] **Risk**: Medium - requires careful interface design
   - [x] **Status**: Complete - clean modular architecture with proper separation of concerns
 
-- [ ] **Task 2.2**: Extract FilterManager from AudioSystem
-  - [ ] Move all filter-related methods to existing `FilterManager`
-  - [ ] Create clean filter parameter interface
-  - [ ] Remove duplicate filter state tracking
+- [ ] **Task 2.2**: Clean up AudioSystem to use FilterManager exclusively
+  - [ ] Remove duplicate `FilterParameter` and `FilterInstance` structs from AudioSystem
+  - [ ] Simplify AudioSystem filter methods to use FilterManager's unified interface
+  - [ ] Streamline filter state tracking to eliminate duplication
+  - [ ] Keep AudioSystem focused on audio coordination, not filter logic
   - [ ] **Impact**: Eliminates filter duplication, improves maintainability
-  - [ ] **Risk**: Medium - requires careful state migration
+  - [ ] **Risk**: Low - FilterManager already exists and works well
 
 - [ ] **Task 2.3**: Simplify audio synchronization
   - [ ] Reduce `SyncState` complexity (remove unused fields)

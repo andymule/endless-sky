@@ -20,10 +20,6 @@ namespace AudioTester {
     constexpr float MAX_FREQUENCY = 100.0f;       // Maximum frequency in Hz
     constexpr float BUS_PARAM_FADE_TIME = 0.001f; // Fast fade for bus parameters
 
-    const std::vector<std::string> AudioSystem::AVAILABLE_FILTERS = {
-        "biquad",    "echo",       "lofi",     "flanger", "dcremoval",
-        "bassboost", "waveshaper", "robotize", "freeverb"};
-
     AudioSystem::AudioSystem() {
         m_engine = std::make_unique<SoloudEngine>();
         m_isInitialized = false;
@@ -1431,23 +1427,24 @@ namespace AudioTester {
 
     // Helper methods for wet-based effect automation
     bool AudioSystem::isWetParameter(const std::string& filterName, int paramId) const {
-        // Most filters have wet parameter at index 0, except dcremoval which has no wet parameter
-        return (filterName != "dcremoval" && paramId == 0);
+        // Use FilterManager to check if this is a wet parameter
+        return m_filterManager.getParameterName(filterName, paramId) == "wet";
     }
 
     int AudioSystem::getWetParameterId(const std::string& filterName) const {
-        // Most filters have wet parameter at index 0, except dcremoval which has no wet parameter
-        return (filterName != "dcremoval") ? 0 : -1;
+        // Use FilterManager to get wet parameter ID
+        return m_filterManager.getParameterId(filterName, "wet");
     }
 
     bool AudioSystem::shouldAutoEnableFilter(const std::string& filterName, int paramId,
                                              float value) const {
         // Auto-enable if setting wet parameter > 0, or if filter has no wet parameter
-        if (filterName == "dcremoval") {
-            return true; // DCRemoval has no wet parameter, always enable when parameters are set
+        int wetParamId = getWetParameterId(filterName);
+        if (wetParamId == -1) {
+            return true; // Filter has no wet parameter, always enable when parameters are set
         }
 
-        if (paramId == 0) { // Wet parameter
+        if (paramId == wetParamId) { // Wet parameter
             return value > 0.0f;
         }
 

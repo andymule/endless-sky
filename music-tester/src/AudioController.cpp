@@ -755,6 +755,8 @@ namespace AudioTester {
     }
 
     bool AudioController::addTrackToCurrentEvent(const std::string& filename) {
+        // Incremental track addition: only adds the new track to state and audio system.
+        // Does NOT trigger a full reload or call loadMusicFromDirectory().
         // Get the current song and event
         SongManager* mgr = getSongManagerMutable();
         if (!mgr)
@@ -822,6 +824,8 @@ namespace AudioTester {
     }
 
     bool AudioController::removeTrackFromCurrentSong(const std::string& filename) {
+        // Incremental track removal: only removes the track from state and audio system.
+        // Does NOT trigger a full reload or call loadMusicFromDirectory().
         // Get the current song
         SongManager* mgr = getSongManagerMutable();
         if (!mgr)
