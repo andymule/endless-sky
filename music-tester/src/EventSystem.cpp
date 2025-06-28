@@ -182,9 +182,8 @@ namespace AudioTester {
             // SONG TRANSITION: Interpolate between two complete song states
             StateSnapshot lerpedState;
 
-            // Apply musical interval easing to tempo changes to preserve harmonic relationships
-            // This prevents jarring tempo shifts that could break musical flow
-            float easedT = tempoEase(t);
+            // Apply EASE_IN_OUT easing to tempo changes
+            float easedT = easeInOut(t);
             lerpedState.masterTempo =
                 lerp(m_startState.masterTempo, m_targetState.masterTempo, easedT);
             lerpedState.granularTempo =
@@ -231,9 +230,8 @@ namespace AudioTester {
                 float startVol = startTrack ? startTrack->volume : 1.0f;
                 float targetVol = targetTrack ? targetTrack->volume : 1.0f;
 
-                // Use logarithmic easing for volume changes to achieve perceived linearity
-                // Human hearing is logarithmic, so linear interpolation sounds non-linear
-                float easedT = volumeEase(t);
+                // Use EASE_IN_OUT easing for volume changes
+                float easedT = easeInOut(t);
                 lerpedTrack.volume = lerp(startVol, targetVol, easedT);
 
                 // DEBUG LOGGING: Only log at transition boundaries to avoid spam
@@ -368,8 +366,8 @@ namespace AudioTester {
             // This affects global settings that persist across song switches
             MasterBusState lerpedState;
 
-            // Apply musical interval easing to tempo changes (same as song transitions)
-            float easedT = tempoEase(t);
+            // Apply EASE_IN_OUT easing to tempo changes
+            float easedT = easeInOut(t);
             lerpedState.masterTempo =
                 lerp(m_startMasterState.masterTempo, m_targetMasterState.masterTempo, easedT);
             lerpedState.granularTempo =
@@ -599,27 +597,6 @@ namespace AudioTester {
         return t < 0.5f ? 2.0f * t * t : 1.0f - 2.0f * (1.0f - t) * (1.0f - t);
     }
 
-    float EventSystem::volumeEase(float t) {
-        // Logarithmic easing for perceived linear volume changes
-        // Human hearing perceives volume logarithmically, so we use square root
-        // to make the transition feel more natural
-        return std::sqrt(t);
-    }
-
-    float EventSystem::tempoEase(float t) {
-        // Musical interval easing for tempo changes
-        // Uses exponential curve to maintain musical relationships
-        // This helps preserve harmonic relationships during tempo transitions
-        return std::pow(2.0f, t - 1.0f);
-    }
-
-    float EventSystem::wetEase(float t) {
-        // Sigmoid easing for smooth effect crossfades
-        // Provides smooth transitions for wet/dry mixing
-        // Avoids artifacts that can occur with linear wet level changes
-        return 1.0f / (1.0f + std::exp(-10.0f * (t - 0.5f)));
-    }
-
     void EventSystem::lerpEffectState(const EffectState& start, const EffectState& end,
                                       EffectState& result, float t) {
         // Always lerp wet parameter first (wet is usually param ID 0)
@@ -645,8 +622,8 @@ namespace AudioTester {
         }
 
         if (hasStartWet && hasEndWet) {
-            // Use sigmoid easing for smooth wet level transitions
-            float easedT = wetEase(t);
+            // Use EASE_IN_OUT easing for smooth wet level transitions
+            float easedT = easeInOut(t);
             result.parameters["0"] = lerp(startWet, endWet, easedT);
             // Only lerp other parameters if either wet level > 0
             if (startWet > 0.0f || endWet > 0.0f) {
@@ -664,7 +641,7 @@ namespace AudioTester {
             }
         } else if (hasEndWet) {
             // No start wet, lerp from 0
-            float easedT = wetEase(t);
+            float easedT = easeInOut(t);
             result.parameters["0"] = lerp(0.0f, endWet, easedT);
             for (const auto& [paramName, endValue] : end.parameters) {
                 if (paramName == "0")
@@ -673,7 +650,7 @@ namespace AudioTester {
             }
         } else if (hasStartWet) {
             // No end wet, lerp to 0
-            float easedT = wetEase(t);
+            float easedT = easeInOut(t);
             result.parameters["0"] = lerp(startWet, 0.0f, easedT);
             for (const auto& [paramName, startValue] : start.parameters) {
                 if (paramName == "0")

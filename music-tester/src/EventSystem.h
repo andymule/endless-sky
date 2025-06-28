@@ -61,11 +61,6 @@ namespace AudioTester {
         float lerp(float a, float b, float t);
         float easeInOut(float t); // EASE_IN_OUT easing curve
 
-        // Parameter-specific easing functions for optimal audio transitions
-        float volumeEase(float t); // Logarithmic for perceived linearity
-        float tempoEase(float t);  // Musical intervals for tempo changes
-        float wetEase(float t);    // Sigmoid for smooth effect crossfades
-
         void lerpEffectState(const EffectState& start, const EffectState& end, EffectState& result,
                              float t);
     };
