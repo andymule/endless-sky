@@ -70,17 +70,6 @@ namespace AudioTester {
                       filter->setParams(params[1], params[2]);
                   }
               }}},
-            {"bassboost",
-             {"bassboost",
-              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "boost", 0.0f, 11.0f, 2.0f, [](float v) { return v >= 0.0f; }}},
-              []() { return std::make_unique<SoLoud::BassboostFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::BassboostFilter*>(f);
-                  if (filter && params.size() >= 2) {
-                      filter->setParams(params[1]);
-                  }
-              }}},
             {"waveshaper",
              {"waveshaper",
               {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
@@ -121,7 +110,7 @@ namespace AudioTester {
     // Static filter list for backward compatibility
     const std::vector<std::string>& FilterManager::getAvailableFilters() {
         static const std::vector<std::string> availableFilters = {
-            "echo", "freeverb", "lofi", "flanger", "bassboost", "waveshaper", "robotize", "biquad"};
+            "echo", "freeverb", "lofi", "flanger", "waveshaper", "robotize", "biquad"};
         return availableFilters;
     }
 

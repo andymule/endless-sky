@@ -171,7 +171,6 @@ set(SOLOUD_SOURCES
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_wav.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/stb_vorbis.c
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_impl.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_bassboostfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_biquadresonantfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_echofilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_flangerfilter.cpp
