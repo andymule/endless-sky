@@ -51,12 +51,6 @@ The Music Tester project has evolved into a complex audio system with several ar
   - [ ] **Impact**: Eliminates filter duplication, improves maintainability
   - [ ] **Risk**: Low - FilterManager already exists and works well
 
-- [ ] **Task 2.3**: Simplify audio synchronization
-  - [ ] Reduce `SyncState` complexity (remove unused fields)
-  - [ ] Simplify `updateSync()` method to essential checks only
-  - [ ] Remove complex drift correction logic
-  - [ ] **Impact**: Reduces complexity, improves performance
-  - [ ] **Risk**: Low - can be done incrementally
 
 ### Phase 3: Event System Simplification (Medium Impact, Medium Risk)
 

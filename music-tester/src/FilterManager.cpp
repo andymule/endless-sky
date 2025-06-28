@@ -4,7 +4,6 @@
 // SoLoud filter includes
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
-#include "soloud_dcremovalfilter.h"
 #include "soloud_echofilter.h"
 #include "soloud_flangerfilter.h"
 #include "soloud_freeverbfilter.h"
@@ -21,6 +20,90 @@ namespace AudioTester {
     // systems
     const std::unordered_map<std::string, FilterManager::FilterDefinition>
         FilterManager::FILTER_DEFINITIONS = {
+            {"echo",
+             {"echo",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "delay", 0.01f, 2.0f, 0.2f, [](float v) { return v > 0.0f; }},
+               {2, "decay", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
+              []() { return std::make_unique<SoLoud::EchoFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::EchoFilter*>(f);
+                  if (filter && params.size() >= 3) {
+                      filter->setParams(params[1], params[2]);
+                  }
+              }}},
+            {"freeverb",
+             {"freeverb",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "freeze", 0.0f, 1.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {2, "roomSize", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {3, "damp", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {4, "width", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
+              []() { return std::make_unique<SoLoud::FreeverbFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::FreeverbFilter*>(f);
+                  if (filter && params.size() >= 5) {
+                      filter->setParams(params[1], params[2], params[3], params[4]);
+                  }
+              }}},
+            {"lofi",
+             {"lofi",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "sampleRate", 1000.0f, 20000.0f, 8000.0f, [](float v) { return v > 0.0f; }},
+               {2, "bitDepth", 1.0f, 16.0f, 8.0f, [](float v) { return v > 0.0f; }}},
+              []() { return std::make_unique<SoLoud::LofiFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::LofiFilter*>(f);
+                  if (filter && params.size() >= 3) {
+                      filter->setParams(params[1], params[2]);
+                  }
+              }}},
+            {"flanger",
+             {"flanger",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "delay", 0.001f, 0.1f, 0.005f, [](float v) { return v > 0.0f; }},
+               {2, "freq", 0.1f, 10.0f, 1.0f, [](float v) { return v > 0.0f; }}},
+              []() { return std::make_unique<SoLoud::FlangerFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::FlangerFilter*>(f);
+                  if (filter && params.size() >= 3) {
+                      filter->setParams(params[1], params[2]);
+                  }
+              }}},
+            {"bassboost",
+             {"bassboost",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "boost", 0.0f, 11.0f, 2.0f, [](float v) { return v >= 0.0f; }}},
+              []() { return std::make_unique<SoLoud::BassboostFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::BassboostFilter*>(f);
+                  if (filter && params.size() >= 2) {
+                      filter->setParams(params[1]);
+                  }
+              }}},
+            {"waveshaper",
+             {"waveshaper",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "amount", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
+              []() { return std::make_unique<SoLoud::WaveShaperFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::WaveShaperFilter*>(f);
+                  if (filter && params.size() >= 2) {
+                      filter->setParams(params[1]);
+                  }
+              }}},
+            {"robotize",
+             {"robotize",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "freq", 0.1f, 10.0f, 1.0f, [](float v) { return v > 0.0f; }},
+               {2, "waveform", 0.0f, 3.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 3.0f; }}},
+              []() { return std::make_unique<SoLoud::RobotizeFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::RobotizeFilter*>(f);
+                  if (filter && params.size() >= 3) {
+                      filter->setParams(params[1], params[2]);
+                  }
+              }}},
             {"biquad",
              {"biquad",
               {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
@@ -31,111 +114,15 @@ namespace AudioTester {
               [](SoLoud::Filter* f, const std::vector<float>& params) {
                   auto* filter = dynamic_cast<SoLoud::BiquadResonantFilter*>(f);
                   if (filter && params.size() >= 4) {
-                      filter->setParams(static_cast<int>(params[1]), params[2], params[3]);
-                  }
-              }}},
-            {"echo",
-             {"echo",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "delay", 0.001f, 1.0f, 0.3f, [](float v) { return v > 0.0f; }},
-               {2, "decay", 0.001f, 0.999f, 0.7f, [](float v) { return v > 0.0f && v < 1.0f; }},
-               {3, "filter", 0.0f, 0.999f, 0.0f, [](float v) { return v >= 0.0f && v < 1.0f; }}},
-              []() { return std::make_unique<SoLoud::EchoFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::EchoFilter*>(f);
-                  if (filter && params.size() >= 4) {
                       filter->setParams(params[1], params[2], params[3]);
-                  }
-              }}},
-            {"lofi",
-             {"lofi",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "samplerate", 100.0f, 22000.0f, 4000.0f, [](float v) { return v > 0.0f; }},
-               {2, "bitdepth", 0.5f, 16.0f, 3.0f, [](float v) { return v > 0.0f; }}},
-              []() { return std::make_unique<SoLoud::LofiFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::LofiFilter*>(f);
-                  if (filter && params.size() >= 3) {
-                      filter->setParams(params[1], params[2]);
-                  }
-              }}},
-            {"flanger",
-             {"flanger",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "delay", 0.001f, 0.1f, 0.005f, [](float v) { return v > 0.0f; }},
-               {2, "freq", 0.1f, 100.0f, 10.0f, [](float v) { return v > 0.0f; }}},
-              []() { return std::make_unique<SoLoud::FlangerFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::FlangerFilter*>(f);
-                  if (filter && params.size() >= 3) {
-                      filter->setParams(params[1], params[2]);
-                  }
-              }}},
-            {"dcremoval",
-             {"dcremoval",
-              {{0, "length", 0.01f, 10.0f, 0.1f, [](float v) { return v > 0.0f; }}},
-              []() { return std::make_unique<SoLoud::DCRemovalFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::DCRemovalFilter*>(f);
-                  if (filter && params.size() >= 1) {
-                      filter->setParams(params[0]);
-                  }
-              }}},
-            {"bassboost",
-             {"bassboost",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "boost", 0.0f, 10.0f, 2.0f, [](float v) { return v >= 0.0f; }}},
-              []() { return std::make_unique<SoLoud::BassboostFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::BassboostFilter*>(f);
-                  if (filter && params.size() >= 2) {
-                      filter->setParams(params[1]);
-                  }
-              }}},
-            {"waveshaper",
-             {"waveshaper",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "Amount", -1.0f, 1.0f, 0.5f, [](float v) { return v >= -1.0f && v <= 1.0f; }}},
-              []() { return std::make_unique<SoLoud::WaveShaperFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::WaveShaperFilter*>(f);
-                  if (filter && params.size() >= 2) {
-                      filter->setParams(params[1]);
-                  }
-              }}},
-            {"robotize",
-             {"robotize",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "Frequency", 0.1f, 100.0f, 30.0f, [](float v) { return v > 0.0f; }},
-               {2, "Waveform", 0.0f, 6.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 6.0f; }}},
-              []() { return std::make_unique<SoLoud::RobotizeFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::RobotizeFilter*>(f);
-                  if (filter && params.size() >= 3) {
-                      filter->setParams(params[1], static_cast<int>(params[2]));
-                  }
-              }}},
-            {"freeverb",
-             {"freeverb",
-              {{0, "wet", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "freeze", 0.0f, 1.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {2, "roomsize", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {3, "damp", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {4, "width", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
-              []() { return std::make_unique<SoLoud::FreeverbFilter>(); },
-              [](SoLoud::Filter* f, const std::vector<float>& params) {
-                  auto* filter = dynamic_cast<SoLoud::FreeverbFilter*>(f);
-                  if (filter && params.size() >= 5) {
-                      filter->setParams(params[1], params[2], params[3], params[4]);
                   }
               }}}};
 
     // Static filter list for backward compatibility
     const std::vector<std::string>& FilterManager::getAvailableFilters() {
-        static const std::vector<std::string> filters = {"biquad",     "echo",      "lofi",
-                                                         "flanger",    "dcremoval", "bassboost",
-                                                         "waveshaper", "robotize",  "freeverb"};
-        return filters;
+        static const std::vector<std::string> availableFilters = {
+            "echo", "freeverb", "lofi", "flanger", "bassboost", "waveshaper", "robotize", "biquad"};
+        return availableFilters;
     }
 
     // Helper methods

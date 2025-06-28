@@ -10,7 +10,6 @@
 #include "soloud_bassboostfilter.h"
 #include "soloud_biquadresonantfilter.h"
 #include "soloud_bus.h"
-#include "soloud_dcremovalfilter.h"
 #include "soloud_echofilter.h"
 #include "soloud_flangerfilter.h"
 #include "soloud_freeverbfilter.h"

@@ -171,16 +171,15 @@ set(SOLOUD_SOURCES
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_wav.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/stb_vorbis.c
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_impl.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_bassboostfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_biquadresonantfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_echofilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_lofifilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_flangerfilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_dcremovalfilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_fftfilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_bassboostfilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_waveshaperfilter.cpp
-    ${soloud_SOURCE_DIR}/src/filter/soloud_robotizefilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_freeverbfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_lofifilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_robotizefilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_waveshaperfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_fftfilter.cpp
 )
 
 target_sources(music-tester PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})

@@ -559,8 +559,6 @@ namespace AudioTester {
             instance.filter = std::make_unique<SoLoud::LofiFilter>();
         else if (filterName == "flanger")
             instance.filter = std::make_unique<SoLoud::FlangerFilter>();
-        else if (filterName == "dcremoval")
-            instance.filter = std::make_unique<SoLoud::DCRemovalFilter>();
         else if (filterName == "bassboost")
             instance.filter = std::make_unique<SoLoud::BassboostFilter>();
         else if (filterName == "waveshaper")
@@ -599,9 +597,6 @@ namespace AudioTester {
                 instance.parameters[1] = {0.005f, 0.001f, 0.1f, "Delay (s)", ParameterType::FLOAT};
                 instance.parameters[2] = {10.0f, 0.1f, 100.0f, "Frequency (Hz)",
                                           ParameterType::FLOAT};
-            } else if (filterName == "dcremoval") {
-                // Only one parameter: Length (in seconds) - no WET parameter for this filter
-                instance.parameters[0] = {0.1f, 0.01f, 10.0f, "Length (s)", ParameterType::FLOAT};
             } else if (filterName == "bassboost") {
                 // WET, Boost
                 instance.parameters[0] = {0.5f, 0.0f, 1.0f, "Wet Mix", ParameterType::FLOAT};
@@ -673,12 +668,6 @@ namespace AudioTester {
                 float p1 = instance.parameters[1].value; // Delay
                 float p2 = instance.parameters[2].value; // Frequency
                 f->setParams(p1, p2);
-            }
-        } else if (filterName == "dcremoval") {
-            auto* f = dynamic_cast<SoLoud::DCRemovalFilter*>(instance.filter.get());
-            if (f) {
-                float length = instance.parameters[0].value;
-                f->setParams(length);
             }
         } else if (filterName == "bassboost") {
             auto* f = dynamic_cast<SoLoud::BassboostFilter*>(instance.filter.get());
@@ -1071,8 +1060,23 @@ namespace AudioTester {
      * sessions where small timing differences can accumulate.
      */
     void AudioSystem::updateSync() {
+        // DEBUG: Simple heartbeat to confirm updateSync is being called
+        static int heartbeatCount = 0;
+        heartbeatCount++;
+        if (heartbeatCount % 1000 == 0) { // Log every 1000th call
+            LOG_INFO("UPDATE SYNC HEARTBEAT: call #" + std::to_string(heartbeatCount));
+        }
+
         // Early exit if system not ready or no tracks playing
         if (!m_isInitialized || !m_syncState.isPlaying || m_trackManager.getTrackCount() == 0) {
+            // DEBUG: Log why updateSync is exiting early
+            static int earlyExitCount = 0;
+            earlyExitCount++;
+            if (earlyExitCount % 1000 == 0) { // Log every 1000th early exit to avoid spam
+                LOG_INFO("UPDATE SYNC EARLY EXIT: initialized=" + std::to_string(m_isInitialized) +
+                         ", isPlaying=" + std::to_string(m_syncState.isPlaying) +
+                         ", trackCount=" + std::to_string(m_trackManager.getTrackCount()));
+            }
             return;
         }
 
@@ -1080,16 +1084,62 @@ namespace AudioTester {
         // The master track serves as the reference clock for all other tracks
         if (m_syncState.masterTrackIndex < m_trackManager.getTrackCount() &&
             m_trackManager.getTrack(m_syncState.masterTrackIndex).isPlaying) {
+            double oldGlobalTime = m_syncState.globalTime;
             m_syncState.globalTime = m_engine->get().getStreamPosition(
                 m_trackManager.getTrack(m_syncState.masterTrackIndex).handle);
+
+            // DEBUG: Log if global time update seems unusual
+            double timeAdvance = m_syncState.globalTime - oldGlobalTime;
+            if (timeAdvance > 0.1) { // If time advanced more than 100ms in one update
+                LOG_INFO("GLOBAL TIME JUMP: " + std::to_string(oldGlobalTime) + "s -> " +
+                         std::to_string(m_syncState.globalTime) + "s " +
+                         "(advance: " + std::to_string(timeAdvance * 1000.0) + "ms)");
+            }
+        } else {
+            // DEBUG: Log when master track is not available
+            static int masterUnavailableCount = 0;
+            masterUnavailableCount++;
+            if (masterUnavailableCount % 100 == 0) { // Log every 100th occurrence
+                LOG_INFO("MASTER TRACK UNAVAILABLE: index=" +
+                         std::to_string(m_syncState.masterTrackIndex) +
+                         ", trackCount=" + std::to_string(m_trackManager.getTrackCount()) +
+                         ", isPlaying=" + std::to_string(m_syncState.isPlaying));
+            }
         }
 
         // PERFORMANCE OPTIMIZATION: Check for sync issues every 100ms
         // This prevents excessive checking while still catching drift quickly
         double currentTime = m_syncState.globalTime;
-        if (currentTime - m_syncState.lastSyncCheck < SyncState::SYNC_CHECK_INTERVAL) {
-            return;
+
+        // FIXED: Handle case where currentTime < lastSyncCheck (track looping/seeking)
+        double timeSinceLastCheck = currentTime - m_syncState.lastSyncCheck;
+
+        // If time went backwards (track looped/seeking), reset and do a sync check
+        if (timeSinceLastCheck < 0) {
+            LOG_INFO("TIME WENT BACKWARDS: currentTime=" + std::to_string(currentTime) +
+                     ", lastCheck=" + std::to_string(m_syncState.lastSyncCheck) +
+                     ", resetting sync check");
+            m_syncState.lastSyncCheck = currentTime;
+            // Continue to sync check below
         }
+        // Otherwise, check if enough time has passed for next sync check
+        else if (timeSinceLastCheck < SyncState::SYNC_CHECK_INTERVAL) {
+            // DEBUG: Log when sync check is skipped due to interval
+            static int intervalSkipCount = 0;
+            intervalSkipCount++;
+            if (intervalSkipCount % 1000 == 0) { // Log every 1000th skip
+                LOG_INFO("SYNC CHECK SKIPPED: currentTime=" + std::to_string(currentTime) +
+                         ", lastCheck=" + std::to_string(m_syncState.lastSyncCheck) +
+                         ", timeSinceLast=" + std::to_string(timeSinceLastCheck) +
+                         ", interval=" + std::to_string(SyncState::SYNC_CHECK_INTERVAL));
+            }
+            return;
+        } else {
+            // Normal case: enough time has passed, update lastSyncCheck
+            m_syncState.lastSyncCheck = currentTime;
+        }
+
+        // If we get here, it's time for a sync check
         m_syncState.lastSyncCheck = currentTime;
 
         // Check each track for drift and correct if needed
@@ -1108,6 +1158,32 @@ namespace AudioTester {
      * Only playing tracks are checked to avoid unnecessary processing.
      */
     void AudioSystem::checkAndCorrectSync() {
+        // DEBUG: Log comprehensive sync state
+        static int debugCounter = 0;
+        debugCounter++;
+
+        // Only log every 10th check to avoid spam (every 1 second)
+        if (debugCounter % 10 == 0) {
+            LOG_INFO("=== SYNC DEBUG CHECK ===");
+            LOG_INFO("Master track: " + std::to_string(m_syncState.masterTrackIndex) +
+                     " (global time: " + std::to_string(m_syncState.globalTime) + "s)");
+
+            for (size_t i = 0; i < m_trackManager.getTrackCount(); ++i) {
+                const auto& track = m_trackManager.getTrack(i);
+                double trackTime = getTrackCurrentTime(i);
+                double timeDiff = std::abs(m_syncState.globalTime - trackTime);
+                bool isDrifting = timeDiff > SyncState::DRIFT_TOLERANCE;
+
+                LOG_INFO("Track " + std::to_string(i) + ": " +
+                         "playing=" + std::to_string(track.isPlaying) +
+                         ", position=" + std::to_string(trackTime) + "s" +
+                         ", diff=" + std::to_string(timeDiff * 1000.0) + "ms" +
+                         ", drifting=" + std::to_string(isDrifting) +
+                         (i == m_syncState.masterTrackIndex ? " [MASTER]" : ""));
+            }
+            LOG_INFO("=== END SYNC DEBUG ===");
+        }
+
         for (size_t i = 0; i < m_trackManager.getTrackCount(); ++i) {
             // Skip the master track - it's our reference clock
             if (i == m_syncState.masterTrackIndex) {
@@ -1198,6 +1274,14 @@ namespace AudioTester {
         double trackTime = getTrackCurrentTime(trackIndex);
         double masterTime = m_syncState.globalTime;
         double timeDiff = std::abs(masterTime - trackTime);
+
+        // DEBUG: Log drift detection details for significant differences
+        if (timeDiff > 0.0005) { // Log if difference > 0.5ms
+            LOG_INFO("DRIFT DETECTION: Track " + std::to_string(trackIndex) + " - Master: " +
+                     std::to_string(masterTime) + "s, " + "Track: " + std::to_string(trackTime) +
+                     "s, " + "Diff: " + std::to_string(timeDiff * 1000.0) + "ms, " +
+                     "Tolerance: " + std::to_string(SyncState::DRIFT_TOLERANCE * 1000.0) + "ms");
+        }
 
         // Check if difference exceeds tolerance (1ms)
         return timeDiff > SyncState::DRIFT_TOLERANCE;

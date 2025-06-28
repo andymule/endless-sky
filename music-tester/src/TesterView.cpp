@@ -554,7 +554,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                             // Float parameters use standard slider with special wet parameter
                             // handling Highlight wet parameter for easy identification (most
                             // effects use param ID 0)
-                            if (paramId == 0 && filterName != "dcremoval") {
+                            if (paramId == 0) {
                                 ImGui::PushStyleColor(
                                     ImGuiCol_FrameBg,
                                     value > 0.0f ? ImVec4(0.2f, 0.6f, 0.2f,
@@ -568,7 +568,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                                 changed = true;
                             }
 
-                            if (paramId == 0 && filterName != "dcremoval") {
+                            if (paramId == 0) {
                                 ImGui::PopStyleColor();
                                 // Add tooltip for wet parameter to explain its purpose
                                 if (ImGui::IsItemHovered()) {
@@ -587,7 +587,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                                                               value);
                     }
                 }
-            } else if (filterName != "dcremoval") {
+            } else {
                 // Filter doesn't exist yet, show wet parameter to enable it
                 float wetValue = 0.0f;
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,
@@ -598,13 +598,6 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                 ImGui::PopStyleColor();
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
-                }
-            } else {
-                // DCRemoval has no wet parameter, show enable option with button
-                ImGui::TextDisabled("(Effect disabled - click to enable)");
-                if (ImGui::Button("Enable DCRemoval")) {
-                    // DCRemoval default parameter (length = 0.1 seconds)
-                    m_controller->setTrackFilterParameter(trackIndex, filterName, 0, 0.1f);
                 }
             }
 
@@ -701,12 +694,16 @@ void TesterView::RenderBusControls() {
                         }
                         case AudioTester::ParameterType::FLOAT:
                         default: {
-                            // Highlight wet parameter for easy identification
-                            if (paramId == 0 && filterName != "dcremoval") {
-                                ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                                                      value > 0.0f
-                                                          ? ImVec4(0.2f, 0.6f, 0.2f, 0.4f)
-                                                          : ImVec4(0.6f, 0.2f, 0.2f, 0.4f));
+                            // Float parameters use standard slider with special wet parameter
+                            // handling Highlight wet parameter for easy identification (most
+                            // effects use param ID 0)
+                            if (paramId == 0) {
+                                ImGui::PushStyleColor(
+                                    ImGuiCol_FrameBg,
+                                    value > 0.0f ? ImVec4(0.2f, 0.6f, 0.2f,
+                                                          0.4f) // Green background when enabled
+                                                 : ImVec4(0.6f, 0.2f, 0.2f,
+                                                          0.4f)); // Red background when disabled
                             }
 
                             if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
@@ -714,9 +711,9 @@ void TesterView::RenderBusControls() {
                                 changed = true;
                             }
 
-                            if (paramId == 0 && filterName != "dcremoval") {
+                            if (paramId == 0) {
                                 ImGui::PopStyleColor();
-                                // Add tooltip for wet parameter
+                                // Add tooltip for wet parameter to explain its purpose
                                 if (ImGui::IsItemHovered()) {
                                     ImGui::SetTooltip(
                                         "Wet parameter: Controls effect enable/disable.\n"
@@ -731,23 +728,17 @@ void TesterView::RenderBusControls() {
                         m_controller->setBusFilterParameter(filterName, paramId, value);
                     }
                 }
-            } else if (filterName != "dcremoval") {
+            } else {
+                // Filter doesn't exist yet, show wet parameter to enable it
                 float wetValue = 0.0f;
                 ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled
+                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled state
                 if (ImGui::SliderFloat("wet", &wetValue, 0.0f, 1.0f)) {
                     m_controller->setBusFilterParameter(filterName, 0, wetValue);
                 }
                 ImGui::PopStyleColor();
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
-                }
-            } else {
-                // DCRemoval has no wet parameter, show enable option
-                ImGui::TextDisabled("(Effect disabled - click to enable)");
-                if (ImGui::Button("Enable DCRemoval")) {
-                    // DCRemoval default parameter
-                    m_controller->setBusFilterParameter(filterName, 0, 0.1f);
                 }
             }
 
