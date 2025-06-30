@@ -193,17 +193,42 @@ namespace AudioTester {
             return false;
         }
 
-        // Store parameter values and apply to filter
-        // Note: This is a simplified version - in practice, we'd need to store the values
-        // and apply them through the parameterSetter function
+        // Apply the parameter using the filter-specific parameterSetter
         const auto* filterDef = getFilterDefinition(filterName);
         if (filterDef && filterDef->parameterSetter) {
-            // For now, we'll just validate - actual parameter setting will be handled
-            // by the AudioSystem when it integrates with this FilterManager
+            // Build a parameter vector with the current value at the correct position
+            // We need to get all current parameters and update the specific one
+            std::vector<float> paramValues;
+
+            // Initialize with default values for all parameters
+            for (const auto& param : filterDef->parameters) {
+                paramValues.push_back(param.defaultValue);
+            }
+
+            // Update the specific parameter with the new value
+            if (paramId < static_cast<int>(paramValues.size())) {
+                paramValues[paramId] = value;
+            }
+
+            // Apply all parameters using the parameterSetter
+            filterDef->parameterSetter(filter, paramValues);
             return true;
         }
 
         return false;
+    }
+
+    bool FilterManager::applyAllParameters(SoLoud::Filter* filter, const std::string& filterName,
+                                           const std::vector<float>& paramValues) {
+        const auto* filterDef = getFilterDefinition(filterName);
+        if (!filterDef || !filterDef->parameterSetter) {
+            return false;
+        }
+
+        // Apply parameters using the filter-specific parameterSetter
+        // This respects the quirks that have been worked out for each filter type
+        filterDef->parameterSetter(filter, paramValues);
+        return true;
     }
 
     float FilterManager::getFilterParameter(const SoLoud::Filter* filter,

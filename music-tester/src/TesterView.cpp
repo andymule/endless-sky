@@ -477,8 +477,8 @@ void TesterView::drawFilterControls(size_t trackIndex) {
     // Get fresh filter state on every frame to ensure UI sync with audio system
     const auto& filters = audioSystem.getFilters(trackIndex);
 
-    // Iterate through all available filter types
-    for (const auto& filterName : AudioTester::FilterManager::getAvailableFilters()) {
+    // Iterate through all filters in signal chain order (enabled first, then available)
+    for (const auto& filterName : audioSystem.getFiltersInSignalChainOrder(trackIndex)) {
         // Check if filter is currently enabled (based on wet parameter > 0)
         // This provides real-time feedback of the actual filter state
         bool effectivelyEnabled = audioSystem.isFilterEnabled(trackIndex, filterName);
@@ -661,7 +661,8 @@ void TesterView::RenderBusControls() {
     ImGui::Text("Bus FX");
     const auto& busFilters = audioSystem.getBusFilters();
 
-    for (const auto& filterName : AudioTester::FilterManager::getAvailableFilters()) {
+    // Iterate through all bus filters in signal chain order (enabled first, then available)
+    for (const auto& filterName : audioSystem.getBusFiltersInSignalChainOrder()) {
         // Check if filter is currently enabled (based on wet parameter > 0)
         bool effectivelyEnabled = audioSystem.isBusFilterEnabled(filterName);
 

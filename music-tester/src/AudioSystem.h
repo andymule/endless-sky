@@ -206,6 +206,7 @@ namespace AudioTester {
         float getFilterParameterByName(size_t trackIndex, const std::string& filterName,
                                        const std::string& paramName) const;
         const std::unordered_map<std::string, FilterInstance>& getFilters(size_t trackIndex) const;
+        std::vector<std::string> getFiltersInSignalChainOrder(size_t trackIndex) const;
 
         // Bus filter management
         void setBusFilterEnabled(const std::string& filterName, bool enabled);
@@ -217,6 +218,7 @@ namespace AudioTester {
         float getBusFilterParameterByName(const std::string& filterName,
                                           const std::string& paramName) const;
         const std::unordered_map<std::string, FilterInstance>& getBusFilters() const;
+        std::vector<std::string> getBusFiltersInSignalChainOrder() const;
 
     private:
         void applyFiltersToTrack(size_t trackIndex);

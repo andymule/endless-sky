@@ -24,6 +24,8 @@ namespace AudioTester {
                                 const std::string& paramName, float value);
         bool setFilterParameter(SoLoud::Filter* filter, const std::string& filterName, int paramId,
                                 float value);
+        bool applyAllParameters(SoLoud::Filter* filter, const std::string& filterName,
+                                const std::vector<float>& paramValues);
         float getFilterParameter(const SoLoud::Filter* filter, const std::string& filterName,
                                  const std::string& paramName) const;
         float getFilterParameter(const SoLoud::Filter* filter, const std::string& filterName,
