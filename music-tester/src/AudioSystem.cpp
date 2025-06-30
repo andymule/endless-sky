@@ -544,6 +544,12 @@ namespace AudioTester {
                         applyFiltersToTrack(trackIndex);
                     }
                 }
+
+                // For echo filter, we need to call setParams() on the filter instance for Delay
+                // and Decay parameters to ensure real-time updates work correctly
+                if (filterName == "echo" && (paramId == 1 || paramId == 2)) {
+                    updateFilterInstance(instance, filterName);
+                }
             }
         }
     }
@@ -916,6 +922,12 @@ namespace AudioTester {
                 // Waveform parameters to ensure real-time updates work correctly
                 if (filterName == "robotize" && (paramId == 1 || paramId == 2)) {
                     updateBusFilterParams();
+                }
+
+                // For echo filter, we need to call setParams() on the filter instance for Delay
+                // and Decay parameters to ensure real-time updates work correctly
+                if (filterName == "echo" && (paramId == 1 || paramId == 2)) {
+                    updateFilterInstance(instance, filterName);
                 }
 
                 // If bus is playing and filter is enabled, apply the parameter change to the voice

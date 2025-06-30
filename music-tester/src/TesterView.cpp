@@ -541,11 +541,48 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                         case AudioTester::ParameterType::INT: {
                             // Integer parameters use slider with integer steps
                             int intValue = static_cast<int>(value);
-                            if (ImGui::SliderInt(param.name.c_str(), &intValue,
-                                                 static_cast<int>(param.min),
-                                                 static_cast<int>(param.max))) {
-                                value = static_cast<float>(intValue);
-                                changed = true;
+                            // Special case for biquad filter type: show words instead of numbers
+                            if (filterName == "biquad" && paramId == 1) {
+                                static const char* biquadTypeNames[] = {"Lowpass", "Highpass",
+                                                                        "Bandpass"};
+                                // Clamp intValue to valid range
+                                intValue = std::max(0, std::min(2, intValue));
+
+                                // Use empty format string to hide the value
+                                if (ImGui::SliderInt("##biquad_type", &intValue, 0, 2, "")) {
+                                    value = static_cast<float>(intValue);
+                                    changed = true;
+                                }
+
+                                // Draw filter type name as overlay in the middle of the slider
+                                ImVec2 sliderMin = ImGui::GetItemRectMin();
+                                ImVec2 sliderMax = ImGui::GetItemRectMax();
+                                ImVec2 sliderCenter = ImVec2((sliderMin.x + sliderMax.x) * 0.5f,
+                                                             (sliderMin.y + sliderMax.y) * 0.5f);
+
+                                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                                const char* typeName = biquadTypeNames[intValue];
+                                ImVec2 textSize = ImGui::CalcTextSize(typeName);
+                                ImVec2 textPos = ImVec2(sliderCenter.x - textSize.x * 0.5f,
+                                                        sliderCenter.y - textSize.y * 0.5f);
+
+                                // Draw text with a subtle background for better readability
+                                drawList->AddRectFilled(
+                                    ImVec2(textPos.x - 2, textPos.y - 1),
+                                    ImVec2(textPos.x + textSize.x + 2, textPos.y + textSize.y + 1),
+                                    IM_COL32(0, 0, 0, 100)); // Semi-transparent black background
+                                drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), typeName);
+
+                                // Draw parameter name above the slider
+                                ImGui::SameLine();
+                                ImGui::Text("%s", param.name.c_str());
+                            } else {
+                                if (ImGui::SliderInt(param.name.c_str(), &intValue,
+                                                     static_cast<int>(param.min),
+                                                     static_cast<int>(param.max))) {
+                                    value = static_cast<float>(intValue);
+                                    changed = true;
+                                }
                             }
                             break;
                         }
@@ -684,11 +721,48 @@ void TesterView::RenderBusControls() {
                         }
                         case AudioTester::ParameterType::INT: {
                             int intValue = static_cast<int>(value);
-                            if (ImGui::SliderInt(param.name.c_str(), &intValue,
-                                                 static_cast<int>(param.min),
-                                                 static_cast<int>(param.max))) {
-                                value = static_cast<float>(intValue);
-                                changed = true;
+                            // Special case for biquad filter type: show words instead of numbers
+                            if (filterName == "biquad" && paramId == 1) {
+                                static const char* biquadTypeNames[] = {"Lowpass", "Highpass",
+                                                                        "Bandpass"};
+                                // Clamp intValue to valid range
+                                intValue = std::max(0, std::min(2, intValue));
+
+                                // Use empty format string to hide the value
+                                if (ImGui::SliderInt("##biquad_type", &intValue, 0, 2, "")) {
+                                    value = static_cast<float>(intValue);
+                                    changed = true;
+                                }
+
+                                // Draw filter type name as overlay in the middle of the slider
+                                ImVec2 sliderMin = ImGui::GetItemRectMin();
+                                ImVec2 sliderMax = ImGui::GetItemRectMax();
+                                ImVec2 sliderCenter = ImVec2((sliderMin.x + sliderMax.x) * 0.5f,
+                                                             (sliderMin.y + sliderMax.y) * 0.5f);
+
+                                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                                const char* typeName = biquadTypeNames[intValue];
+                                ImVec2 textSize = ImGui::CalcTextSize(typeName);
+                                ImVec2 textPos = ImVec2(sliderCenter.x - textSize.x * 0.5f,
+                                                        sliderCenter.y - textSize.y * 0.5f);
+
+                                // Draw text with a subtle background for better readability
+                                drawList->AddRectFilled(
+                                    ImVec2(textPos.x - 2, textPos.y - 1),
+                                    ImVec2(textPos.x + textSize.x + 2, textPos.y + textSize.y + 1),
+                                    IM_COL32(0, 0, 0, 100)); // Semi-transparent black background
+                                drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), typeName);
+
+                                // Draw parameter name above the slider
+                                ImGui::SameLine();
+                                ImGui::Text("%s", param.name.c_str());
+                            } else {
+                                if (ImGui::SliderInt(param.name.c_str(), &intValue,
+                                                     static_cast<int>(param.min),
+                                                     static_cast<int>(param.max))) {
+                                    value = static_cast<float>(intValue);
+                                    changed = true;
+                                }
                             }
                             break;
                         }
