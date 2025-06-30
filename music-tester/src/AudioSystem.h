@@ -110,6 +110,7 @@ namespace AudioTester {
         std::unordered_map<int, FilterParameter> parameters;
         bool enabled = false;
         int slot = -1;
+        int position = -1; // Position in signal chain (0, 1, 2, etc.)
 
         // Note: For most filters, parameter index 0 is the WET parameter
         // which controls the dry/wet mix (0.0 = dry only, 1.0 = wet only)

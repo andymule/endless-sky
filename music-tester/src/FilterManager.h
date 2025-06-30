@@ -50,6 +50,9 @@ namespace AudioTester {
         // Filter registry
         static const std::vector<std::string>& getAvailableFilters();
 
+        // Signal chain order - filters appear in this order in the audio processing chain
+        static const std::vector<std::string>& getFiltersInSignalChainOrder();
+
     private:
         struct ParameterDefinition {
             int id;

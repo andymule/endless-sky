@@ -114,6 +114,20 @@ namespace AudioTester {
         return availableFilters;
     }
 
+    // Signal chain order - filters appear in this order in the audio processing chain
+    const std::vector<std::string>& FilterManager::getFiltersInSignalChainOrder() {
+        static const std::vector<std::string> signalChainOrder = {
+            "biquad",     // EQ first (affects frequency response)
+            "waveshaper", // Distortion/saturation
+            "lofi",       // Bit reduction/sample rate reduction
+            "flanger",    // Modulation effects
+            "robotize",   // Pitch modulation
+            "echo",       // Time-based effects
+            "freeverb"    // Reverb last (spatial effects)
+        };
+        return signalChainOrder;
+    }
+
     // Helper methods
     const FilterManager::FilterDefinition*
     FilterManager::getFilterDefinition(const std::string& filterName) const {

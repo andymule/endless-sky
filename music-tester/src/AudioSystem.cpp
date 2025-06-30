@@ -431,11 +431,20 @@ namespace AudioTester {
         if (trackFilters.filters.find(filterName) != trackFilters.filters.end())
             return;
 
+        // Find the next available position
+        int nextPosition = 0;
+        for (const auto& [name, instance] : trackFilters.filters) {
+            if (instance.position >= nextPosition) {
+                nextPosition = instance.position + 1;
+            }
+        }
+
         // Create new filter
         FilterInstance instance;
         initializeFilter(instance, filterName);
         if (instance.filter) {
             instance.enabled = true;
+            instance.position = nextPosition;
             trackFilters.filters[filterName] = std::move(instance);
             applyFiltersToTrack(trackIndex);
         }
@@ -462,6 +471,14 @@ namespace AudioTester {
         auto& trackFilters = m_trackFilters[trackIndex];
         auto it = trackFilters.filters.find(filterName);
         if (it == trackFilters.filters.end()) {
+            // Find the next available position
+            int nextPosition = 0;
+            for (const auto& [name, instance] : trackFilters.filters) {
+                if (instance.position >= nextPosition) {
+                    nextPosition = instance.position + 1;
+                }
+            }
+
             FilterInstance instance;
             initializeFilter(instance, filterName);
             // Always start with wet = 0.0 for new filters
@@ -470,6 +487,7 @@ namespace AudioTester {
                 instance.parameters[wetId].value = 0.0f;
             }
             instance.enabled = false; // Not enabled until wet > 0
+            instance.position = nextPosition;
             trackFilters.filters[filterName] = std::move(instance);
             it = trackFilters.filters.find(filterName);
         }
@@ -790,27 +808,18 @@ namespace AudioTester {
             return result;
 
         const auto& filters = m_trackFilters[trackIndex].filters;
+        const auto& signalChainOrder = FilterManager::getFiltersInSignalChainOrder();
 
-        // First, add all enabled filters in their signal chain order (by slot)
-        std::vector<std::pair<int, std::string>> enabledFilters;
-        for (const auto& [name, instance] : filters) {
-            if (instance.enabled && instance.slot >= 0) {
-                enabledFilters.push_back({instance.slot, name});
-            }
+        // Add ALL filters in their hard-coded signal chain order (enabled and disabled)
+        for (const auto& filterName : signalChainOrder) {
+            result.push_back(filterName);
         }
 
-        // Sort by slot to get signal chain order
-        std::sort(enabledFilters.begin(), enabledFilters.end());
-
-        // Add enabled filters in order
-        for (const auto& [slot, name] : enabledFilters) {
-            result.push_back(name);
-        }
-
-        // Then add all available filters that aren't enabled yet
+        // Then add any remaining available filters that aren't in the signal chain order
         const auto& availableFilters = FilterManager::getAvailableFilters();
         for (const auto& filterName : availableFilters) {
-            if (filters.find(filterName) == filters.end() || !filters.at(filterName).enabled) {
+            if (std::find(signalChainOrder.begin(), signalChainOrder.end(), filterName) ==
+                signalChainOrder.end()) {
                 result.push_back(filterName);
             }
         }
@@ -823,6 +832,14 @@ namespace AudioTester {
         auto it = m_busFilters.find(filterName);
         if (it == m_busFilters.end()) {
             if (enabled) {
+                // Find the next available position
+                int nextPosition = 0;
+                for (const auto& [name, instance] : m_busFilters) {
+                    if (instance.position >= nextPosition) {
+                        nextPosition = instance.position + 1;
+                    }
+                }
+
                 FilterInstance instance;
                 initializeFilter(instance, filterName);
                 int wetId = getWetParameterId(filterName);
@@ -830,6 +847,7 @@ namespace AudioTester {
                     instance.parameters[wetId].value = 0.0f;
                 }
                 instance.enabled = false;
+                instance.position = nextPosition;
                 m_busFilters[filterName] = std::move(instance);
                 it = m_busFilters.find(filterName);
             }
@@ -848,6 +866,14 @@ namespace AudioTester {
                                             float value) {
         auto it = m_busFilters.find(filterName);
         if (it == m_busFilters.end()) {
+            // Find the next available position
+            int nextPosition = 0;
+            for (const auto& [name, instance] : m_busFilters) {
+                if (instance.position >= nextPosition) {
+                    nextPosition = instance.position + 1;
+                }
+            }
+
             FilterInstance instance;
             initializeFilter(instance, filterName);
             int wetId = getWetParameterId(filterName);
@@ -855,6 +881,7 @@ namespace AudioTester {
                 instance.parameters[wetId].value = 0.0f;
             }
             instance.enabled = false;
+            instance.position = nextPosition;
             m_busFilters[filterName] = std::move(instance);
             it = m_busFilters.find(filterName);
         }
@@ -947,27 +974,18 @@ namespace AudioTester {
     std::vector<std::string> AudioSystem::getBusFiltersInSignalChainOrder() const {
         std::vector<std::string> result;
 
-        // First, add all enabled filters in their signal chain order (by slot)
-        std::vector<std::pair<int, std::string>> enabledFilters;
-        for (const auto& [name, instance] : m_busFilters) {
-            if (instance.enabled && instance.slot >= 0) {
-                enabledFilters.push_back({instance.slot, name});
-            }
+        const auto& signalChainOrder = FilterManager::getFiltersInSignalChainOrder();
+
+        // Add ALL filters in their hard-coded signal chain order (enabled and disabled)
+        for (const auto& filterName : signalChainOrder) {
+            result.push_back(filterName);
         }
 
-        // Sort by slot to get signal chain order
-        std::sort(enabledFilters.begin(), enabledFilters.end());
-
-        // Add enabled filters in order
-        for (const auto& [slot, name] : enabledFilters) {
-            result.push_back(name);
-        }
-
-        // Then add all available filters that aren't enabled yet
+        // Then add any remaining available filters that aren't in the signal chain order
         const auto& availableFilters = FilterManager::getAvailableFilters();
         for (const auto& filterName : availableFilters) {
-            if (m_busFilters.find(filterName) == m_busFilters.end() ||
-                !m_busFilters.at(filterName).enabled) {
+            if (std::find(signalChainOrder.begin(), signalChainOrder.end(), filterName) ==
+                signalChainOrder.end()) {
                 result.push_back(filterName);
             }
         }
