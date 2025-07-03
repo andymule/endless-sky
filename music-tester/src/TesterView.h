@@ -3,6 +3,7 @@
 #include "AudioController.h"
 #include "AudioState.h"
 #include "FileBrowser.h"
+#include "ThemeManager.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <filesystem>
@@ -73,6 +74,14 @@ public:
     void SetLastTriggeredMasterEvent(const std::string& eventName);
     void SetLastTriggeredSongEvent(const std::string& songName, const std::string& eventName);
     void ClearLastTriggeredEvents();
+
+    // Theme management methods
+    void SetTheme(AudioTester::ThemeManager::Theme theme);
+    AudioTester::ThemeManager::Theme GetCurrentTheme() const { return m_currentTheme; }
+
+    // Theme persistence methods
+    void LoadThemeFromConfig();
+    void SaveThemeToConfig();
 
 private:
     void cleanup();
@@ -182,4 +191,8 @@ private:
 
     // Local UI state for tempo control to avoid ImGui slider issues
     float m_masterTempoUI = 1.0f;
+
+    // Theme management state
+    AudioTester::ThemeManager::Theme m_currentTheme = AudioTester::ThemeManager::Theme::RED;
+    std::string m_configFilePath;
 };

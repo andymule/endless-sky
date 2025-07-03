@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 
 TesterView::TesterView() {
@@ -19,6 +20,33 @@ TesterView::TesterView() {
 
     // Initialize tempo UI state
     m_masterTempoUI = 1.0f;
+
+    // Initialize config file path
+#ifdef __APPLE__
+    const char* homeDir = getenv("HOME");
+    if (homeDir) {
+        m_configFilePath = std::string(homeDir) + "/.music-tester-config.txt";
+    } else {
+        m_configFilePath = ".music-tester-config.txt";
+    }
+#elif defined(_WIN32)
+    const char* userProfile = getenv("USERPROFILE");
+    if (userProfile) {
+        m_configFilePath = std::string(userProfile) + "\\music-tester-config.txt";
+    } else {
+        m_configFilePath = "music-tester-config.txt";
+    }
+#else
+    const char* homeDir = getenv("HOME");
+    if (homeDir) {
+        m_configFilePath = std::string(homeDir) + "/.music-tester-config.txt";
+    } else {
+        m_configFilePath = ".music-tester-config.txt";
+    }
+#endif
+
+    // Load saved theme
+    LoadThemeFromConfig();
 
     // Initialize FileBrowser components
     AudioTester::FileBrowser::Config dirConfig;
@@ -159,8 +187,8 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    // Setup Dear ImGui style using ThemeManager
+    AudioTester::ThemeManager::ApplyTheme(m_currentTheme);
 
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
@@ -238,7 +266,18 @@ void TesterView::Render() {
     // Rendering
     ImGui::Render();
     glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
-    glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+    // Set background color based on current theme
+    switch (m_currentTheme) {
+        case AudioTester::ThemeManager::Theme::DARK:
+            glClearColor(0.45f, 0.55f, 0.60f, 1.00f); // Original dark blue-gray
+            break;
+        case AudioTester::ThemeManager::Theme::RED:
+            glClearColor(0.08f, 0.03f, 0.03f, 1.00f); // Dark red to match red theme
+            break;
+        case AudioTester::ThemeManager::Theme::LIGHT:
+            glClearColor(0.88f, 0.88f, 0.88f, 1.00f); // Light gray to match light theme
+            break;
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(m_window);
@@ -832,6 +871,33 @@ void TesterView::RenderControlsWindow() {
 
     // Track if this window is focused for keyboard input routing
     m_controlsWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+    // Theme Selection Section
+    ImGui::Text("Theme");
+    ImGui::Separator();
+
+    // Theme selection combo box
+    int currentThemeIndex = AudioTester::ThemeManager::ThemeToIndex(m_currentTheme);
+    const char* currentThemeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
+
+    if (ImGui::BeginCombo("Theme", currentThemeName)) {
+        for (int i = 0; i < AudioTester::ThemeManager::GetThemeCount(); ++i) {
+            AudioTester::ThemeManager::Theme theme = AudioTester::ThemeManager::IndexToTheme(i);
+            const char* themeName = AudioTester::ThemeManager::GetThemeName(theme);
+            bool isSelected = (i == currentThemeIndex);
+
+            if (ImGui::Selectable(themeName, isSelected)) {
+                SetTheme(theme);
+            }
+
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::Separator();
 
     // Tempo Control Section
     ImGui::Text("Tempo Control");
@@ -1842,5 +1908,50 @@ void TesterView::onOggFileSelected(const std::filesystem::path& path) {
                 m_showErrorPopup = true;
             }
         }
+    }
+}
+
+void TesterView::SetTheme(AudioTester::ThemeManager::Theme theme) {
+    m_currentTheme = theme;
+    AudioTester::ThemeManager::ApplyTheme(m_currentTheme);
+    SaveThemeToConfig();
+}
+
+void TesterView::LoadThemeFromConfig() {
+    try {
+        std::ifstream configFile(m_configFilePath);
+        if (configFile.is_open()) {
+            std::string themeName;
+            if (std::getline(configFile, themeName)) {
+                // Convert theme name to enum
+                if (themeName == "Dark") {
+                    m_currentTheme = AudioTester::ThemeManager::Theme::DARK;
+                } else if (themeName == "Red") {
+                    m_currentTheme = AudioTester::ThemeManager::Theme::RED;
+                } else if (themeName == "Light") {
+                    m_currentTheme = AudioTester::ThemeManager::Theme::LIGHT;
+                }
+                // If theme name is invalid, keep the default (RED)
+            }
+            configFile.close();
+        }
+        // If file doesn't exist, keep the default theme (RED)
+    } catch (const std::exception& e) {
+        // If there's any error loading the config, keep the default theme
+        // Could log this error if needed
+    }
+}
+
+void TesterView::SaveThemeToConfig() {
+    try {
+        std::ofstream configFile(m_configFilePath);
+        if (configFile.is_open()) {
+            const char* themeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
+            configFile << themeName << std::endl;
+            configFile.close();
+        }
+    } catch (const std::exception& e) {
+        // If there's any error saving the config, silently continue
+        // Could log this error if needed
     }
 }
