@@ -872,33 +872,6 @@ void TesterView::RenderControlsWindow() {
     // Track if this window is focused for keyboard input routing
     m_controlsWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
-    // Theme Selection Section
-    ImGui::Text("Theme");
-    ImGui::Separator();
-
-    // Theme selection combo box
-    int currentThemeIndex = AudioTester::ThemeManager::ThemeToIndex(m_currentTheme);
-    const char* currentThemeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
-
-    if (ImGui::BeginCombo("Theme", currentThemeName)) {
-        for (int i = 0; i < AudioTester::ThemeManager::GetThemeCount(); ++i) {
-            AudioTester::ThemeManager::Theme theme = AudioTester::ThemeManager::IndexToTheme(i);
-            const char* themeName = AudioTester::ThemeManager::GetThemeName(theme);
-            bool isSelected = (i == currentThemeIndex);
-
-            if (ImGui::Selectable(themeName, isSelected)) {
-                SetTheme(theme);
-            }
-
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    ImGui::Separator();
-
     // Tempo Control Section
     ImGui::Text("Tempo Control");
     ImGui::Separator();
@@ -1745,13 +1718,36 @@ void TesterView::RenderMenuBar() {
             ImGui::EndMenu();
         }
 
+        // Theme selector dropdown right after File menu (without label)
+        ImGui::SetNextItemWidth(70.0f);
+        int themeIndex = AudioTester::ThemeManager::ThemeToIndex(m_currentTheme);
+        const char* themeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
+
+        if (ImGui::BeginCombo("##theme_menu", themeName)) {
+            for (int i = 0; i < AudioTester::ThemeManager::GetThemeCount(); ++i) {
+                AudioTester::ThemeManager::Theme themeOption =
+                    AudioTester::ThemeManager::IndexToTheme(i);
+                const char* themeOptionName = AudioTester::ThemeManager::GetThemeName(themeOption);
+                bool isSelected = (i == themeIndex);
+
+                if (ImGui::Selectable(themeOptionName, isSelected)) {
+                    SetTheme(themeOption);
+                }
+
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
         // Add spacing to push project/song dropdowns to the right
         ImGui::SameLine(ImGui::GetWindowWidth() - 400);
 
         // Project dropdown on menu bar
         ImGui::Text("Project:");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(100.0f);
 
         // Discover projects if needed
         if (m_availableProjects.empty()) {
@@ -1792,7 +1788,7 @@ void TesterView::RenderMenuBar() {
         ImGui::SameLine();
         ImGui::Text("Song:");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(100.0f);
 
         std::string currentSong = m_controller->getCurrentSong();
         std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
