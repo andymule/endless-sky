@@ -75,13 +75,32 @@ Break down `MainView` into smaller, focused view components for better maintaina
 - Consistent pattern with SongView extraction
 - Clean separation between track and bus controls
 
-### 5. Extract SpeedView
-**Target**: Extract tempo and granular controls
+### 5. Extract SpeedView ✅ **COMPLETED**
+**Status**: Successfully extracted and working
 
-**What to move**:
-- Tempo controls
-- Tape speed controls
-- Granular processing controls
+**What was moved**:
+- `RenderControlsWindow()` method (entire method)
+- Tape Speed slider (master tempo control)
+- Granular Tempo slider (pitch-preserving tempo)
+- Help text and tooltips
+- `m_masterTempoUI` state variable
+- Window focus tracking for controls window
+
+**Files created**:
+- `src/Views/SpeedView.h`
+- `src/Views/SpeedView.cpp`
+
+**Integration**:
+- MainView now owns a `std::unique_ptr<SpeedView>`
+- SpeedView receives AudioController pointer in constructor
+- MainView calls `m_speedView->Render()` in place of old controls window
+- SpeedView initialized in SetController() with other views
+
+**Benefits achieved**:
+- Further reduced MainView.cpp by ~80 lines
+- Speed/tempo functionality is now isolated and reusable
+- Independent speed control window with proper focus handling
+- Clean separation between different control types
 
 ### 6. Extract EventView
 **Target**: Extract event management UI
@@ -178,7 +197,8 @@ void BusView::Render() {
 
 1. ✅ **SongView extraction completed**
 2. ✅ **BusView extraction completed**
-3. **Extract SpeedView** (recommended next step)
-4. Continue with remaining views
-5. Add comprehensive testing
-6. Update documentation 
+3. ✅ **SpeedView extraction completed**
+4. **Extract EventView** (recommended next step)
+5. Continue with remaining views
+6. Add comprehensive testing
+7. Update documentation 

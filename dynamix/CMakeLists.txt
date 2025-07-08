@@ -82,6 +82,7 @@ set(DYNAMIX_SOURCES
     src/ThemeManager.cpp
     src/Views/SongView.cpp
     src/Views/BusView.cpp
+    src/Views/SpeedView.cpp
 )
 
 # Set up headers for dynamix

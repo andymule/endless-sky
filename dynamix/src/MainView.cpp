@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "Views/BusView.h"
 #include "Views/SongView.h"
+#include "Views/SpeedView.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
@@ -19,9 +20,6 @@ MainView::MainView() {
     // Set directory input to default directory
     strncpy(m_dirInput, m_defaultDirectory.c_str(), DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
-
-    // Initialize tempo UI state
-    m_masterTempoUI = 1.0f;
 
     // Initialize config file path
 #ifdef __APPLE__
@@ -255,7 +253,7 @@ void MainView::Render() {
     RenderMenuBar();
 
     RenderMainWindow();
-    RenderControlsWindow();
+    m_speedView->Render();
 
     // Render Events window if enabled
     if (m_showEventsWindow) {
@@ -331,57 +329,6 @@ void MainView::RenderMainWindow() {
     }
     if (m_showFileDialog) {
         RenderFileDialog();
-    }
-
-    ImGui::End();
-}
-
-void MainView::RenderControlsWindow() {
-    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Controls", nullptr, ImGuiWindowFlags_None);
-
-    // Track if this window is focused for keyboard input routing
-    m_controlsWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-
-    // Tempo Control Section
-    ImGui::Text("Tempo Control");
-    ImGui::Separator();
-
-    if (m_controller) {
-        // Sync UI state with controller state only when not actively editing
-        bool uiIsDragging = ImGui::IsAnyItemActive();
-        if (!uiIsDragging) {
-            m_masterTempoUI = m_controller->getMasterTempo();
-        }
-
-        // Playback Speed slider (tape-style, affects pitch)
-        if (ImGui::SliderFloat("Tape Speed", &m_masterTempoUI, 0.1f, 4.0f, "%.2fx")) {
-            m_controller->setMasterTempo(m_masterTempoUI);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Tape-style speed control (affects pitch)");
-        }
-
-        // Granular Tempo slider (pitch-preserving)
-        float granularTempo = m_controller->getGranularTempo();
-        if (ImGui::SliderFloat("Granular Tempo", &granularTempo, 0.5f, 2.0f, "%.2fx")) {
-            m_controller->setGranularTempo(granularTempo);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            float latency = m_controller->getGranularLatencyMs();
-            ImGui::SetTooltip("Pitch-preserving tempo stretching\nLatency: %.1f ms", latency);
-        }
-
-        ImGui::Separator();
-
-        // Help text
-        ImGui::TextWrapped("Tape Speed: Classic tape-style speed control (changes pitch).\n"
-                           "Future: Granular pitch-preserving tempo and pitch shifting will be "
-                           "implemented outside SoLoud's filter system.");
     }
 
     ImGui::End();

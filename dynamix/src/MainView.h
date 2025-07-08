@@ -6,6 +6,7 @@
 #include "ThemeManager.h"
 #include "Views/BusView.h"
 #include "Views/SongView.h"
+#include "Views/SpeedView.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <filesystem>
@@ -32,6 +33,7 @@ public:
         if (m_controller) {
             m_songView = std::make_unique<Dynamix::Views::SongView>(m_controller);
             m_busView = std::make_unique<Dynamix::Views::BusView>(m_controller);
+            m_speedView = std::make_unique<Dynamix::Views::SpeedView>(m_controller);
         }
 
         // Update the directory input with the current directory from controller
@@ -94,7 +96,7 @@ public:
 private:
     void cleanup();
     void RenderMainWindow();
-    void RenderControlsWindow();
+
     void RenderEventsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
@@ -191,13 +193,11 @@ private:
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_glContext = nullptr;
 
-    // Local UI state for tempo control to avoid ImGui slider issues
-    float m_masterTempoUI = 1.0f;
-
     // Theme management state
     Dynamix::ThemeManager::Theme m_currentTheme = Dynamix::ThemeManager::Theme::RED;
     std::string m_configFilePath;
 
     std::unique_ptr<Dynamix::Views::SongView> m_songView;
     std::unique_ptr<Dynamix::Views::BusView> m_busView;
+    std::unique_ptr<Dynamix::Views::SpeedView> m_speedView;
 };

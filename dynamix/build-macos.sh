@@ -233,7 +233,7 @@ else
 fi
 
 # Build the application
-if [ "$NINJA_AVAILABLE" = true ]; then
+if [ "$NINJA_AVAILABLE" = true ] && [ -f "$BUILD_DIR/build.ninja" ]; then
     ninja
 else
     make -j$MAKE_JOBS
