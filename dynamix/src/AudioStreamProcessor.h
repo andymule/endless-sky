@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     /**
      * AudioStreamProcessor - Real-time audio processing with granular time stretching
@@ -193,4 +193,4 @@ namespace AudioTester {
         void updateSmoothPitchCompensation();
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

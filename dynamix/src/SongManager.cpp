@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <fstream>
 
-namespace AudioTester {
+namespace Dynamix {
 
     void SongManager::loadSongsFromDirectory(const std::string& directory) {
         clear();
@@ -744,4 +744,4 @@ namespace AudioTester {
         }
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

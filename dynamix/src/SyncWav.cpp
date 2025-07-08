@@ -1,6 +1,6 @@
 #include "SyncWav.h"
 
-namespace AudioTester {
+namespace Dynamix {
 
     SyncWavInstance::SyncWavInstance(SoLoud::Wav* aParent) : SoLoud::WavInstance(aParent) {
         // Initialize with current stream position
@@ -23,4 +23,4 @@ namespace AudioTester {
 
     SoLoud::AudioSourceInstance* SyncWav::createInstance() { return new SyncWavInstance(this); }
 
-} // namespace AudioTester
+} // namespace Dynamix

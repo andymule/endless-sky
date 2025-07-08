@@ -7,7 +7,7 @@
 #include <map>
 #include <set>
 
-namespace AudioTester {
+namespace Dynamix {
 
     EventSystem::EventSystem(AudioController* controller) : m_controller(controller) {}
 
@@ -662,4 +662,4 @@ namespace AudioTester {
         }
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

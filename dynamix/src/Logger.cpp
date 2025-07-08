@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace AudioTester {
+namespace Dynamix {
 
     void Logger::log(LogLevel level, const std::string& message, const std::string& component) {
         if (level > m_currentLevel) {
@@ -63,4 +63,4 @@ namespace AudioTester {
         log(LogLevel::TRACE, message, component);
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

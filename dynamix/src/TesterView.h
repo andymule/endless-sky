@@ -23,7 +23,7 @@ public:
     void SetRunning(bool running) { m_isRunning = running; }
 
     // Set the controller (dependency injection)
-    void SetController(AudioTester::AudioController* controller) {
+    void SetController(Dynamix::AudioController* controller) {
         m_controller = controller;
 
         // Update the directory input with the current directory from controller
@@ -76,8 +76,8 @@ public:
     void ClearLastTriggeredEvents();
 
     // Theme management methods
-    void SetTheme(AudioTester::ThemeManager::Theme theme);
-    AudioTester::ThemeManager::Theme GetCurrentTheme() const { return m_currentTheme; }
+    void SetTheme(Dynamix::ThemeManager::Theme theme);
+    Dynamix::ThemeManager::Theme GetCurrentTheme() const { return m_currentTheme; }
 
     // Theme persistence methods
     void LoadThemeFromConfig();
@@ -98,7 +98,7 @@ private:
     void RenderSongEvents();
     void RenderMasterEvents();
     void ShowCreateEventDialog();
-    AudioTester::StateSnapshot CaptureCurrentState();
+    Dynamix::StateSnapshot CaptureCurrentState();
 
     // Modular hold-to-action button system
     enum class HoldActionType { DELETE, SAVE };
@@ -161,8 +161,8 @@ private:
     std::string m_defaultDirectory = "";
 
     // File browser components (replaces old custom file browser state)
-    AudioTester::FileBrowser m_directoryBrowser;
-    AudioTester::FileBrowser m_oggFileBrowser;
+    Dynamix::FileBrowser m_directoryBrowser;
+    Dynamix::FileBrowser m_oggFileBrowser;
 
     // Project and song selection state
     std::vector<std::string> m_availableProjects;
@@ -183,7 +183,7 @@ private:
     HoldActionState m_holdActionState;
 
     // Controller reference (managed externally)
-    AudioTester::AudioController* m_controller = nullptr;
+    Dynamix::AudioController* m_controller = nullptr;
 
     // SDL/OpenGL
     SDL_Window* m_window = nullptr;
@@ -193,6 +193,6 @@ private:
     float m_masterTempoUI = 1.0f;
 
     // Theme management state
-    AudioTester::ThemeManager::Theme m_currentTheme = AudioTester::ThemeManager::Theme::RED;
+    Dynamix::ThemeManager::Theme m_currentTheme = Dynamix::ThemeManager::Theme::RED;
     std::string m_configFilePath;
 };

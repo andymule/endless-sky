@@ -19,7 +19,7 @@
 #include "TesterView.h"
 
 // Global controller instance for external API
-static AudioTester::AudioController* g_controller = nullptr;
+static Dynamix::AudioController* g_controller = nullptr;
 
 // External C API for game engine integration
 extern "C" {
@@ -118,7 +118,7 @@ int main() {
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
     // Create MVC components
-    AudioTester::AudioController controller;
+    Dynamix::AudioController controller;
     TesterView view;
 
     // Store global controller reference for external API

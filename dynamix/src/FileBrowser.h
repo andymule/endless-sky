@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     /**
      * FileBrowser - Reusable File System Browser Component
@@ -167,4 +167,4 @@ namespace AudioTester {
         bool m_filterDirty = false;
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

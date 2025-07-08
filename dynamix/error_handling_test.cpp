@@ -2,10 +2,10 @@
 #include <cassert>
 #include <iostream>
 
-using namespace AudioTester;
+using namespace Dynamix;
 
 // Mock logger for testing
-namespace AudioTester {
+namespace Dynamix {
     void Logger::error(const std::string& message, const std::string& component) {
         std::cout << "[ERROR][" << component << "] " << message << std::endl;
     }
@@ -21,7 +21,7 @@ namespace AudioTester {
     void Logger::trace(const std::string& message, const std::string& component) {
         std::cout << "[TRACE][" << component << "] " << message << std::endl;
     }
-} // namespace AudioTester
+} // namespace Dynamix
 
 void testErrorCreation() {
     std::cout << "\n=== Testing Error Creation ===" << std::endl;

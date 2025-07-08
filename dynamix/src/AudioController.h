@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Forward declaration
     class EventSystem;
@@ -145,4 +145,4 @@ namespace AudioTester {
         float m_currentTempo = 1.0f;
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

@@ -1,6 +1,6 @@
 #include "ThemeManager.h"
 
-namespace AudioTester {
+namespace Dynamix {
 
     void ThemeManager::ApplyTheme(Theme theme) {
         switch (theme) {
@@ -239,4 +239,4 @@ namespace AudioTester {
         colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

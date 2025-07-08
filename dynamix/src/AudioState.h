@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Effect state for complete automation
     struct EffectState {
@@ -135,4 +135,4 @@ namespace AudioTester {
         }
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

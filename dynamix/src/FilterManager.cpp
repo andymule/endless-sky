@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <climits>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Unified filter definitions that replace both AudioController and AudioSystem parameter
     // systems
@@ -308,4 +308,4 @@ namespace AudioTester {
         return paramDef ? paramDef->defaultValue : 0.0f;
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sstream>
 
-namespace AudioTester {
+namespace Dynamix {
 
     std::string Error::toString() const {
         std::ostringstream oss;
@@ -434,4 +434,4 @@ namespace AudioTester {
 
     } // namespace ErrorUtils
 
-} // namespace AudioTester
+} // namespace Dynamix

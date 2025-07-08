@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Forward declaration for granular processor
     class AudioStreamProcessor;
@@ -270,4 +270,4 @@ namespace AudioTester {
         bool m_hasEverPlayed = false;     // Track if tracks have ever been played
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

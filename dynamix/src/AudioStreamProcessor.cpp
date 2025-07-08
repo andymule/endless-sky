@@ -4,7 +4,7 @@
 #include <cmath>
 #include <iostream>
 
-namespace AudioTester {
+namespace Dynamix {
 
     AudioStreamProcessor::AudioStreamProcessor()
         : m_shouldStop(false), m_targetTempo(1.0f), m_currentTempo(1.0f),
@@ -484,4 +484,4 @@ namespace AudioTester {
         }
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

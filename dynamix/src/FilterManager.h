@@ -11,7 +11,7 @@ namespace SoLoud {
     class Filter;
 }
 
-namespace AudioTester {
+namespace Dynamix {
 
     class FilterManager {
     public:
@@ -78,4 +78,4 @@ namespace AudioTester {
                                                           int paramId) const;
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

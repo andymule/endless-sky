@@ -9,7 +9,7 @@
 #include <string>
 #include <variant>
 
-namespace AudioTester {
+namespace Dynamix {
 
     /**
      * Error Types - Categorized Error System
@@ -423,4 +423,4 @@ namespace AudioTester {
 #define HANDLE_ERROR_WITH_RECOVERY(error, recovery)                                                \
     ErrorHandler::getInstance().handleError(error, recovery)
 
-} // namespace AudioTester
+} // namespace Dynamix

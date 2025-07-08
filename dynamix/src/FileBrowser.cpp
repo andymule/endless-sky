@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace AudioTester {
+namespace Dynamix {
 
     FileBrowser::FileBrowser() : m_selectedIndex(-1), m_filterDirty(false) {}
 
@@ -243,4 +243,4 @@ namespace AudioTester {
         return ext == m_config.fileTypeFilter;
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

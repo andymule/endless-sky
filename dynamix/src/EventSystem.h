@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Forward declaration
     class AudioController;
@@ -65,4 +65,4 @@ namespace AudioTester {
                              float t);
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

@@ -2,7 +2,7 @@
 
 #include "imgui.h"
 
-namespace AudioTester {
+namespace Dynamix {
 
     /**
      * ThemeManager - Manages Dear ImGui color themes for the application
@@ -65,4 +65,4 @@ namespace AudioTester {
         static void ApplyLightTheme();
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

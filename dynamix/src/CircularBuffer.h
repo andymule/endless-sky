@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     /**
      * CircularBuffer - Lock-free ring buffer for real-time audio processing
@@ -163,4 +163,4 @@ namespace AudioTester {
         std::atomic<size_t> m_writeIndex;
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

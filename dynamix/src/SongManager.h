@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     class SongManager {
     public:
@@ -72,4 +72,4 @@ namespace AudioTester {
         std::string getCurrentMasterDirectory() const;
     };
 
-} // namespace AudioTester
+} // namespace Dynamix

@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Time in seconds for smooth parameter transitions
     constexpr SoLoud::time FILTER_PARAM_TRANSITION_TIME = 0.05;
@@ -1663,4 +1663,4 @@ namespace AudioTester {
                  std::to_string(m_trackManager.getTrackCount()) + " tracks from position " +
                  std::to_string(m_syncState.globalTime));
     }
-} // namespace AudioTester
+} // namespace Dynamix

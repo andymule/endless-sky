@@ -7,7 +7,7 @@
 #include <iostream>
 #include <set>
 
-namespace AudioTester {
+namespace Dynamix {
 
     AudioController::AudioController() : m_eventSystem(std::make_unique<EventSystem>(this)) {}
 
@@ -897,4 +897,4 @@ namespace AudioTester {
         return true;
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

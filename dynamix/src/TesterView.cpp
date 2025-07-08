@@ -49,7 +49,7 @@ TesterView::TesterView() {
     LoadThemeFromConfig();
 
     // Initialize FileBrowser components
-    AudioTester::FileBrowser::Config dirConfig;
+    Dynamix::FileBrowser::Config dirConfig;
     dirConfig.title = "Browse Directory";
     dirConfig.defaultPath = m_defaultDirectory;
     dirConfig.actionButtonText = "Select Directory";
@@ -61,7 +61,7 @@ TesterView::TesterView() {
     m_directoryBrowser.setSelectionCallback(
         [this](const std::filesystem::path& path) { this->onDirectorySelected(path); });
 
-    AudioTester::FileBrowser::Config oggConfig;
+    Dynamix::FileBrowser::Config oggConfig;
     oggConfig.title = "Add .ogg File to Song";
     oggConfig.defaultPath = m_defaultDirectory;
     oggConfig.actionButtonText = "Add Selected File";
@@ -188,7 +188,7 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Setup Dear ImGui style using ThemeManager
-    AudioTester::ThemeManager::ApplyTheme(m_currentTheme);
+    Dynamix::ThemeManager::ApplyTheme(m_currentTheme);
 
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
@@ -268,13 +268,13 @@ void TesterView::Render() {
     glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
     // Set background color based on current theme
     switch (m_currentTheme) {
-        case AudioTester::ThemeManager::Theme::DARK:
+        case Dynamix::ThemeManager::Theme::DARK:
             glClearColor(0.45f, 0.55f, 0.60f, 1.00f); // Original dark blue-gray
             break;
-        case AudioTester::ThemeManager::Theme::RED:
+        case Dynamix::ThemeManager::Theme::RED:
             glClearColor(0.08f, 0.03f, 0.03f, 1.00f); // Dark red to match red theme
             break;
-        case AudioTester::ThemeManager::Theme::LIGHT:
+        case Dynamix::ThemeManager::Theme::LIGHT:
             glClearColor(0.88f, 0.88f, 0.88f, 1.00f); // Light gray to match light theme
             break;
     }
@@ -568,7 +568,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
 
                     // Use appropriate control based on parameter type for better UX
                     switch (param.type) {
-                        case AudioTester::ParameterType::BOOL: {
+                        case Dynamix::ParameterType::BOOL: {
                             // Boolean parameters use checkbox interface
                             bool boolValue = value > 0.5f;
                             if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
@@ -577,7 +577,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                             }
                             break;
                         }
-                        case AudioTester::ParameterType::INT: {
+                        case Dynamix::ParameterType::INT: {
                             // Integer parameters use slider with integer steps
                             int intValue = static_cast<int>(value);
                             // Special case for biquad filter type: show words instead of numbers
@@ -625,7 +625,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
                             }
                             break;
                         }
-                        case AudioTester::ParameterType::FLOAT:
+                        case Dynamix::ParameterType::FLOAT:
                         default: {
                             // Float parameters use standard slider with special wet parameter
                             // handling Highlight wet parameter for easy identification (most
@@ -751,7 +751,7 @@ void TesterView::RenderBusControls() {
 
                     // Use appropriate control based on parameter type
                     switch (param.type) {
-                        case AudioTester::ParameterType::BOOL: {
+                        case Dynamix::ParameterType::BOOL: {
                             bool boolValue = value > 0.5f;
                             if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
                                 value = boolValue ? 1.0f : 0.0f;
@@ -759,7 +759,7 @@ void TesterView::RenderBusControls() {
                             }
                             break;
                         }
-                        case AudioTester::ParameterType::INT: {
+                        case Dynamix::ParameterType::INT: {
                             int intValue = static_cast<int>(value);
                             // Special case for biquad filter type: show words instead of numbers
                             if (filterName == "biquad" && paramId == 1) {
@@ -806,7 +806,7 @@ void TesterView::RenderBusControls() {
                             }
                             break;
                         }
-                        case AudioTester::ParameterType::FLOAT:
+                        case Dynamix::ParameterType::FLOAT:
                         default: {
                             // Float parameters use standard slider with special wet parameter
                             // handling Highlight wet parameter for easy identification (most
@@ -1418,12 +1418,12 @@ void TesterView::ShowCreateEventDialog() {
     }
 }
 
-AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
+Dynamix::StateSnapshot TesterView::CaptureCurrentState() {
     if (!m_controller) {
-        return AudioTester::StateSnapshot{};
+        return Dynamix::StateSnapshot{};
     }
 
-    AudioTester::StateSnapshot snapshot;
+    Dynamix::StateSnapshot snapshot;
     snapshot.masterTempo = m_controller->getMasterTempo();
     snapshot.granularTempo = m_controller->getGranularTempo();
 
@@ -1433,7 +1433,7 @@ AudioTester::StateSnapshot TesterView::CaptureCurrentState() {
     for (size_t i = 0; i < m_controller->getAudioSystem().getTrackCount(); ++i) {
         const auto& track = state.getTrack(i);
 
-        AudioTester::TrackStateExtended trackState;
+        Dynamix::TrackStateExtended trackState;
         trackState.file = track.name; // Use name as file reference
         trackState.volume =
             m_controller->getAudioSystem().getTrackVolume(i); // Get from single source of truth
@@ -1720,14 +1720,13 @@ void TesterView::RenderMenuBar() {
 
         // Theme selector dropdown right after File menu (without label)
         ImGui::SetNextItemWidth(70.0f);
-        int themeIndex = AudioTester::ThemeManager::ThemeToIndex(m_currentTheme);
-        const char* themeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
+        int themeIndex = Dynamix::ThemeManager::ThemeToIndex(m_currentTheme);
+        const char* themeName = Dynamix::ThemeManager::GetThemeName(m_currentTheme);
 
         if (ImGui::BeginCombo("##theme_menu", themeName)) {
-            for (int i = 0; i < AudioTester::ThemeManager::GetThemeCount(); ++i) {
-                AudioTester::ThemeManager::Theme themeOption =
-                    AudioTester::ThemeManager::IndexToTheme(i);
-                const char* themeOptionName = AudioTester::ThemeManager::GetThemeName(themeOption);
+            for (int i = 0; i < Dynamix::ThemeManager::GetThemeCount(); ++i) {
+                Dynamix::ThemeManager::Theme themeOption = Dynamix::ThemeManager::IndexToTheme(i);
+                const char* themeOptionName = Dynamix::ThemeManager::GetThemeName(themeOption);
                 bool isSelected = (i == themeIndex);
 
                 if (ImGui::Selectable(themeOptionName, isSelected)) {
@@ -1907,9 +1906,9 @@ void TesterView::onOggFileSelected(const std::filesystem::path& path) {
     }
 }
 
-void TesterView::SetTheme(AudioTester::ThemeManager::Theme theme) {
+void TesterView::SetTheme(Dynamix::ThemeManager::Theme theme) {
     m_currentTheme = theme;
-    AudioTester::ThemeManager::ApplyTheme(m_currentTheme);
+    Dynamix::ThemeManager::ApplyTheme(m_currentTheme);
     SaveThemeToConfig();
 }
 
@@ -1921,11 +1920,11 @@ void TesterView::LoadThemeFromConfig() {
             if (std::getline(configFile, themeName)) {
                 // Convert theme name to enum
                 if (themeName == "Dark") {
-                    m_currentTheme = AudioTester::ThemeManager::Theme::DARK;
+                    m_currentTheme = Dynamix::ThemeManager::Theme::DARK;
                 } else if (themeName == "Red") {
-                    m_currentTheme = AudioTester::ThemeManager::Theme::RED;
+                    m_currentTheme = Dynamix::ThemeManager::Theme::RED;
                 } else if (themeName == "Light") {
-                    m_currentTheme = AudioTester::ThemeManager::Theme::LIGHT;
+                    m_currentTheme = Dynamix::ThemeManager::Theme::LIGHT;
                 }
                 // If theme name is invalid, keep the default (RED)
             }
@@ -1942,7 +1941,7 @@ void TesterView::SaveThemeToConfig() {
     try {
         std::ofstream configFile(m_configFilePath);
         if (configFile.is_open()) {
-            const char* themeName = AudioTester::ThemeManager::GetThemeName(m_currentTheme);
+            const char* themeName = Dynamix::ThemeManager::GetThemeName(m_currentTheme);
             configFile << themeName << std::endl;
             configFile.close();
         }

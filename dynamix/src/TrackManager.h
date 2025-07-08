@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace AudioTester {
+namespace Dynamix {
     class TrackManager {
     public:
         struct TrackInfo {
@@ -34,4 +34,4 @@ namespace AudioTester {
     private:
         std::vector<TrackInfo> m_tracks;
     };
-} // namespace AudioTester
+} // namespace Dynamix

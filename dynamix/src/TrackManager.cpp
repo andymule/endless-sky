@@ -1,7 +1,7 @@
 #include "TrackManager.h"
 #include <stdexcept>
 
-namespace AudioTester {
+namespace Dynamix {
 
     TrackManager::TrackInfo& TrackManager::getTrack(size_t idx) {
         if (idx >= m_tracks.size()) {
@@ -29,4 +29,4 @@ namespace AudioTester {
         return true; // Track successfully removed
     }
 
-} // namespace AudioTester
+} // namespace Dynamix

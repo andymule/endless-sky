@@ -2,7 +2,7 @@
 #include "soloud.h"
 #include "soloud_wav.h"
 
-namespace AudioTester {
+namespace Dynamix {
 
     // Custom WavInstance that supports accurate seeking
     class SyncWavInstance : public SoLoud::WavInstance {
@@ -22,4 +22,4 @@ namespace AudioTester {
         virtual SoLoud::AudioSourceInstance* createInstance();
     };
 
-} // namespace AudioTester
+} // namespace Dynamix
