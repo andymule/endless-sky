@@ -22,6 +22,7 @@ x64/
 Debug/
 install/
 Release/
+dynamix/static_build/
 *.layout
 *.depend
 scons-local*

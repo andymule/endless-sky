@@ -23,27 +23,27 @@ static AudioTester::AudioController* g_controller = nullptr;
 
 // External C API for game engine integration
 extern "C" {
-void musicTester_triggerSongEvent(const char* songName, const char* eventName) {
+void dynamix_triggerSongEvent(const char* songName, const char* eventName) {
     if (g_controller) {
         g_controller->triggerSongEvent(songName, eventName);
     }
 }
 
-void musicTester_triggerMasterEvent(const char* eventName) {
+void dynamix_triggerMasterEvent(const char* eventName) {
     if (g_controller) {
         g_controller->triggerMasterEvent(eventName);
     }
 }
 
 // Searches both songs and master events for the event name
-void musicTester_triggerEvent(const char* eventName) {
+void dynamix_triggerEvent(const char* eventName) {
     if (g_controller) {
         g_controller->triggerEvent(eventName);
     }
 }
 
 // Additional utility functions
-void musicTester_loadSongsFromDirectory(const char* directory) {
+void dynamix_loadSongsFromDirectory(const char* directory) {
     if (g_controller) {
         g_controller->setMusicDirectory(directory);
     }
@@ -90,9 +90,9 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_Window* window = SDL_CreateWindow(
-        "Endless Sky - Music Tester", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window* window =
+        SDL_CreateWindow("Dynamix", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720,
+                         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!window) {
         LOG_ERROR("Error creating SDL window: " + std::string(SDL_GetError()));
         return 1;

@@ -22,5 +22,5 @@ ninja
 
 echo "Quick build complete!"
 echo ""
-echo "You can run the music-tester with:"
-echo "cd build && ./music-tester" 
+echo "You can run the dynamix with:"
+echo "cd build && ./dynamix" 

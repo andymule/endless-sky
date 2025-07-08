@@ -1,8 +1,8 @@
-# Dynamix Music Tester File Format
+# Dynamix Dynamix File Format
 
 ## Overview
 
-The Dynamix Music Tester uses a folder-based structure where each project contains a master bus and multiple songs. Songs are identified by their folder names, not by any JSON field.
+The Dynamix Dynamix uses a folder-based structure where each project contains a master bus and multiple songs. Songs are identified by their folder names, not by any JSON field.
 
 ## Project Structure
 
@@ -105,7 +105,7 @@ The master bus is stored in `_master.json` at the project root.
 
 ## Overview
 
-This document specifies an event-driven song format for the music-tester system. Songs are folders containing loose OGG audio track files and a JSON metadata file. All tracks loop automatically and are always playing - volume control is used to fade tracks in/out. The system supports state-persistent events triggered externally by game engines, with complete automation of all audio effects and parameters.
+This document specifies an event-driven song format for the dynamix system. Songs are folders containing loose OGG audio track files and a JSON metadata file. All tracks loop automatically and are always playing - volume control is used to fade tracks in/out. The system supports state-persistent events triggered externally by game engines, with complete automation of all audio effects and parameters.
 
 **Key Architecture:**
 - Songs contain tracks with per-song tempo control
@@ -557,15 +557,15 @@ if (!startTransition(targetState)) {
 Game engines will call:
 ```cpp
 // Trigger song events (affects tracks + per-song tempo)
-musicTester.triggerSongEvent("battle-theme", "intense");
-musicTester.triggerSongEvent("ambient-forest", "night-cycle");
+dynamix.triggerSongEvent("battle-theme", "intense");
+dynamix.triggerSongEvent("ambient-forest", "night-cycle");
 
 // Trigger master bus events (affects global effects + master tempo)
-musicTester.triggerMasterEvent("underwater");
-musicTester.triggerMasterEvent("normal");
+dynamix.triggerMasterEvent("underwater");
+dynamix.triggerMasterEvent("normal");
 
 // Switch to different song (new feature)
-musicTester.switchToSong("new-song-name");
+dynamix.switchToSong("new-song-name");
 ```
 
 ## File Loading Priority

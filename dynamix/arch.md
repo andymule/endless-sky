@@ -1,8 +1,8 @@
-# Music Tester Architecture Documentation
+# Dynamix Architecture Documentation
 
 ## Overview
 
-The Music Tester is a sophisticated real-time audio processing and event-driven music system designed for game engine integration. It provides granular tempo control, advanced filtering, and dynamic music transitions through a clean MVC (Model-View-Controller) architecture.
+The Dynamix is a sophisticated real-time audio processing and event-driven music system designed for game engine integration. It provides granular tempo control, advanced filtering, and dynamic music transitions through a clean MVC (Model-View-Controller) architecture.
 
 ## System Architecture
 
@@ -39,10 +39,10 @@ The system follows a layered architecture with clear separation of concerns:
 - Handle window events and cleanup
 
 **External API Functions**:
-- `musicTester_triggerSongEvent()` - Trigger song-specific events
-- `musicTester_triggerMasterEvent()` - Trigger global master events
-- `musicTester_triggerEvent()` - Universal event trigger
-- `musicTester_loadSongsFromDirectory()` - Load music from directory
+- `dynamix_triggerSongEvent()` - Trigger song-specific events
+- `dynamix_triggerMasterEvent()` - Trigger global master events
+- `dynamix_triggerEvent()` - Universal event trigger
+- `dynamix_loadSongsFromDirectory()` - Load music from directory
 
 **Dependencies**: SDL2, OpenGL, Dear ImGui, AudioController, TesterView
 
@@ -314,7 +314,7 @@ sound_staging/
 
 **Dependencies**: Standard library I/O
 
-### music_tester_api.h
+### dynamix_api.h
 **Purpose**: External C API for game engine integration
 
 **Key Responsibilities**:
@@ -324,10 +324,10 @@ sound_staging/
 - Define clear API contract
 
 **API Functions**:
-- `musicTester_triggerSongEvent()` - Trigger song events
-- `musicTester_triggerMasterEvent()` - Trigger master events  
-- `musicTester_triggerEvent()` - Universal event trigger
-- `musicTester_loadSongsFromDirectory()` - Load music
+- `dynamix_triggerSongEvent()` - Trigger song events
+- `dynamix_triggerMasterEvent()` - Trigger master events  
+- `dynamix_triggerEvent()` - Universal event trigger
+- `dynamix_loadSongsFromDirectory()` - Load music
 
 **Dependencies**: None (header-only)
 

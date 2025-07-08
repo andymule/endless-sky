@@ -33,7 +33,7 @@
 3. ✅ **Professional Menu Bar and Window Titles** - **COMPLETED**
    - Moved New Master, New Song, Browse, Load, Directory input, and Play/Pause to docked menu bar
    - Window title now shows "Dynamix - [Song Name]" when a song is loaded
-   - Falls back to "Dynamix - Music Tester" when no song is loaded
+   - Falls back to "Dynamix - Dynamix" when no song is loaded
    - Added current song display in menu bar with color coding
    - Cleaner main window focused on track and bus controls
 4. ✅ **PLUS Icon for Adding .ogg Files to Songs** - **COMPLETED**

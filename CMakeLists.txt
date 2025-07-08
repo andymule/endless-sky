@@ -338,8 +338,8 @@ execute_process(
 	${CMAKE_BINARY_DIR}/compile_commands.json
 	${CMAKE_CURRENT_SOURCE_DIR}/build/compile_commands.json)
 
-# Add the music-tester target
-option(ES_BUILD_MUSIC_TESTER "Build the adaptive music tester application" ON)
-if(ES_BUILD_MUSIC_TESTER)
-	add_subdirectory(music-tester)
+# Add the dynamix target
+option(ES_BUILD_DYNAMIX "Build the adaptive dynamix application" ON)
+if(ES_BUILD_DYNAMIX)
+	add_subdirectory(dynamix)
 endif()

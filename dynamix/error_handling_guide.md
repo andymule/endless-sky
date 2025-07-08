@@ -295,7 +295,7 @@ Result<Song> loadSong(const std::string& path) {
 
 2. Update CMakeLists.txt to include the new source files:
 ```cmake
-target_sources(music-tester PRIVATE
+target_sources(dynamix PRIVATE
     src/ErrorHandling.cpp
     # ... other files ...
 )

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(music-tester VERSION 0.1.0)
+project(dynamix VERSION 0.1.0)
 
 # Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
 option(BUNDLE_SDL2 "Bundle SDL2 dylib with the application for distribution" ON)
@@ -64,8 +64,8 @@ add_definitions(
     -DWITH_SDL2_STATIC
 )
 
-# Set up sources for music-tester
-set(MUSIC_TESTER_SOURCES
+# Set up sources for dynamix
+set(DYNAMIX_SOURCES
     src/main.cpp
     src/AudioSystem.cpp
     src/AudioController.cpp
@@ -82,8 +82,8 @@ set(MUSIC_TESTER_SOURCES
     src/ThemeManager.cpp
 )
 
-# Set up headers for music-tester
-set(MUSIC_TESTER_HEADERS
+# Set up headers for dynamix
+set(DYNAMIX_HEADERS
     src/AudioSystem.h
     src/AudioState.h
     src/AudioController.h
@@ -105,7 +105,7 @@ set(MUSIC_TESTER_HEADERS
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Add the executable target
-add_executable(music-tester ${MUSIC_TESTER_SOURCES})
+add_executable(dynamix ${DYNAMIX_SOURCES})
 
 # Find or fetch ImGui
 include(FetchContent)
@@ -183,7 +183,7 @@ set(SOLOUD_SOURCES
     ${soloud_SOURCE_DIR}/src/filter/soloud_fftfilter.cpp
 )
 
-target_sources(music-tester PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
+target_sources(dynamix PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
 
 # Find SDL2 - prefer pkg-config to avoid framework issues
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
@@ -222,7 +222,7 @@ if(NOT OPENAL_FOUND)
 endif()
 
 # Include directories
-target_include_directories(music-tester PRIVATE
+target_include_directories(dynamix PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${signalsmith-stretch_SOURCE_DIR}/include
     ${signalsmith-linear_SOURCE_DIR}/include
@@ -238,13 +238,13 @@ target_include_directories(music-tester PRIVATE
 # Add SDL2, PNG, JPEG include directories
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
     # For bundled builds, add Homebrew include paths
-    target_include_directories(music-tester PRIVATE
+    target_include_directories(dynamix PRIVATE
         ${BREW_PREFIX}/include
         ${BREW_PREFIX}/include/SDL2
     )
 else()
     # For system builds, use pkg-config paths
-    target_include_directories(music-tester PRIVATE
+    target_include_directories(dynamix PRIVATE
         ${SDL2_INCLUDE_DIRS}
         ${PNG_INCLUDE_DIRS}
         ${JPEG_INCLUDE_DIRS}
@@ -269,7 +269,7 @@ if(APPLE)
     if(ACCELERATE_FRAMEWORK)
         message(STATUS "Found Accelerate framework: ${ACCELERATE_FRAMEWORK}")
         # Enable Signalsmith Accelerate optimization
-        target_compile_definitions(music-tester PRIVATE SIGNALSMITH_USE_ACCELERATE)
+        target_compile_definitions(dynamix PRIVATE SIGNALSMITH_USE_ACCELERATE)
     endif()
     
     message(STATUS "Using macOS OpenGL framework: ${OPENGL_FRAMEWORK}")
@@ -278,7 +278,7 @@ else()
 endif()
 
 # Link with SDL2, OpenGL, and other required libraries
-target_link_libraries(music-tester PRIVATE
+target_link_libraries(dynamix PRIVATE
     ${MINIZIP_LIBRARIES}
     ${SDL2_LIBRARIES}
     ${PNG_LIBRARIES}
@@ -289,57 +289,57 @@ target_link_libraries(music-tester PRIVATE
 
 # Add SDL2 library directories and link flags from pkg-config
 if(SDL2_FOUND AND SDL2_LINK_LIBRARIES)
-    target_link_directories(music-tester PRIVATE ${SDL2_LIBRARY_DIRS})
-    target_link_libraries(music-tester PRIVATE ${SDL2_LINK_LIBRARIES})
+    target_link_directories(dynamix PRIVATE ${SDL2_LIBRARY_DIRS})
+    target_link_libraries(dynamix PRIVATE ${SDL2_LINK_LIBRARIES})
 endif()
 
 # Link with OpenGL library based on platform
 if(APPLE)
-    target_link_libraries(music-tester PRIVATE ${OPENGL_FRAMEWORK})
+    target_link_libraries(dynamix PRIVATE ${OPENGL_FRAMEWORK})
     
     # Link with Accelerate framework if available for Signalsmith optimization
     if(ACCELERATE_FRAMEWORK)
-        target_link_libraries(music-tester PRIVATE ${ACCELERATE_FRAMEWORK})
+        target_link_libraries(dynamix PRIVATE ${ACCELERATE_FRAMEWORK})
         message(STATUS "Linked with Accelerate framework for optimized DSP")
     endif()
     
     # Apple deprecated OpenGL in MacOS 10.14, but we don't care
-    target_compile_definitions(music-tester PRIVATE GL_SILENCE_DEPRECATION)
+    target_compile_definitions(dynamix PRIVATE GL_SILENCE_DEPRECATION)
 else()
-    target_link_libraries(music-tester PRIVATE OpenGL::GL)
+    target_link_libraries(dynamix PRIVATE OpenGL::GL)
     if(NOT APPLE)
-        target_link_libraries(music-tester PRIVATE GLEW::glew)
+        target_link_libraries(dynamix PRIVATE GLEW::glew)
     endif()
 endif()
 
 # Create sound_staging directory and copy contents
-add_custom_command(TARGET music-tester POST_BUILD
+add_custom_command(TARGET dynamix POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Source directory: ${CMAKE_SOURCE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Target directory: $<TARGET_FILE_DIR:music-tester>"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:music-tester>/sound_staging"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "$<TARGET_FILE_DIR:music-tester>/sound_staging"
+    COMMAND ${CMAKE_COMMAND} -E echo "Target directory: $<TARGET_FILE_DIR:dynamix>"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:dynamix>/sound_staging"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "$<TARGET_FILE_DIR:dynamix>/sound_staging"
     COMMAND ${CMAKE_COMMAND} -E echo "Contents of target sound_staging:"
-    COMMAND ls "$<TARGET_FILE_DIR:music-tester>/sound_staging"
+    COMMAND ls "$<TARGET_FILE_DIR:dynamix>/sound_staging"
     COMMENT "Copying sound_staging directory to build directory"
 )
 
 # Bundle SDL2 dylib if requested
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
-    add_custom_command(TARGET music-tester POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${SDL2_DYLIB}" "$<TARGET_FILE_DIR:music-tester>/"
-        COMMAND ${CMAKE_COMMAND} -E echo "Bundled SDL2 dylib: $<TARGET_FILE_DIR:music-tester>/libSDL2-2.0.0.dylib"
+    add_custom_command(TARGET dynamix POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy "${SDL2_DYLIB}" "$<TARGET_FILE_DIR:dynamix>/"
+        COMMAND ${CMAKE_COMMAND} -E echo "Bundled SDL2 dylib: $<TARGET_FILE_DIR:dynamix>/libSDL2-2.0.0.dylib"
         COMMENT "Bundling SDL2 dylib with application"
     )
     
     # Set up @rpath to find the bundled SDL2
-    set_target_properties(music-tester PROPERTIES
+    set_target_properties(dynamix PROPERTIES
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_RPATH "@executable_path"
     )
     
     # Update the binary to use @rpath for SDL2
-    add_custom_command(TARGET music-tester POST_BUILD
-        COMMAND install_name_tool -change "${SDL2_DYLIB}" "@rpath/libSDL2-2.0.0.dylib" "$<TARGET_FILE:music-tester>"
+    add_custom_command(TARGET dynamix POST_BUILD
+        COMMAND install_name_tool -change "${SDL2_DYLIB}" "@rpath/libSDL2-2.0.0.dylib" "$<TARGET_FILE:dynamix>"
         COMMENT "Updating SDL2 library path to use @rpath"
     )
 endif()
@@ -348,10 +348,10 @@ endif()
 
 add_custom_target(static_build ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/static_build"
-    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:music-tester>" "${CMAKE_SOURCE_DIR}/static_build/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE_DIR:music-tester>/libSDL2-2.0.0.dylib" "${CMAKE_SOURCE_DIR}/static_build/"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:dynamix>" "${CMAKE_SOURCE_DIR}/static_build/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE_DIR:dynamix>/libSDL2-2.0.0.dylib" "${CMAKE_SOURCE_DIR}/static_build/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${CMAKE_SOURCE_DIR}/static_build/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "${CMAKE_SOURCE_DIR}/static_build/sound_staging"
     COMMENT "Creating static_build folder with only the required files"
-    DEPENDS music-tester
+    DEPENDS dynamix
 ) 

@@ -64,16 +64,16 @@ export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/libvorbi
 # Get the script directory
 SCRIPT_DIR="$(dirname "$0")"
 cd "$SCRIPT_DIR"
-MUSIC_TESTER_DIR=$(pwd)
-echo "Music tester directory: $MUSIC_TESTER_DIR"
+DYNAMIX_DIR=$(pwd)
+echo "Dynamix directory: $DYNAMIX_DIR"
 
 # Parent project directory
 cd ..
 PARENT_DIR=$(pwd)
 echo "Parent project directory: $PARENT_DIR"
 
-# Create the build directory in the music-tester folder
-BUILD_DIR="$MUSIC_TESTER_DIR/build"
+# Create the build directory in the dynamix folder
+BUILD_DIR="$DYNAMIX_DIR/build"
 
 # Set minizip triplet based on architecture
 if [ "$ARCH" == "arm64" ]; then
@@ -99,7 +99,7 @@ fi
 mkdir -p "$BUILD_DIR"
 
 # Create a timestamp file to track package installs
-PACKAGE_TIMESTAMP="$MUSIC_TESTER_DIR/.package_timestamp"
+PACKAGE_TIMESTAMP="$DYNAMIX_DIR/.package_timestamp"
 
 # Check if packages need to be verified (only check once per day)
 CURRENT_DATE=$(date +%Y%m%d)
@@ -149,21 +149,21 @@ if [ -d "$PARENT_DIR/vcpkg" ]; then
             echo "Bootstrapping vcpkg..."
             cd "$VCPKG_DIR"
             ./bootstrap-vcpkg.sh -disableMetrics
-            cd "$MUSIC_TESTER_DIR"
+            cd "$DYNAMIX_DIR"
         fi
     fi
 else
     echo "Parent project's vcpkg not found. Setting up local vcpkg..."
     
     # Set up vcpkg locally if needed
-    if [ ! -d "$MUSIC_TESTER_DIR/vcpkg" ]; then
+    if [ ! -d "$DYNAMIX_DIR/vcpkg" ]; then
         git clone --depth=1 https://github.com/microsoft/vcpkg.git
-        cd "$MUSIC_TESTER_DIR/vcpkg"
+        cd "$DYNAMIX_DIR/vcpkg"
         ./bootstrap-vcpkg.sh -disableMetrics
-        cd "$MUSIC_TESTER_DIR"
+        cd "$DYNAMIX_DIR"
     fi
     
-    VCPKG_DIR="$MUSIC_TESTER_DIR/vcpkg"
+    VCPKG_DIR="$DYNAMIX_DIR/vcpkg"
 fi
 
 # Install minizip if not already configured
@@ -189,9 +189,6 @@ if [ -z "$MINIZIP_DIR" ]; then
 fi
 echo "Found minizip at: $MINIZIP_DIR"
 
-# Create sound_staging directory if it doesn't exist
-mkdir -p "$MUSIC_TESTER_DIR/sound_staging"
-
 # Use Ninja generator if available to speed up builds
 NINJA_AVAILABLE=false
 if command -v ninja &> /dev/null; then
@@ -199,7 +196,7 @@ if command -v ninja &> /dev/null; then
     echo "Using Ninja build system for faster builds"
 fi
 
-echo "Configuring and building music-tester..."
+echo "Configuring and building dynamix..."
 # Configure with CMake
 cd "$BUILD_DIR"
 
@@ -247,14 +244,14 @@ echo ""
 if [ "$BUNDLE_SDL2" = true ]; then
     echo "✅ Bundled build complete! The binary includes SDL2 and is portable to other macOS systems."
     echo ""
-    echo "You can run the music-tester with:"
-    echo "cd build && ./music-tester"
+    echo "You can run the dynamix with:"
+    echo "cd build && ./dynamix"
     echo ""
     echo "The binary can be distributed to other macOS 10.15+ systems without requiring SDL2 installation."
     echo "System frameworks (OpenAL, OpenGL, etc.) are still required but are always available on macOS."
 else
-    echo "You can run the music-tester with:"
-    echo "cd build && ./music-tester"
+    echo "You can run the dynamix with:"
+    echo "cd build && ./dynamix"
     echo ""
     echo "Note: This build requires SDL2 to be installed on the target system."
 fi

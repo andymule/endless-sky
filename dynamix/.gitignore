@@ -38,4 +38,4 @@ sound_staging/
 # imgui ini files
 imgui.ini 
 # Static build executable
-static_build/music-tester
+static_build/dynamix

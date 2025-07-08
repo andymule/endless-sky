@@ -25,23 +25,23 @@ TesterView::TesterView() {
 #ifdef __APPLE__
     const char* homeDir = getenv("HOME");
     if (homeDir) {
-        m_configFilePath = std::string(homeDir) + "/.music-tester-config.txt";
+        m_configFilePath = std::string(homeDir) + "/.dynamix-config.txt";
     } else {
-        m_configFilePath = ".music-tester-config.txt";
+        m_configFilePath = ".dynamix-config.txt";
     }
 #elif defined(_WIN32)
     const char* userProfile = getenv("USERPROFILE");
     if (userProfile) {
-        m_configFilePath = std::string(userProfile) + "\\music-tester-config.txt";
+        m_configFilePath = std::string(userProfile) + "\\dynamix-config.txt";
     } else {
-        m_configFilePath = "music-tester-config.txt";
+        m_configFilePath = "dynamix-config.txt";
     }
 #else
     const char* homeDir = getenv("HOME");
     if (homeDir) {
-        m_configFilePath = std::string(homeDir) + "/.music-tester-config.txt";
+        m_configFilePath = std::string(homeDir) + "/.dynamix-config.txt";
     } else {
-        m_configFilePath = ".music-tester-config.txt";
+        m_configFilePath = ".dynamix-config.txt";
     }
 #endif
 
@@ -1836,7 +1836,7 @@ void TesterView::RenderMenuBar() {
 }
 
 std::string TesterView::GetWindowTitle() {
-    std::string title = "Music Tester";
+    std::string title = "Dynamix";
 
     if (!m_controller->getCurrentSong().empty()) {
         title += " - " + m_controller->getCurrentSong();

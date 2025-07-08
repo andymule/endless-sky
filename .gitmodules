@@ -1,6 +1,6 @@
-[submodule "music-tester/third-party/signalsmith-stretch"]
-	path = music-tester/third-party/signalsmith-stretch
+[submodule "dynamix/third-party/signalsmith-stretch"]
+	path = dynamix/third-party/signalsmith-stretch
 	url = https://github.com/Signalsmith-Audio/signalsmith-stretch.git
-[submodule "music-tester/third-party/signalsmith-linear"]
-	path = music-tester/third-party/signalsmith-linear
+[submodule "dynamix/third-party/signalsmith-linear"]
+	path = dynamix/third-party/signalsmith-linear
 	url = https://github.com/Signalsmith-Audio/linear.git

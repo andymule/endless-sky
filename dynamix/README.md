@@ -1,4 +1,4 @@
-# Music Tester for Endless Sky
+# Dynamix for Endless Sky
 
 A standalone testing application for adaptive music in Endless Sky using Dear ImGui with granular synthesis tempo control and event-driven song format support.
 
@@ -88,11 +88,11 @@ brew install git
 
 ### 4. Clone the Repository
 
-Clone the music-tester repository:
+Clone the dynamix repository:
 
 ```bash
-git clone https://github.com/your-username/music-tester.git
-cd music-tester
+git clone https://github.com/your-username/dynamix.git
+cd dynamix
 ```
 
 ### 5. Build the Application
@@ -111,19 +111,19 @@ Run the build script which will automatically:
 After successful build, run the application:
 
 ```bash
-cd build && ./music-tester
+cd build && ./dynamix
 ```
 
-## Building Music Tester
+## Building Dynamix
 
-The music-tester is a standalone application that does not require building the full Endless Sky game.
+The dynamix is a standalone application that does not require building the full Endless Sky game.
 
 ### Quick Start
 
 ```bash
-cd music-tester
+cd dynamix
 ./build-macos.sh
-cd build && ./music-tester
+cd build && ./dynamix
 ```
 
 ### Build Options
@@ -189,7 +189,7 @@ If you have received a pre-built binary:
 #### Bundled Binary (Recommended)
 ```bash
 # Simply run the binary - SDL2 is bundled
-./music-tester
+./dynamix
 ```
 
 **System requirements:**
@@ -205,7 +205,7 @@ If the binary was built without bundling, you'll need to install SDL2:
 brew install sdl2
 
 # Then run the binary
-./music-tester
+./dynamix
 ```
 
 ### Binary Distribution Package
@@ -217,22 +217,22 @@ For easy distribution, you can create a complete package:
 ./build-macos.sh bundle
 
 # Create distribution package
-mkdir music-tester-dist
-cp build/music-tester music-tester-dist/
-cp build/libSDL2-2.0.0.dylib music-tester-dist/  # Bundled SDL2
-cp -r sound_staging music-tester-dist/
-cp README.md music-tester-dist/
+mkdir dynamix-dist
+cp build/dynamix dynamix-dist/
+cp build/libSDL2-2.0.0.dylib dynamix-dist/  # Bundled SDL2
+cp -r sound_staging dynamix-dist/
+cp README.md dynamix-dist/
 
 # Create a simple run script
-cat > music-tester-dist/run.sh << 'EOF'
+cat > dynamix-dist/run.sh << 'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
-./music-tester
+./dynamix
 EOF
-chmod +x music-tester-dist/run.sh
+chmod +x dynamix-dist/run.sh
 
 # Archive the package
-tar -czf music-tester-macos.tar.gz music-tester-dist/
+tar -czf dynamix-macos.tar.gz dynamix-dist/
 ```
 
 ### System Requirements for Binary Distribution
@@ -259,7 +259,7 @@ If you get library not found errors when running a dynamic binary:
 
 2. **Check library paths**:
    ```bash
-   otool -L music-tester
+   otool -L dynamix
    ```
 
 3. **Use bundled binary** instead:
@@ -271,11 +271,11 @@ If you get library not found errors when running a dynamic binary:
 If you get SDL2 not found errors:
 - **For bundled binaries**: The SDL2 dylib should be in the same directory as the binary
 - **For dynamic binaries**: Install SDL2: `brew install sdl2`
-- **Check the binary type**: `otool -L music-tester` should show `@rpath/libSDL2-2.0.0.dylib` for bundled builds
+- **Check the binary type**: `otool -L dynamix` should show `@rpath/libSDL2-2.0.0.dylib` for bundled builds
 
 #### "Permission denied" Errors
 ```bash
-chmod +x music-tester
+chmod +x dynamix
 ```
 
 #### "Audio device not found" Errors
@@ -315,12 +315,12 @@ sound_staging/
 Game engines can trigger events via the C-style API:
 ```cpp
 // Trigger song events (affects tracks + per-song tempo)
-musicTester_triggerSongEvent("battle-theme", "intense");
-musicTester_triggerSongEvent("ambient-forest", "night-cycle");
+dynamix_triggerSongEvent("battle-theme", "intense");
+dynamix_triggerSongEvent("ambient-forest", "night-cycle");
 
 // Trigger master bus events (affects global effects + master tempo)
-musicTester_triggerMasterEvent("underwater");
-musicTester_triggerMasterEvent("normal");
+dynamix_triggerMasterEvent("underwater");
+dynamix_triggerMasterEvent("normal");
 ```
 
 ### JSON Format Example
@@ -370,17 +370,17 @@ code --install-extension vadimcn.vscode-lldb
 ```
 
 ### Tasks (Ctrl/Cmd+Shift+P → "Tasks: Run Task")
-- **Build Music Tester (Release)** - Full release build
-- **Build Music Tester (Debug)** - Debug build
+- **Build Dynamix (Release)** - Full release build
+- **Build Dynamix (Debug)** - Debug build
 - **Quick Build (Ninja Only)** - Fast incremental build
 - **Clean Build** - Clean and rebuild
-- **Run Music Tester** - Run with script
+- **Run Dynamix** - Run with script
 - **Build and Run** - Quick build + run (default test task)
 
 ### Launch Configurations (F5 or Run menu)
-- **Debug Music Tester** - Debug with breakpoints
-- **Run Music Tester (No Debug)** - Release mode run
-- **Run Music Tester (Script)** - Run via shell script
+- **Debug Dynamix** - Debug with breakpoints
+- **Run Dynamix (No Debug)** - Release mode run
+- **Run Dynamix (Script)** - Run via shell script
 
 ### IntelliSense
 - Full C++20 IntelliSense support
@@ -391,7 +391,7 @@ code --install-extension vadimcn.vscode-lldb
 
 After building, run the application with:
 ```bash
-cd build && ./music-tester
+cd build && ./dynamix
 ```
 
 By default, it looks for audio files in the `sound_staging/` directory.
@@ -469,10 +469,10 @@ Dependencies (managed by CMake FetchContent):
      - Search for "CodeLLDB" by Vadim Chugunov
      - Extension ID: `vadimcn.vscode-lldb`
      - Or install via command line: `code --install-extension vadimcn.vscode-lldb`
-     - Use "Debug Music Tester" configuration (default)
+     - Use "Debug Dynamix" configuration (default)
 
 2. **Alternative Debugging** (if CodeLLDB isn't available):
-   - Use "Debug Music Tester (Legacy cppdbg)" configuration
+   - Use "Debug Dynamix (Legacy cppdbg)" configuration
    - This uses the system LLDB with compatibility mode
 
 3. **Xcode Command Line Tools**: Ensure tools are properly linked:

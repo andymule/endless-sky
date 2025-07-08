@@ -56,8 +56,8 @@
 				"catch2"
 			]
 		},
-		"music-tester": {
-			"description": "Dependencies for the music-tester application.",
+		"dynamix": {
+			"description": "Dependencies for the dynamix application.",
 			"dependencies": [
 				"libogg",
 				"libvorbis"
