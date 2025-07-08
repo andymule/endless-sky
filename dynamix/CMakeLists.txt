@@ -80,6 +80,7 @@ set(DYNAMIX_SOURCES
     src/TrackManager.cpp
     src/SyncWav.cpp
     src/ThemeManager.cpp
+    src/Views/SongView.cpp
 )
 
 # Set up headers for dynamix
@@ -99,6 +100,7 @@ set(DYNAMIX_HEADERS
     src/TrackManager.h
     src/SyncWav.h
     src/ThemeManager.h
+    src/Views/SongView.h
 )
 
 # Copy assets to build directory

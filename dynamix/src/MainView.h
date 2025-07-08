@@ -4,6 +4,7 @@
 #include "AudioState.h"
 #include "FileBrowser.h"
 #include "ThemeManager.h"
+#include "Views/SongView.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
 #include <filesystem>
@@ -25,6 +26,11 @@ public:
     // Set the controller (dependency injection)
     void SetController(Dynamix::AudioController* controller) {
         m_controller = controller;
+
+        // Initialize SongView with the controller
+        if (m_controller) {
+            m_songView = std::make_unique<Dynamix::Views::SongView>(m_controller);
+        }
 
         // Update the directory input with the current directory from controller
         if (m_controller) {
@@ -90,9 +96,7 @@ private:
     void RenderEventsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
-    void RenderTrackControls();
     void RenderBusControls();
-    void drawFilterControls(size_t trackIndex);
 
     // Events UI helpers
     void RenderSongEvents();
@@ -151,13 +155,10 @@ private:
 
     // File menu state
     bool m_showNewMasterDialog = false;
-    bool m_showNewSongDialog = false;
     char m_newMasterName[256] = "";
-    char m_newSongName[256] = "";
 
     // File dialog state
     bool m_showFileDialog = false;
-    bool m_showOggFileDialog = false;
     std::string m_defaultDirectory = "";
 
     // File browser components (replaces old custom file browser state)
@@ -195,4 +196,6 @@ private:
     // Theme management state
     Dynamix::ThemeManager::Theme m_currentTheme = Dynamix::ThemeManager::Theme::RED;
     std::string m_configFilePath;
+
+    std::unique_ptr<Dynamix::Views::SongView> m_songView;
 };

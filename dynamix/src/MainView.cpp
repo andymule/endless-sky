@@ -1,5 +1,6 @@
 #include "MainView.h"
 #include "Logger.h"
+#include "Views/SongView.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
 #include <SDL2/SDL_opengl.h>
@@ -293,7 +294,11 @@ void MainView::RenderMainWindow() {
     // Main content area with scrolling
     ImGui::BeginChild("##main_content", ImVec2(0, -50), true); // Reserve 50px for bottom button
 
-    RenderTrackControls();
+    // --- SongView extraction ---
+    if (m_songView)
+        m_songView->Render();
+    // TODO: Move track controls, dialogs, and related state to SongView
+
     ImGui::Separator();
     RenderBusControls();
 
@@ -305,7 +310,7 @@ void MainView::RenderMainWindow() {
     std::string currentSong = m_controller->getCurrentSong();
     if (!currentSong.empty()) {
         if (ImGui::Button("+", ImVec2(30, 30))) {
-            m_showOggFileDialog = true;
+            m_songView->ShowOggFileDialog();
         }
         ImGui::SameLine();
         ImGui::Text("Add .ogg file to '%s'", currentSong.c_str());
@@ -321,367 +326,11 @@ void MainView::RenderMainWindow() {
     if (m_showNewMasterDialog) {
         RenderNewMasterDialog();
     }
-    if (m_showNewSongDialog) {
-        RenderNewSongDialog();
-    }
     if (m_showFileDialog) {
         RenderFileDialog();
     }
-    if (m_showOggFileDialog) {
-        RenderOggFileDialog();
-    }
 
     ImGui::End();
-}
-
-void MainView::RenderTrackControls() {
-    // Get tracks directly from the folder contents
-    std::string currentSong = m_controller->getCurrentSong();
-    if (currentSong.empty()) {
-        ImGui::Text("No song loaded");
-        return;
-    }
-
-    // Get the song folder path
-    std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
-    if (songFolderPath.empty()) {
-        ImGui::Text("No song folder found");
-        return;
-    }
-
-    // Discover tracks in the folder (this is the source of truth)
-    std::vector<std::string> trackFiles;
-    try {
-        for (const auto& entry : std::filesystem::directory_iterator(songFolderPath)) {
-            if (entry.is_regular_file()) {
-                auto filepath = entry.path().string();
-                if (m_controller->isSupportedFile(filepath)) {
-                    trackFiles.push_back(entry.path().filename().string());
-                }
-            }
-        }
-    } catch (const std::exception& e) {
-        ImGui::Text("Error reading folder: %s", e.what());
-        return;
-    }
-
-    // Sort tracks alphabetically
-    std::sort(trackFiles.begin(), trackFiles.end());
-
-    ImGui::Text("Tracks (%d):", static_cast<int>(trackFiles.size()));
-    for (size_t i = 0; i < trackFiles.size(); i++) {
-        const auto& trackFile = trackFiles[i];
-        ImGui::PushID(static_cast<int>(i));
-
-        // Effects dropdown on same line as volume
-        // Find the actual track index by filename to ensure we get the right volume
-        const auto& state = m_controller->getState();
-        int actualTrackIndex = m_controller->findTrackByFilename(trackFile);
-
-        // Create unique ID for this track's effects expanded state
-        std::string expandedId = "expand_track_" + std::to_string(actualTrackIndex);
-
-        // Get or initialize expanded state (shared between dropdown and effects display)
-        static std::map<std::string, bool> trackExpandedStates;
-        bool& isExpanded = trackExpandedStates[expandedId];
-
-        if (actualTrackIndex >= 0) {
-            // Show dropdown arrow (no text, just triangle) on the far left
-            ImGui::PushID(("track_effects_" + std::to_string(actualTrackIndex)).c_str());
-
-            // Color the arrow based on whether any effects are enabled
-            const auto& audioSystem = m_controller->getAudioSystem();
-            const auto& filters = audioSystem.getFilters(actualTrackIndex);
-            bool hasEnabledEffects = false;
-            for (const auto& [filterName, filterInstance] : filters) {
-                if (filterInstance.enabled) {
-                    hasEnabledEffects = true;
-                    break;
-                }
-            }
-
-            if (hasEnabledEffects) {
-                ImGui::PushStyleColor(ImGuiCol_Text,
-                                      ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when effects enabled
-            } else {
-                ImGui::PushStyleColor(ImGuiCol_Text,
-                                      ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when no effects
-            }
-
-            // Dropdown arrow (TreeNode style but manual)
-            if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
-                isExpanded = !isExpanded;
-            }
-            ImGui::PopStyleColor();
-            ImGui::PopID();
-
-            ImGui::SameLine();
-        }
-
-        // Volume slider with track name as overlay
-        // Get volume from AudioSystem (single source of truth), otherwise default to 1.0
-        float volume = 1.0f;
-
-        if (actualTrackIndex >= 0 &&
-            actualTrackIndex < static_cast<int>(m_controller->getAudioSystem().getTrackCount())) {
-            volume = m_controller->getAudioSystem().getTrackVolume(actualTrackIndex);
-        }
-
-        // Create track title with keyboard shortcut
-        std::string keyText = (i < 9) ? std::to_string(i + 1) : "0";
-
-        // Remove file extension and capitalize
-        std::string trackName = trackFile;
-        size_t dotPos = trackName.find_last_of('.');
-        if (dotPos != std::string::npos) {
-            trackName = trackName.substr(0, dotPos);
-        }
-
-        // Convert to uppercase
-        std::transform(trackName.begin(), trackName.end(), trackName.begin(), ::toupper);
-
-        // Calculate slider width to span the full window width, but reserve space for X button
-        float sliderWidth = ImGui::GetContentRegionAvail().x - 30.0f; // Reserve 30px for X button
-
-        // Set the slider width
-        ImGui::SetNextItemWidth(sliderWidth);
-
-        if (ImGui::SliderFloat("##volume", &volume, 0.0f, 1.0f, "")) {
-            // Use the actual track index, not the loop index
-            if (actualTrackIndex >= 0) {
-                m_controller->setTrackVolume(actualTrackIndex, volume);
-            }
-        }
-
-        // Draw track name as overlay in the middle of the slider
-        ImVec2 sliderMin = ImGui::GetItemRectMin();
-        ImVec2 sliderMax = ImGui::GetItemRectMax();
-        ImVec2 sliderCenter =
-            ImVec2((sliderMin.x + sliderMax.x) * 0.5f, (sliderMin.y + sliderMax.y) * 0.5f);
-
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec2 textSize = ImGui::CalcTextSize(trackName.c_str());
-        ImVec2 textPos =
-            ImVec2(sliderCenter.x - textSize.x * 0.5f, sliderCenter.y - textSize.y * 0.5f);
-
-        // Draw text with a subtle background for better readability
-        drawList->AddRectFilled(ImVec2(textPos.x - 2, textPos.y - 1),
-                                ImVec2(textPos.x + textSize.x + 2, textPos.y + textSize.y + 1),
-                                IM_COL32(0, 0, 0, 100) // Semi-transparent black background
-        );
-        drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), trackName.c_str());
-
-        // Delete button for track (positioned to the right of slider)
-        ImGui::SameLine();
-        ImGui::AlignTextToFramePadding(); // Ensure proper vertical alignment
-
-        std::string trackDeleteId = "track_delete_" + trackFile;
-        if (RenderDeleteButton(trackDeleteId, trackFile.c_str())) {
-            // Track was deleted
-            m_controller->removeTrackFromCurrentSong(trackFile);
-        }
-
-        // Show effects when expanded (using the same shared state)
-        if (actualTrackIndex >= 0 && isExpanded) {
-            ImGui::Indent();
-            drawFilterControls(actualTrackIndex);
-            ImGui::Unindent();
-        }
-
-        ImGui::PopID();
-    }
-}
-
-void MainView::drawFilterControls(size_t trackIndex) {
-    /**
-     * Draw Filter Controls - Dynamic Audio Effect UI
-     *
-     * This method renders the filter/effect controls for a specific track.
-     * It provides a collapsible interface for each available audio effect with
-     * real-time parameter adjustment and visual feedback.
-     *
-     * Features:
-     * - Collapsible effect sections with visual enable/disable indicators
-     * - Real-time parameter adjustment with type-specific controls
-     * - Automatic effect enable/disable based on wet parameter
-     * - Visual feedback for effect states (green=on, gray=off)
-     * - Special handling for different parameter types (bool, int, float)
-     * - Tooltips for parameter explanations
-     *
-     * @param trackIndex Index of the track to control filters for
-     */
-
-    const auto& audioSystem = m_controller->getAudioSystem();
-
-    // Get fresh filter state on every frame to ensure UI sync with audio system
-    const auto& filters = audioSystem.getFilters(trackIndex);
-
-    // Iterate through all filters in signal chain order (enabled first, then available)
-    for (const auto& filterName : audioSystem.getFiltersInSignalChainOrder(trackIndex)) {
-        // Check if filter is currently enabled (based on wet parameter > 0)
-        // This provides real-time feedback of the actual filter state
-        bool effectivelyEnabled = audioSystem.isFilterEnabled(trackIndex, filterName);
-
-        // Create unique ID for this filter's expanded state to maintain UI state
-        std::string expandedId = "expand_" + filterName + "_" + std::to_string(trackIndex);
-
-        // Get or initialize expanded state using static map for persistence
-        static std::map<std::string, bool> expandedStates;
-        bool& isExpanded = expandedStates[expandedId];
-
-        // Show dropdown arrow with effect name and status
-        ImGui::PushID(filterName.c_str());
-
-        // Color the arrow based on effect enabled state for visual feedback
-        if (effectivelyEnabled) {
-            ImGui::PushStyleColor(ImGuiCol_Text,
-                                  ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Green when enabled
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text,
-                                  ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); // Gray when disabled
-        }
-
-        // Dropdown arrow (TreeNode style but manual control)
-        if (ImGui::ArrowButton("##arrow", isExpanded ? ImGuiDir_Down : ImGuiDir_Right)) {
-            isExpanded = !isExpanded; // Toggle expanded state
-        }
-        ImGui::PopStyleColor();
-
-        // Effect name on same line with enable/disable status
-        ImGui::SameLine();
-        ImGui::Text("%s%s", filterName.c_str(), effectivelyEnabled ? " (ON)" : " (OFF)");
-
-        // Show parameters when expanded
-        if (isExpanded) {
-            ImGui::Indent();
-
-            // Get fresh filter state after any potential changes to ensure accuracy
-            const auto& currentFilters = audioSystem.getFilters(trackIndex);
-            auto it = currentFilters.find(filterName);
-            bool filterExists = (it != currentFilters.end());
-
-            if (filterExists) {
-                // Filter exists, show all parameters with type-specific controls
-                for (const auto& [paramId, param] : it->second.parameters) {
-                    float value = param.value;
-                    bool changed = false;
-
-                    // Use appropriate control based on parameter type for better UX
-                    switch (param.type) {
-                        case Dynamix::ParameterType::BOOL: {
-                            // Boolean parameters use checkbox interface
-                            bool boolValue = value > 0.5f;
-                            if (ImGui::Checkbox(param.name.c_str(), &boolValue)) {
-                                value = boolValue ? 1.0f : 0.0f;
-                                changed = true;
-                            }
-                            break;
-                        }
-                        case Dynamix::ParameterType::INT: {
-                            // Integer parameters use slider with integer steps
-                            int intValue = static_cast<int>(value);
-                            // Special case for biquad filter type: show words instead of numbers
-                            if (filterName == "biquad" && paramId == 1) {
-                                static const char* biquadTypeNames[] = {"Lowpass", "Highpass",
-                                                                        "Bandpass"};
-                                // Clamp intValue to valid range
-                                intValue = std::max(0, std::min(2, intValue));
-
-                                // Use empty format string to hide the value
-                                if (ImGui::SliderInt("##biquad_type", &intValue, 0, 2, "")) {
-                                    value = static_cast<float>(intValue);
-                                    changed = true;
-                                }
-
-                                // Draw filter type name as overlay in the middle of the slider
-                                ImVec2 sliderMin = ImGui::GetItemRectMin();
-                                ImVec2 sliderMax = ImGui::GetItemRectMax();
-                                ImVec2 sliderCenter = ImVec2((sliderMin.x + sliderMax.x) * 0.5f,
-                                                             (sliderMin.y + sliderMax.y) * 0.5f);
-
-                                ImDrawList* drawList = ImGui::GetWindowDrawList();
-                                const char* typeName = biquadTypeNames[intValue];
-                                ImVec2 textSize = ImGui::CalcTextSize(typeName);
-                                ImVec2 textPos = ImVec2(sliderCenter.x - textSize.x * 0.5f,
-                                                        sliderCenter.y - textSize.y * 0.5f);
-
-                                // Draw text with a subtle background for better readability
-                                drawList->AddRectFilled(
-                                    ImVec2(textPos.x - 2, textPos.y - 1),
-                                    ImVec2(textPos.x + textSize.x + 2, textPos.y + textSize.y + 1),
-                                    IM_COL32(0, 0, 0, 100)); // Semi-transparent black background
-                                drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), typeName);
-
-                                // Draw parameter name above the slider
-                                ImGui::SameLine();
-                                ImGui::Text("%s", param.name.c_str());
-                            } else {
-                                if (ImGui::SliderInt(param.name.c_str(), &intValue,
-                                                     static_cast<int>(param.min),
-                                                     static_cast<int>(param.max))) {
-                                    value = static_cast<float>(intValue);
-                                    changed = true;
-                                }
-                            }
-                            break;
-                        }
-                        case Dynamix::ParameterType::FLOAT:
-                        default: {
-                            // Float parameters use standard slider with special wet parameter
-                            // handling Highlight wet parameter for easy identification (most
-                            // effects use param ID 0)
-                            if (paramId == 0) {
-                                ImGui::PushStyleColor(
-                                    ImGuiCol_FrameBg,
-                                    value > 0.0f ? ImVec4(0.2f, 0.6f, 0.2f,
-                                                          0.4f) // Green background when enabled
-                                                 : ImVec4(0.6f, 0.2f, 0.2f,
-                                                          0.4f)); // Red background when disabled
-                            }
-
-                            if (ImGui::SliderFloat(param.name.c_str(), &value, param.min,
-                                                   param.max)) {
-                                changed = true;
-                            }
-
-                            if (paramId == 0) {
-                                ImGui::PopStyleColor();
-                                // Add tooltip for wet parameter to explain its purpose
-                                if (ImGui::IsItemHovered()) {
-                                    ImGui::SetTooltip(
-                                        "Wet parameter: Controls effect enable/disable.\n"
-                                        "0.0 = effect disabled, >0.0 = effect enabled");
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    // Apply changes immediately to audio system
-                    if (changed) {
-                        m_controller->setTrackFilterParameter(trackIndex, filterName, paramId,
-                                                              value);
-                    }
-                }
-            } else {
-                // Filter doesn't exist yet, show wet parameter to enable it
-                float wetValue = 0.0f;
-                ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                                      ImVec4(0.6f, 0.2f, 0.2f, 0.4f)); // Red for disabled state
-                if (ImGui::SliderFloat("wet", &wetValue, 0.0f, 1.0f)) {
-                    m_controller->setTrackFilterParameter(trackIndex, filterName, 0, wetValue);
-                }
-                ImGui::PopStyleColor();
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Set wet > 0.0 to enable this effect");
-                }
-            }
-
-            ImGui::Unindent();
-        }
-
-        ImGui::PopID();
-    }
 }
 
 void MainView::RenderBusControls() {
@@ -1447,9 +1096,9 @@ Dynamix::StateSnapshot MainView::CaptureCurrentState() {
 }
 
 bool MainView::RenderHoldActionButton(const std::string& actionId, const char* buttonText,
-                                        const char* tooltipText, HoldActionType actionType,
-                                        const ImVec4& textColor, const ImVec4& progressColor,
-                                        const ImVec4& bgColor) {
+                                      const char* tooltipText, HoldActionType actionType,
+                                      const ImVec4& textColor, const ImVec4& progressColor,
+                                      const ImVec4& bgColor) {
     ImGui::PushID(("hold_action_" + actionId).c_str());
 
     // Check if this is the button being held
@@ -1615,52 +1264,9 @@ void MainView::RenderNewMasterDialog() {
     }
 }
 
-void MainView::RenderNewSongDialog() {
-    ImGui::OpenPopup("New Song Folder");
-    ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
-
-    if (ImGui::BeginPopupModal("New Song Folder", &m_showNewSongDialog)) {
-        ImGui::Text("Create new song folder:");
-        ImGui::Separator();
-
-        ImGui::Text("Song name:");
-        ImGui::InputText("##song_name", m_newSongName, sizeof(m_newSongName));
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Create")) {
-            if (strlen(m_newSongName) > 0) {
-                bool success = m_controller->createNewSongFolder(m_newSongName);
-                if (success) {
-                    ImGui::CloseCurrentPopup();
-                    m_showNewSongDialog = false;
-                } else {
-                    strcpy(m_errorMessage, "Failed to create song folder");
-                    m_showErrorPopup = true;
-                }
-            } else {
-                strcpy(m_errorMessage, "Song name is required");
-                m_showErrorPopup = true;
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            ImGui::CloseCurrentPopup();
-            m_showNewSongDialog = false;
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
 void MainView::RenderFileDialog() {
     // Use the FileBrowser component to render the directory selection dialog
     m_directoryBrowser.render(m_showFileDialog);
-}
-
-void MainView::RenderOggFileDialog() {
-    // Use the FileBrowser component to render the OGG file selection dialog
-    m_oggFileBrowser.render(m_showOggFileDialog);
 }
 
 bool MainView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
@@ -1708,7 +1314,7 @@ void MainView::RenderMenuBar() {
                 m_showFileDialog = true;
             }
             if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
-                m_showOggFileDialog = true;
+                m_songView->ShowOggFileDialog();
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
@@ -1855,7 +1461,7 @@ void MainView::SetLastTriggeredMasterEvent(const std::string& eventName) {
 }
 
 void MainView::SetLastTriggeredSongEvent(const std::string& songName,
-                                           const std::string& eventName) {
+                                         const std::string& eventName) {
     m_lastTriggeredSongEvent = eventName;
     m_lastTriggeredSongName = songName;
     // Don't clear master event tracking - allow both to be highlighted independently
