@@ -16,7 +16,7 @@
 #include "AudioController.h"
 #include "EventSystem.h"
 #include "Logger.h"
-#include "TesterView.h"
+#include "MainView.h"
 
 // Global controller instance for external API
 static Dynamix::AudioController* g_controller = nullptr;
@@ -119,7 +119,7 @@ int main() {
 
     // Create MVC components
     Dynamix::AudioController controller;
-    TesterView view;
+    MainView view;
 
     // Store global controller reference for external API
     g_controller = &controller;

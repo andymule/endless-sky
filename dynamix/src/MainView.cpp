@@ -1,4 +1,4 @@
-#include "TesterView.h"
+#include "MainView.h"
 #include "Logger.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
@@ -11,7 +11,7 @@
 #include <fstream>
 #include <iostream>
 
-TesterView::TesterView() {
+MainView::MainView() {
     // Initialize default directory
     InitializeDefaultDirectory();
     // Set directory input to default directory
@@ -75,7 +75,7 @@ TesterView::TesterView() {
         [this](const std::filesystem::path& path) { this->onOggFileSelected(path); });
 }
 
-void TesterView::InitializeDefaultDirectory() {
+void MainView::InitializeDefaultDirectory() {
     // Get user's Music folder
     const char* musicDir = nullptr;
 
@@ -111,7 +111,7 @@ void TesterView::InitializeDefaultDirectory() {
     }
 }
 
-void TesterView::DiscoverAvailableProjects() {
+void MainView::DiscoverAvailableProjects() {
     m_availableProjects.clear();
 
     try {
@@ -174,9 +174,9 @@ void TesterView::DiscoverAvailableProjects() {
     }
 }
 
-TesterView::~TesterView() { cleanup(); }
+MainView::~MainView() { cleanup(); }
 
-bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
+bool MainView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     m_window = window;
     m_glContext = glContext;
 
@@ -205,7 +205,7 @@ bool TesterView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
     return true;
 }
 
-void TesterView::ProcessEvents(const SDL_Event& event) {
+void MainView::ProcessEvents(const SDL_Event& event) {
     ImGui_ImplSDL2_ProcessEvent(&event);
 
     // Handle keyboard shortcuts
@@ -238,7 +238,7 @@ void TesterView::ProcessEvents(const SDL_Event& event) {
         m_isRunning = false;
 }
 
-void TesterView::Render() {
+void MainView::Render() {
     // Guard against missing controller
     if (!m_controller) {
         return;
@@ -283,7 +283,7 @@ void TesterView::Render() {
     SDL_GL_SwapWindow(m_window);
 }
 
-void TesterView::RenderMainWindow() {
+void MainView::RenderMainWindow() {
     ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
     ImGui::Begin(GetWindowTitle().c_str());
 
@@ -334,7 +334,7 @@ void TesterView::RenderMainWindow() {
     ImGui::End();
 }
 
-void TesterView::RenderTrackControls() {
+void MainView::RenderTrackControls() {
     // Get tracks directly from the folder contents
     std::string currentSong = m_controller->getCurrentSong();
     if (currentSong.empty()) {
@@ -492,7 +492,7 @@ void TesterView::RenderTrackControls() {
     }
 }
 
-void TesterView::drawFilterControls(size_t trackIndex) {
+void MainView::drawFilterControls(size_t trackIndex) {
     /**
      * Draw Filter Controls - Dynamic Audio Effect UI
      *
@@ -684,7 +684,7 @@ void TesterView::drawFilterControls(size_t trackIndex) {
     }
 }
 
-void TesterView::RenderBusControls() {
+void MainView::RenderBusControls() {
     const auto& state = m_controller->getState();
     const auto& audioSystem = m_controller->getAudioSystem();
 
@@ -865,7 +865,7 @@ void TesterView::RenderBusControls() {
     ImGui::End();
 }
 
-void TesterView::RenderControlsWindow() {
+void MainView::RenderControlsWindow() {
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
     ImGui::Begin("Controls", nullptr, ImGuiWindowFlags_None);
 
@@ -916,7 +916,7 @@ void TesterView::RenderControlsWindow() {
     ImGui::End();
 }
 
-void TesterView::UpdateActiveWindow() {
+void MainView::UpdateActiveWindow() {
     // Update active window based on which window was focused during rendering
 
     if (m_mainWindowWasFocused) {
@@ -936,7 +936,7 @@ void TesterView::UpdateActiveWindow() {
     // even when the user isn't actively clicking in windows
 }
 
-void TesterView::handleNumberKeyPress(int keyNumber) {
+void MainView::handleNumberKeyPress(int keyNumber) {
     /**
      * Handle Number Key Press - Keyboard Shortcut Handler
      *
@@ -998,7 +998,7 @@ void TesterView::handleNumberKeyPress(int keyNumber) {
     }
 }
 
-void TesterView::RenderEventsWindow() {
+void MainView::RenderEventsWindow() {
     ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
     ImGui::Begin("Events", &m_showEventsWindow);
 
@@ -1072,7 +1072,7 @@ void TesterView::RenderEventsWindow() {
     ImGui::End();
 }
 
-void TesterView::RenderMasterEvents() {
+void MainView::RenderMasterEvents() {
     const auto* songManager = m_controller->getSongManager();
     if (!songManager) {
         return;
@@ -1162,7 +1162,7 @@ void TesterView::RenderMasterEvents() {
     }
 }
 
-void TesterView::RenderSongEvents() {
+void MainView::RenderSongEvents() {
     const auto* songManager = m_controller->getSongManager();
     if (!songManager) {
         return;
@@ -1294,7 +1294,7 @@ void TesterView::RenderSongEvents() {
     }
 }
 
-void TesterView::ShowCreateEventDialog() {
+void MainView::ShowCreateEventDialog() {
     ImGui::OpenPopup("Create Event");
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
 
@@ -1418,7 +1418,7 @@ void TesterView::ShowCreateEventDialog() {
     }
 }
 
-Dynamix::StateSnapshot TesterView::CaptureCurrentState() {
+Dynamix::StateSnapshot MainView::CaptureCurrentState() {
     if (!m_controller) {
         return Dynamix::StateSnapshot{};
     }
@@ -1446,7 +1446,7 @@ Dynamix::StateSnapshot TesterView::CaptureCurrentState() {
     return snapshot;
 }
 
-bool TesterView::RenderHoldActionButton(const std::string& actionId, const char* buttonText,
+bool MainView::RenderHoldActionButton(const std::string& actionId, const char* buttonText,
                                         const char* tooltipText, HoldActionType actionType,
                                         const ImVec4& textColor, const ImVec4& progressColor,
                                         const ImVec4& bgColor) {
@@ -1558,7 +1558,7 @@ bool TesterView::RenderHoldActionButton(const std::string& actionId, const char*
     return false; // No action
 }
 
-bool TesterView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
+bool MainView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
     return RenderHoldActionButton(
         eventId, "X", ("Hold for 1 second to delete \"" + std::string(eventName) + "\"").c_str(),
         HoldActionType::DELETE, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
@@ -1567,7 +1567,7 @@ bool TesterView::RenderDeleteButton(const std::string& eventId, const char* even
     );
 }
 
-bool TesterView::RenderSaveButton(const std::string& eventId, const char* eventName) {
+bool MainView::RenderSaveButton(const std::string& eventId, const char* eventName) {
     return RenderHoldActionButton(
         eventId, "S",
         ("Hold for 1 second to save (overwrite) \"" + std::string(eventName) + "\"").c_str(),
@@ -1577,7 +1577,7 @@ bool TesterView::RenderSaveButton(const std::string& eventId, const char* eventN
     );
 }
 
-void TesterView::RenderNewMasterDialog() {
+void MainView::RenderNewMasterDialog() {
     ImGui::OpenPopup("New Master Directory");
     ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
 
@@ -1615,7 +1615,7 @@ void TesterView::RenderNewMasterDialog() {
     }
 }
 
-void TesterView::RenderNewSongDialog() {
+void MainView::RenderNewSongDialog() {
     ImGui::OpenPopup("New Song Folder");
     ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
 
@@ -1653,17 +1653,17 @@ void TesterView::RenderNewSongDialog() {
     }
 }
 
-void TesterView::RenderFileDialog() {
+void MainView::RenderFileDialog() {
     // Use the FileBrowser component to render the directory selection dialog
     m_directoryBrowser.render(m_showFileDialog);
 }
 
-void TesterView::RenderOggFileDialog() {
+void MainView::RenderOggFileDialog() {
     // Use the FileBrowser component to render the OGG file selection dialog
     m_oggFileBrowser.render(m_showOggFileDialog);
 }
 
-bool TesterView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
+bool MainView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
     try {
         // Get the song folder path
         std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
@@ -1694,14 +1694,14 @@ bool TesterView::CopyOggFileToSong(const std::string& sourcePath, const std::str
     }
 }
 
-void TesterView::cleanup() {
+void MainView::cleanup() {
     // ImGui cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 }
 
-void TesterView::RenderMenuBar() {
+void MainView::RenderMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open Directory", "Ctrl+O")) {
@@ -1834,7 +1834,7 @@ void TesterView::RenderMenuBar() {
     }
 }
 
-std::string TesterView::GetWindowTitle() {
+std::string MainView::GetWindowTitle() {
     std::string title = "Dynamix";
 
     if (!m_controller->getCurrentSong().empty()) {
@@ -1849,25 +1849,25 @@ std::string TesterView::GetWindowTitle() {
 }
 
 // Event tracking methods implementation
-void TesterView::SetLastTriggeredMasterEvent(const std::string& eventName) {
+void MainView::SetLastTriggeredMasterEvent(const std::string& eventName) {
     m_lastTriggeredMasterEvent = eventName;
     // Don't clear song event tracking - allow both to be highlighted independently
 }
 
-void TesterView::SetLastTriggeredSongEvent(const std::string& songName,
+void MainView::SetLastTriggeredSongEvent(const std::string& songName,
                                            const std::string& eventName) {
     m_lastTriggeredSongEvent = eventName;
     m_lastTriggeredSongName = songName;
     // Don't clear master event tracking - allow both to be highlighted independently
 }
 
-void TesterView::ClearLastTriggeredEvents() {
+void MainView::ClearLastTriggeredEvents() {
     m_lastTriggeredMasterEvent = "";
     m_lastTriggeredSongEvent = "";
     m_lastTriggeredSongName = "";
 }
 
-void TesterView::onDirectorySelected(const std::filesystem::path& path) {
+void MainView::onDirectorySelected(const std::filesystem::path& path) {
     // Handle directory selection for the main file browser
     std::string selectedPath = path.string();
     strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
@@ -1875,7 +1875,7 @@ void TesterView::onDirectorySelected(const std::filesystem::path& path) {
     m_controller->setMusicDirectory(selectedPath);
 }
 
-void TesterView::onOggFileSelected(const std::filesystem::path& path) {
+void MainView::onOggFileSelected(const std::filesystem::path& path) {
     // Handle OGG file selection for adding to songs
     std::string currentSong = m_controller->getCurrentSong();
 
@@ -1906,13 +1906,13 @@ void TesterView::onOggFileSelected(const std::filesystem::path& path) {
     }
 }
 
-void TesterView::SetTheme(Dynamix::ThemeManager::Theme theme) {
+void MainView::SetTheme(Dynamix::ThemeManager::Theme theme) {
     m_currentTheme = theme;
     Dynamix::ThemeManager::ApplyTheme(m_currentTheme);
     SaveThemeToConfig();
 }
 
-void TesterView::LoadThemeFromConfig() {
+void MainView::LoadThemeFromConfig() {
     try {
         std::ifstream configFile(m_configFilePath);
         if (configFile.is_open()) {
@@ -1937,7 +1937,7 @@ void TesterView::LoadThemeFromConfig() {
     }
 }
 
-void TesterView::SaveThemeToConfig() {
+void MainView::SaveThemeToConfig() {
     try {
         std::ofstream configFile(m_configFilePath);
         if (configFile.is_open()) {

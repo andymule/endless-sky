@@ -69,7 +69,7 @@ set(DYNAMIX_SOURCES
     src/main.cpp
     src/AudioSystem.cpp
     src/AudioController.cpp
-    src/TesterView.cpp
+    src/MainView.cpp
     src/AudioStreamProcessor.cpp
     src/SongManager.cpp
     src/EventSystem.cpp
@@ -87,7 +87,7 @@ set(DYNAMIX_HEADERS
     src/AudioSystem.h
     src/AudioState.h
     src/AudioController.h
-    src/TesterView.h
+    src/MainView.h
     src/ErrorHandling.h
     src/CircularBuffer.h
     src/AudioStreamProcessor.h

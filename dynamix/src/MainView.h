@@ -11,10 +11,10 @@
 #include <vector>
 
 // Pure View class that only handles UI rendering
-class TesterView {
+class MainView {
 public:
-    TesterView();
-    ~TesterView();
+    MainView();
+    ~MainView();
 
     bool Initialize(SDL_Window* window, SDL_GLContext glContext);
     void Render();
