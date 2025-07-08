@@ -4,6 +4,7 @@
 #include "AudioState.h"
 #include "FileBrowser.h"
 #include "ThemeManager.h"
+#include "Views/BusView.h"
 #include "Views/SongView.h"
 #include "imgui.h"
 #include <SDL2/SDL.h>
@@ -27,9 +28,10 @@ public:
     void SetController(Dynamix::AudioController* controller) {
         m_controller = controller;
 
-        // Initialize SongView with the controller
+        // Initialize views with the controller
         if (m_controller) {
             m_songView = std::make_unique<Dynamix::Views::SongView>(m_controller);
+            m_busView = std::make_unique<Dynamix::Views::BusView>(m_controller);
         }
 
         // Update the directory input with the current directory from controller
@@ -96,7 +98,6 @@ private:
     void RenderEventsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
-    void RenderBusControls();
 
     // Events UI helpers
     void RenderSongEvents();
@@ -198,4 +199,5 @@ private:
     std::string m_configFilePath;
 
     std::unique_ptr<Dynamix::Views::SongView> m_songView;
+    std::unique_ptr<Dynamix::Views::BusView> m_busView;
 };

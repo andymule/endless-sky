@@ -9,7 +9,7 @@ Break down `MainView` into smaller, focused view components for better maintaina
 
 ### 1. Identify Logical Subviews
 - **SongView**: Handles song list, track controls, and related dialogs. ✅ **COMPLETED**
-- **BusView**: Handles bus controls and FX.
+- **BusView**: Handles bus controls and FX. ✅ **COMPLETED**
 - **SpeedView**: Handles tempo, tape speed, and granular controls.
 - **EventView**: Handles event management and event dialogs.
 - **MenuBarView**: Handles the menu bar.
@@ -48,19 +48,32 @@ Break down `MainView` into smaller, focused view components for better maintaina
 - Clearer separation of concerns
 - Easier to test and maintain track functionality
 
-### 4. Extract BusView (Next)
-**Target**: Extract bus controls and FX from MainView
+### 4. Extract BusView ✅ **COMPLETED**
+**Status**: Successfully extracted and working
 
-**What to move**:
+**What was moved**:
 - Bus volume controls
-- Bus filter/effects controls
-- Bus FX parameter adjustment
+- Bus filter/effects controls (collapsible)
+- Bus FX parameter adjustment with type-specific controls
+- Bus filter enable/disable functionality
+- Special handling for biquad filter types
+- Wet parameter highlighting and tooltips
 
-**Steps**:
-1. Create `src/Views/BusView.h` and `src/Views/BusView.cpp`
-2. Move `RenderBusControls()` method and related state
-3. Update MainView to use BusView
-4. Test and verify functionality
+**Files created**:
+- `src/Views/BusView.h`
+- `src/Views/BusView.cpp`
+
+**Integration**:
+- MainView now owns a `std::unique_ptr<BusView>`
+- BusView receives AudioController pointer in constructor
+- MainView calls `m_busView->Render()` in place of old bus controls
+- Both SongView and BusView initialized in SetController()
+
+**Benefits achieved**:
+- Further reduced MainView.cpp by ~200 lines
+- Bus-related functionality is now isolated and reusable
+- Consistent pattern with SongView extraction
+- Clean separation between track and bus controls
 
 ### 5. Extract SpeedView
 **Target**: Extract tempo and granular controls
@@ -123,6 +136,33 @@ void SongView::Render() {
 
 ---
 
+## Example: BusView Extraction (Completed)
+
+### Before
+```cpp
+// In MainView.cpp - 200+ lines of bus-related code
+void MainView::RenderBusControls() { /* ... */ }
+```
+
+### After
+```cpp
+// In MainView.cpp - clean and focused
+void MainView::RenderMainWindow() {
+    // ... other UI ...
+    m_songView->Render();  // Delegated to SongView
+    ImGui::Separator();
+    m_busView->Render();   // Delegated to BusView
+    // ... other UI ...
+}
+
+// In BusView.cpp - dedicated bus functionality
+void BusView::Render() {
+    RenderBusControls();
+}
+```
+
+---
+
 ## Benefits of This Approach
 
 1. **Maintainability**: Each view has a single responsibility
@@ -137,7 +177,8 @@ void SongView::Render() {
 ## Next Steps
 
 1. ✅ **SongView extraction completed**
-2. **Extract BusView** (recommended next step)
-3. Continue with remaining views
-4. Add comprehensive testing
-5. Update documentation 
+2. ✅ **BusView extraction completed**
+3. **Extract SpeedView** (recommended next step)
+4. Continue with remaining views
+5. Add comprehensive testing
+6. Update documentation 
