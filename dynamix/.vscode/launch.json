@@ -9,7 +9,8 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
+                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
             },
             "stopOnEntry": false,
             "initCommands": [
@@ -25,7 +26,8 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
+                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
             },
             "stopOnEntry": false,
             "initCommands": [
@@ -45,6 +47,10 @@
                 {
                     "name": "DYLD_LIBRARY_PATH",
                     "value": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+                },
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
                 }
             ],
             "externalConsole": false,
@@ -58,10 +64,15 @@
             "request": "launch",
             "program": "/usr/bin/true",
             "runtimeExecutable": "/bin/bash",
-            "runtimeArgs": ["-c", "cd '${workspaceFolder}' && ./build-macos.sh && ./build/dynamix"],
+            "runtimeArgs": [
+                "-c",
+                "cd '${workspaceFolder}' && ./build.sh && ./build/dynamix"
+            ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "skipFiles": ["<node_internals>/**"]
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
         },
         {
             "name": "Run Dynamix (Direct)",
@@ -71,7 +82,8 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
+                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
             },
             "stopOnEntry": false,
             "initCommands": [
@@ -93,4 +105,4 @@
             "preLaunchTask": "Build Dynamix (Static)"
         }
     ]
-} 
+}

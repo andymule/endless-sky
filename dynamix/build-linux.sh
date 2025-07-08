@@ -63,16 +63,6 @@ else
     echo "Static build: DISABLED"
 fi
 
-# Get Homebrew prefix for library paths
-BREW_PREFIX=$(brew --prefix)
-echo "Homebrew prefix: $BREW_PREFIX"
-
-# Set explicit library paths
-export LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${LIBRARY_PATH}"
-export LD_LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${LD_LIBRARY_PATH}"
-export DYLD_LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${DYLD_LIBRARY_PATH}"
-export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/libvorbis/lib/pkgconfig:${BREW_PREFIX}/opt/libogg/lib/pkgconfig:${BREW_PREFIX}/opt/libpng/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}"
-
 # Get the script directory
 SCRIPT_DIR="$(dirname "$0")"
 cd "$SCRIPT_DIR"
@@ -88,14 +78,14 @@ echo "Parent project directory: $PARENT_DIR"
 BUILD_DIR="$DYNAMIX_DIR/build"
 
 # Set minizip triplet based on architecture
-if [ "$ARCH" == "arm64" ]; then
-    MINIZIP_TRIPLET="arm64-osx"
+if [ "$ARCH" == "aarch64" ]; then
+    MINIZIP_TRIPLET="arm64-linux"
 else
-    MINIZIP_TRIPLET="x64-osx"
+    MINIZIP_TRIPLET="x64-linux"
 fi
 
 # Determine number of CPU cores for parallel builds
-CPU_CORES=$(sysctl -n hw.ncpu)
+CPU_CORES=$(nproc)
 MAKE_JOBS=$((CPU_CORES - 1))
 # Ensure at least 1 job
 [ "$MAKE_JOBS" -lt 1 ] && MAKE_JOBS=1
@@ -121,22 +111,28 @@ LAST_CHECK_DATE=0
 if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$CLEAN_BUILD" = true ]; then
     # Check for required packages
     echo "Checking for required libraries..."
-    REQUIRED_PACKAGES=("pkg-config" "sdl2" "libpng" "jpeg" "openal-soft")
+    REQUIRED_PACKAGES=("pkg-config" "libsdl2-dev" "libpng-dev" "libjpeg-dev" "libopenal-dev" "ninja-build" "cmake" "build-essential" "curl" "zip" "unzip" "tar" "libglew-dev")
     MISSING_PACKAGES=()
     
-    # Check all packages in a single brew call to speed up checks
-    INSTALLED_PACKAGES=$(brew list --formula)
-    
-    for package in "${REQUIRED_PACKAGES[@]}"; do
-        if ! echo "$INSTALLED_PACKAGES" | grep -q "^$package\$"; then
-            MISSING_PACKAGES+=("$package")
+    # Check if we're on Ubuntu/Debian
+    if command -v apt-get &> /dev/null; then
+        # Update package list
+        sudo apt-get update
+        
+        for package in "${REQUIRED_PACKAGES[@]}"; do
+            if ! dpkg -l | grep -q "^ii  $package "; then
+                MISSING_PACKAGES+=("$package")
+            fi
+        done
+        
+        # Install missing packages if needed
+        if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+            echo "Installing required system libraries via apt: ${MISSING_PACKAGES[*]}"
+            sudo apt-get install -y "${MISSING_PACKAGES[@]}"
         fi
-    done
-    
-    # Install missing packages if needed
-    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
-        echo "Installing required system libraries via Homebrew: ${MISSING_PACKAGES[*]}"
-        brew install "${MISSING_PACKAGES[@]}"
+    else
+        echo "Warning: apt-get not found. Please install required packages manually:"
+        echo "  ${REQUIRED_PACKAGES[*]}"
     fi
     
     # Update timestamp file
@@ -169,13 +165,19 @@ else
     
     # Set up vcpkg locally if needed
     if [ ! -d "$DYNAMIX_DIR/vcpkg" ]; then
-        git clone --depth=1 https://github.com/microsoft/vcpkg.git
-        cd "$DYNAMIX_DIR/vcpkg"
-        ./bootstrap-vcpkg.sh -disableMetrics
-        cd "$DYNAMIX_DIR"
+        echo "Cloning vcpkg repository..."
+        git clone --depth=1 https://github.com/microsoft/vcpkg.git "$DYNAMIX_DIR/vcpkg"
     fi
     
     VCPKG_DIR="$DYNAMIX_DIR/vcpkg"
+    
+    # Make sure vcpkg is bootstrapped
+    if [ ! -f "$VCPKG_DIR/vcpkg" ]; then
+        echo "Bootstrapping vcpkg..."
+        cd "$VCPKG_DIR"
+        ./bootstrap-vcpkg.sh -disableMetrics
+        cd "$DYNAMIX_DIR"
+    fi
 fi
 
 # Install minizip if not already configured
@@ -183,6 +185,18 @@ if [ "$VCPKG_CONFIGURED" = false ]; then
     # Install minizip in classic mode to avoid manifest issues
     echo "Installing minizip with classic mode..."
     "$VCPKG_DIR/vcpkg" install minizip:$MINIZIP_TRIPLET --classic --no-print-usage
+fi
+
+# Ensure GLEW is installed via vcpkg (Linux only)
+GLEW_INSTALLED=false
+if [ -d "$VCPKG_DIR/installed/${MINIZIP_TRIPLET}/share/glew" ] || \
+   [ -d "$VCPKG_DIR/packages/glew_${MINIZIP_TRIPLET}/share/glew" ]; then
+    echo "GLEW already installed in vcpkg, skipping."
+    GLEW_INSTALLED=true
+fi
+if [ "$GLEW_INSTALLED" = false ]; then
+    echo "Installing GLEW with vcpkg..."
+    "$VCPKG_DIR/vcpkg" install glew:$MINIZIP_TRIPLET --classic --no-print-usage
 fi
 
 # Find minizip directory
@@ -209,75 +223,48 @@ if command -v ninja &> /dev/null; then
 fi
 
 echo "Configuring and building dynamix..."
+
 # Configure with CMake
 cd "$BUILD_DIR"
 
-# Only reconfigure if needed
-if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$CLEAN_BUILD" = true ]; then
-    # Configure the build
-    CMAKE_ARGS=(
-        -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-        -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake"
-        -Dunofficial-minizip_DIR="$MINIZIP_DIR"
-        -DCMAKE_PREFIX_PATH="${BREW_PREFIX};/usr/local"
-        -DCMAKE_FIND_FRAMEWORK=LAST
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    )
-    
-    # Add bundle option if requested
-    if [ "$BUNDLE_SDL2" = true ]; then
-        CMAKE_ARGS+=(-DBUNDLE_SDL2=ON)
-    fi
-    
-    # Add static build option if requested
+if [ "$NINJA_AVAILABLE" = true ]; then
     if [ "$BUILD_STATIC" = true ]; then
-        CMAKE_ARGS+=(-DBUILD_STATIC=ON)
-    fi
-    
-    # Use explicit CMake path to ensure correct version (CMake 3.24+ required)
-    CMAKE_BIN="/opt/homebrew/bin/cmake"
-    if [ ! -x "$CMAKE_BIN" ]; then
-        CMAKE_BIN="cmake"  # fallback to system cmake
-    fi
-    
-    if [ "$NINJA_AVAILABLE" = true ]; then
-        "$CMAKE_BIN" .. -G Ninja "${CMAKE_ARGS[@]}"
+        cmake .. \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
+            -DBUILD_STATIC=ON \
+            -G Ninja \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     else
-        "$CMAKE_BIN" .. "${CMAKE_ARGS[@]}"
+        cmake .. \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
+            -G Ninja \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     fi
 else
-    echo "CMake configuration already exists, skipping configuration step"
+    if [ "$BUILD_STATIC" = true ]; then
+        cmake .. \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
+            -DBUILD_STATIC=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    else
+        cmake .. \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    fi
 fi
 
-# Build the application
-if [ "$NINJA_AVAILABLE" = true ] && [ -f "$BUILD_DIR/build.ninja" ]; then
-    ninja
+# Build the project
+if [ "$NINJA_AVAILABLE" = true ]; then
+    ninja -j"$MAKE_JOBS"
 else
-    make -j$MAKE_JOBS
+    make -j"$MAKE_JOBS"
 fi
 
 echo "Build complete!"
 echo ""
-if [ "$BUNDLE_SDL2" = true ]; then
-    echo "✅ Bundled build complete! The binary includes SDL2 and is portable to other macOS systems."
-    echo ""
-    echo "You can run the dynamix with:"
-    echo "cd build && ./dynamix"
-    echo ""
-    echo "The binary can be distributed to other macOS 10.15+ systems without requiring SDL2 installation."
-    echo "System frameworks (OpenAL, OpenGL, etc.) are still required but are always available on macOS."
-else
-    echo "You can run the dynamix with:"
-    echo "cd build && ./dynamix"
-    echo ""
-    echo "Note: This build requires SDL2 to be installed on the target system."
-fi
-echo ""
-echo "To clean and rebuild, run:"
-echo "./build-macos.sh clean"
-echo ""
-echo "To build in debug mode, run:"
-echo "./build-macos.sh debug"
-echo ""
-echo "To build a bundled binary, run:"
-echo "./build-macos.sh bundle" 
+echo "You can run the dynamix with:"
+echo "cd build && ./dynamix" 

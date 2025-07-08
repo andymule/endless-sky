@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.24)
 project(dynamix VERSION 0.1.0)
 
 # Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
-option(BUNDLE_SDL2 "Bundle SDL2 dylib with the application for distribution" ON)
+# Only enable SDL2 bundling by default on macOS
+if(APPLE)
+    option(BUNDLE_SDL2 "Bundle SDL2 dylib with the application for distribution" ON)
+else()
+    option(BUNDLE_SDL2 "Bundle SDL2 dylib with the application for distribution" OFF)
+endif()
 
 # Generate compile_commands.json for better IntelliSense
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -226,6 +231,14 @@ if(NOT OPENAL_FOUND)
     message(FATAL_ERROR "OpenAL not found.")
 endif()
 
+# Find GLEW (only on non-Apple platforms)
+if(NOT APPLE)
+    find_package(GLEW REQUIRED)
+    if(NOT GLEW_FOUND)
+        message(FATAL_ERROR "GLEW not found.")
+    endif()
+endif()
+
 # Include directories
 target_include_directories(dynamix PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -313,20 +326,11 @@ if(APPLE)
 else()
     target_link_libraries(dynamix PRIVATE OpenGL::GL)
     if(NOT APPLE)
-        target_link_libraries(dynamix PRIVATE GLEW::glew)
+        target_link_libraries(dynamix PRIVATE GLEW::glew_s)
     endif()
 endif()
 
-# Create sound_staging directory and copy contents
-add_custom_command(TARGET dynamix POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Source directory: ${CMAKE_SOURCE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Target directory: $<TARGET_FILE_DIR:dynamix>"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:dynamix>/sound_staging"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "$<TARGET_FILE_DIR:dynamix>/sound_staging"
-    COMMAND ${CMAKE_COMMAND} -E echo "Contents of target sound_staging:"
-    COMMAND ls "$<TARGET_FILE_DIR:dynamix>/sound_staging"
-    COMMENT "Copying sound_staging directory to build directory"
-)
+
 
 # Bundle SDL2 dylib if requested
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
@@ -354,9 +358,7 @@ endif()
 add_custom_target(static_build ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/static_build"
     COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:dynamix>" "${CMAKE_SOURCE_DIR}/static_build/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE_DIR:dynamix>/libSDL2-2.0.0.dylib" "${CMAKE_SOURCE_DIR}/static_build/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${CMAKE_SOURCE_DIR}/static_build/assets"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/sound_staging" "${CMAKE_SOURCE_DIR}/static_build/sound_staging"
     COMMENT "Creating static_build folder with only the required files"
     DEPENDS dynamix
 ) 
