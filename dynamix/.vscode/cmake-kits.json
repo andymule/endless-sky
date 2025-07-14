@@ -1,0 +1,17 @@
+[
+    {
+        "name": "MSYS2 MinGW64 Clang",
+        "compilers": {
+            "C": "C:/msys64/mingw64/bin/clang.exe",
+            "CXX": "C:/msys64/mingw64/bin/clang++.exe"
+        },
+        "cmakeSettings": {
+            "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_C_COMPILER": "clang",
+            "CMAKE_CXX_COMPILER": "clang++"
+        },
+        "preferredGenerator": {
+            "name": "Ninja"
+        }
+    }
+]

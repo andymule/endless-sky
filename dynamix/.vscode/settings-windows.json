@@ -1,0 +1,10 @@
+{
+    "C_Cpp.default.intelliSenseMode": "windows-clang-x64",
+    "cmake.configureSettings": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+    },
+    "cmake.cmakePath": "C:/msys64/mingw64/bin/cmake.exe",
+    "cmake.ninjaPath": "C:/msys64/mingw64/bin/ninja.exe"
+}
