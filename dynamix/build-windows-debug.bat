@@ -7,6 +7,9 @@ set MINGW_BIN=%MSYS2_ROOT%\mingw64\bin
 set BUILD_DIR=%~dp0build_debug
 set SRC_DIR=%~dp0
 
+REM Ensure we're in the correct directory
+cd /d "%~dp0"
+
 echo ========================================
 echo Building Dynamix Debug on Windows with MSYS2
 echo ========================================
@@ -37,7 +40,7 @@ echo.
 REM Build using MSYS2 MinGW64 shell
 if %FORCE_REBUILD%==1 (
     echo CMakeLists.txt changed, forcing clean rebuild...
-    "%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd /c/Users/xxsha/source/endless-sky/dynamix && rm -rf build_debug && mkdir build_debug && cd build_debug && cmake -G 'Ninja' -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_MAKE_PROGRAM=ninja -DENABLE_UNITY_BUILD=OFF -DENABLE_PCH=ON -DENABLE_CCACHE=ON -DENABLE_LTO=OFF .."
+    "%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd /c/Users/xxsha/source/endless-sky/dynamix && rm -rf build_debug && mkdir build_debug && cd build_debug && cmake -G 'Ninja' -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_MAKE_PROGRAM=ninja -DENABLE_UNITY_BUILD=OFF -DENABLE_PCH=OFF -DENABLE_CCACHE=ON -DENABLE_LTO=OFF .."
 ) else (
     echo CMake already configured, skipping configuration...
 )
@@ -65,58 +68,20 @@ echo.
 echo Step 3: Copying required DLLs...
 echo.
 
-REM Create a list of required DLLs and their locations
-set REQUIRED_DLLS=SDL2.dll;libgcc_s_seh-1.dll;libstdc++-6.dll;libwinpthread-1.dll;libpng16-16.dll;libjpeg-8.dll;libopenal-1.dll;libzlib1.dll
+REM Only copy the core runtime DLLs as per how-to-windows.md
+set DLL_SOURCE_DIR=%~dp0libs\dlls
+set REQUIRED_DLLS=SDL2.dll;libgcc_s_seh-1.dll;libstdc++-6.dll;libwinpthread-1.dll
 
-REM Copy each required DLL
+REM Copy each required DLL from libs/dlls
 for %%d in (%REQUIRED_DLLS%) do (
     echo Copying %%d...
-    
-    REM Try to find the DLL in various locations
-    set DLL_FOUND=0
-    
-    REM Check MSYS2 bin directory first
-    if exist "%MINGW_BIN%\%%d" (
-        copy "%MINGW_BIN%\%%d" "%BUILD_DIR%\" >nul 2>&1
+    if exist "%DLL_SOURCE_DIR%\%%d" (
+        copy /Y "%DLL_SOURCE_DIR%\%%d" "%BUILD_DIR%\" >nul 2>&1
         if !ERRORLEVEL! equ 0 (
-            echo   - Copied from %MINGW_BIN%
-            set DLL_FOUND=1
+            echo   - Copied from libs/dlls
         )
-    )
-    
-    REM Check if DLL is already in build directory
-    if exist "%BUILD_DIR%\%%d" (
-        if !DLL_FOUND! equ 0 (
-            echo   - Already present in build directory
-            set DLL_FOUND=1
-        )
-    )
-    
-    REM Check Windows System32 as fallback
-    if !DLL_FOUND! equ 0 (
-        if exist "C:\Windows\System32\%%d" (
-            copy "C:\Windows\System32\%%d" "%BUILD_DIR%\" >nul 2>&1
-            if !ERRORLEVEL! equ 0 (
-                echo   - Copied from System32
-                set DLL_FOUND=1
-            )
-        )
-    )
-    
-    REM Check Windows SysWOW64 as fallback
-    if !DLL_FOUND! equ 0 (
-        if exist "C:\Windows\SysWOW64\%%d" (
-            copy "C:\Windows\SysWOW64\%%d" "%BUILD_DIR%\" >nul 2>&1
-            if !ERRORLEVEL! equ 0 (
-                echo   - Copied from SysWOW64
-                set DLL_FOUND=1
-            )
-        )
-    )
-    
-    REM Warn if DLL not found
-    if !DLL_FOUND! equ 0 (
-        echo   - WARNING: %%d not found in any expected location
+    ) else (
+        echo   - WARNING: %%d not found in libs/dlls
     )
 )
 
@@ -135,6 +100,41 @@ if exist "%SRC_DIR%assets" (
     )
 ) else (
     echo   - No assets directory found, skipping
+)
+
+echo.
+echo Step 4b: Copying DLLs to static_build...
+echo.
+
+REM Also copy DLLs to static_build directory
+set STATIC_BUILD_DIR=%~dp0static_build
+if not exist "%STATIC_BUILD_DIR%" (
+    echo Creating static_build directory...
+    mkdir "%STATIC_BUILD_DIR%"
+)
+
+REM Copy each required DLL to static_build
+for %%d in (%REQUIRED_DLLS%) do (
+    echo Copying %%d to static_build...
+    if exist "%DLL_SOURCE_DIR%\%%d" (
+        copy /Y "%DLL_SOURCE_DIR%\%%d" "%STATIC_BUILD_DIR%\" >nul 2>&1
+        if !ERRORLEVEL! equ 0 (
+            echo   - Copied to static_build
+        )
+    ) else (
+        echo   - WARNING: %%d not found in libs/dlls
+    )
+)
+
+REM Copy assets to static_build if it exists
+if exist "%SRC_DIR%assets" (
+    echo Copying assets to static_build...
+    xcopy "%SRC_DIR%assets" "%STATIC_BUILD_DIR%\assets\" /E /I /Y >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo   - Assets copied to static_build successfully
+    ) else (
+        echo   - WARNING: Failed to copy assets to static_build
+    )
 )
 
 echo.
@@ -172,7 +172,7 @@ if exist "%BUILD_DIR%\dynamix.exe" (
     echo NOTE: This is a DEBUG build with:
     echo - Debug symbols included
     echo - Unity builds disabled for easier debugging
-    echo - Precompiled headers enabled for faster compilation
+    echo - Precompiled headers disabled for compatibility
     echo - No optimizations (-O0)
     echo.
     

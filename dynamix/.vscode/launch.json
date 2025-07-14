@@ -2,7 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Dynamix",
+            "name": "Debug Dynamix (Windows)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build_debug/dynamix.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "Build and Run (Debug - Windows)"
+        },
+        {
+            "name": "Debug Dynamix (macOS/Linux)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
@@ -16,10 +26,20 @@
             "initCommands": [
                 "settings set target.process.stop-on-sharedlibrary-events false"
             ],
-            "preLaunchTask": "Build Dynamix (Debug)"
+            "preLaunchTask": "Build Dynamix (Debug - Unix)"
         },
         {
-            "name": "Run Dynamix (No Debug)",
+            "name": "Run Dynamix (Release - Windows)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/dynamix.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "Build Dynamix (Release - Windows)"
+        },
+        {
+            "name": "Run Dynamix (Release - macOS/Linux)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
@@ -33,67 +53,48 @@
             "initCommands": [
                 "settings set target.process.stop-on-sharedlibrary-events false"
             ],
-            "preLaunchTask": "Build Dynamix (Release)"
+            "preLaunchTask": "Build Dynamix (Release - Unix)"
         },
         {
-            "name": "Debug Dynamix (Legacy cppdbg)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "DYLD_LIBRARY_PATH",
-                    "value": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}"
-                },
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "lldb",
-            "miDebuggerPath": "/usr/bin/lldb",
-            "preLaunchTask": "Build Dynamix (Debug)"
-        },
-        {
-            "name": "Build and Run (Fast)",
+            "name": "Build and Run (Fast - Windows)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "windows": {
-                "program": "${workspaceFolder}/build/dynamix.exe"
-            },
+            "program": "${workspaceFolder}/build/dynamix.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "preLaunchTask": "Build and Run (Fast) - Cross Platform",
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
-            ]
+            "noDebug": true,
+            "preLaunchTask": "Build and Run (Windows)"
         },
         {
-            "name": "Build and Run (Fast) - No Debug",
+            "name": "Build and Run (Fast - macOS/Linux)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
-            "windows": {
-                "program": "${workspaceFolder}/build/dynamix.exe"
-            },
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "preLaunchTask": "Build and Run (Fast) - Cross Platform",
+            "env": {
+                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
+                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
+            },
+            "preLaunchTask": "Build Dynamix (Fast - Unix)",
             "stopOnEntry": false,
             "initCommands": [
                 "settings set target.process.stop-on-sharedlibrary-events false"
             ]
         },
         {
-            "name": "Run Dynamix (Direct)",
+            "name": "Run Dynamix (Direct - Windows)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/dynamix.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false
+        },
+        {
+            "name": "Run Dynamix (Direct - macOS/Linux)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
@@ -109,18 +110,17 @@
             ]
         },
         {
-            "name": "Build and Run Static Binary",
+            "name": "Clean Build (Windows)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "env": {},
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
+            "program": "cmd.exe",
+            "args": [
+                "/c",
+                "echo Cleaned build directory."
             ],
-            "preLaunchTask": "Build Dynamix (Static)"
-        },
+            "cwd": "${workspaceFolder}",
+            "noDebug": true,
+            "preLaunchTask": "Clean Build"
+        }
     ]
 }

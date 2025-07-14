@@ -2,9 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build Dynamix (Release)",
+            "label": "Build Dynamix (Release - Windows)",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "${workspaceFolder}/build-windows-fast.bat",
+            "windows": {
+                "command": "${workspaceFolder}/build-windows-fast.bat"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -25,138 +28,9 @@
             }
         },
         {
-            "label": "Build Dynamix (Static)",
+            "label": "Build Dynamix (Release - Unix)",
             "type": "shell",
             "command": "./build.sh",
-            "args": [
-                "static"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Build Dynamix (Debug)",
-            "type": "shell",
-            "command": "./build.sh",
-            "args": [
-                "debug"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Clean Build",
-            "type": "shell",
-            "command": "./build.sh",
-            "args": [
-                "clean"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Quick Build (Ninja Only)",
-            "type": "shell",
-            "command": "mkdir -p build && cd build && ninja",
-            "group": "build",
-            "presentation": {
-                "reveal": "silent",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Run Dynamix (No Build)",
-            "type": "shell",
-            "command": "./build/dynamix",
-            "group": "test",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build and Run",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "Quick Build (Ninja Only)",
-                "Run Dynamix (No Build)"
-            ],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            }
-        },
-        {
-            "label": "Build and Run Exact",
-            "type": "shell",
-            "command": "./build.sh",
-            "group": "build",
-            "presentation": {
-                "reveal": "silent",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Build and Run (Fast) - Cross Platform",
-            "type": "shell",
-            "command": "${workspaceFolder}/build-windows-fast.bat",
-            "windows": {
-                "command": "${workspaceFolder}/build-windows-fast.bat"
-            },
             "osx": {
                 "command": "./build.sh"
             },
@@ -180,11 +54,216 @@
             }
         },
         {
-            "label": "Run Dynamix (MSYS2)",
+            "label": "Build Dynamix (Debug - Windows)",
             "type": "shell",
-            "command": "${workspaceFolder}/run-msys2.bat",
+            "command": "build-windows-debug.bat",
             "windows": {
-                "command": "${workspaceFolder}/run-msys2.bat"
+                "command": "build-windows-debug.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Build and Run (Debug - Windows)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Dynamix (Debug - Windows)",
+                "Copy DLLs (Windows)"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Build Dynamix (Debug - Unix)",
+            "type": "shell",
+            "command": "./build.sh",
+            "args": [
+                "debug"
+            ],
+            "osx": {
+                "command": "./build.sh",
+                "args": [
+                    "debug"
+                ]
+            },
+            "linux": {
+                "command": "./build.sh",
+                "args": [
+                    "debug"
+                ]
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Copy DLLs (Windows)",
+            "type": "shell",
+            "command": "copy-dlls.bat",
+            "windows": {
+                "command": "copy-dlls.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Dynamix (Fast - Windows)",
+            "type": "shell",
+            "command": "build-windows-fast.bat",
+            "windows": {
+                "command": "build-windows-fast.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Build Dynamix (Fast - Unix)",
+            "type": "shell",
+            "command": "./build.sh",
+            "osx": {
+                "command": "./build.sh"
+            },
+            "linux": {
+                "command": "./build.sh"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "./build.sh",
+            "args": [
+                "clean"
+            ],
+            "osx": {
+                "command": "./build.sh",
+                "args": [
+                    "clean"
+                ]
+            },
+            "linux": {
+                "command": "./build.sh",
+                "args": [
+                    "clean"
+                ]
+            },
+            "windows": {
+                "command": "rmdir",
+                "args": [
+                    "/s",
+                    "/q",
+                    "build"
+                ]
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Quick Build (Ninja Only - Unix)",
+            "type": "shell",
+            "command": "mkdir -p build && cd build && ninja",
+            "osx": {
+                "command": "mkdir -p build && cd build && ninja"
+            },
+            "linux": {
+                "command": "mkdir -p build && cd build && ninja"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Run Dynamix (No Build - Windows)",
+            "type": "shell",
+            "command": "run-dynamix.bat",
+            "windows": {
+                "command": "run-dynamix.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
             "group": "test",
             "presentation": {
@@ -194,16 +273,45 @@
             "problemMatcher": []
         },
         {
-            "label": "Build and Run (MSYS2)",
+            "label": "Run Dynamix (No Build - Unix)",
+            "type": "shell",
+            "command": "./build/dynamix",
+            "osx": {
+                "command": "./build/dynamix"
+            },
+            "linux": {
+                "command": "./build/dynamix"
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and Run (Windows)",
             "dependsOrder": "sequence",
             "dependsOn": [
-                "Build and Run (Fast) - Cross Platform",
-                "Run Dynamix (MSYS2)"
+                "Build Dynamix (Fast - Windows)",
+                "Copy DLLs (Windows)"
             ],
             "group": {
                 "kind": "test",
                 "isDefault": true
             },
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Build and Run (Unix)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Dynamix (Fast - Unix)",
+                "Run Dynamix (No Build - Unix)"
+            ],
+            "group": "test",
             "presentation": {
                 "reveal": "always"
             }

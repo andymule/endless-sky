@@ -1,41 +1,34 @@
 @echo off
 setlocal
 
-REM Set paths
 set BUILD_DIR=%~dp0build
 set DEBUG_BUILD_DIR=%~dp0build_debug
 
+REM Print all environment variables for debugging
+set
+
 echo ========================================
 echo Dynamix Launcher
-echo ========================================
+========================================
 
-REM Check if release build exists
+echo BUILD_DIR = %BUILD_DIR%
+echo DEBUG_BUILD_DIR = %DEBUG_BUILD_DIR%
+
 if exist "%BUILD_DIR%\dynamix.exe" (
-    echo Starting Dynamix (Release Build)...
-    echo Build directory: %BUILD_DIR%
-    echo.
+    echo Found release build: %BUILD_DIR%\dynamix.exe
     cd /d "%BUILD_DIR%"
     start "" "dynamix.exe"
-    echo ✅ Dynamix started successfully!
-) else if exist "%DEBUG_BUILD_DIR%\dynamix.exe" (
-    echo Starting Dynamix (Debug Build)...
-    echo Build directory: %DEBUG_BUILD_DIR%
-    echo.
-    cd /d "%DEBUG_BUILD_DIR%"
-    start "" "dynamix.exe"
-    echo ✅ Dynamix started successfully!
+    echo Launched release build.
 ) else (
-    echo ❌ ERROR: No dynamix.exe found!
-    echo.
-    echo Please run one of the build scripts first:
-    echo - build-windows-fast.bat (for release build)
-    echo - build-windows-debug.bat (for debug build)
-    echo.
-    pause
-    exit /b 1
+    if exist "%DEBUG_BUILD_DIR%\dynamix.exe" (
+        echo Found debug build: %DEBUG_BUILD_DIR%\dynamix.exe
+        cd /d "%DEBUG_BUILD_DIR%"
+        start "" "dynamix.exe"
+        echo Launched debug build.
+    ) else (
+        echo ERROR: No dynamix.exe found!
+        exit /b 1
+    )
 )
 
-echo.
-echo The application should now be running.
-echo Press any key to exit this launcher...
-pause >nul 
+echo Done. 
