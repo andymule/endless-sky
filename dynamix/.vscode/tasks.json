@@ -324,6 +324,17 @@
             "presentation": {
                 "reveal": "always"
             }
+        },
+        {
+            "label": "CMake Clean All",
+            "type": "shell",
+            "command": "rm -rf build",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
         }
     ]
 }

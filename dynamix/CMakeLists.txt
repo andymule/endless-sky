@@ -23,6 +23,16 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+# Cache Homebrew prefix to avoid repeated execution
+if(APPLE AND NOT DEFINED BREW_PREFIX)
+    execute_process(
+        COMMAND brew --prefix
+        OUTPUT_VARIABLE BREW_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(BREW_PREFIX ${BREW_PREFIX} CACHE STRING "Homebrew prefix path")
+endif()
+
 # Enable ccache if available and requested
 if(ENABLE_CCACHE)
     find_program(CCACHE_PROGRAM ccache)
@@ -80,14 +90,7 @@ endif()
 if(BUNDLE_SDL2)
     message(STATUS "Building with SDL2 bundling for self-contained distribution")
     
-    # Get Homebrew prefix for library paths
-    execute_process(
-        COMMAND brew --prefix
-        OUTPUT_VARIABLE BREW_PREFIX
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    
-    # Find SDL2 dylib to bundle
+    # Find SDL2 dylib to bundle using cached Homebrew prefix
     find_library(SDL2_DYLIB
         NAMES libSDL2-2.0.0.dylib SDL2-2.0.0.dylib
         PATHS ${BREW_PREFIX}/lib
@@ -168,43 +171,48 @@ add_executable(dynamix ${DYNAMIX_SOURCES})
 # Find or fetch ImGui
 include(FetchContent)
 
-# Fetch ImGui
+# Fetch ImGui with caching
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG v1.90.1
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(imgui)
 
-# Fetch SoLoud
+# Fetch SoLoud with caching
 FetchContent_Declare(
     soloud
     GIT_REPOSITORY https://github.com/jarikomppa/soloud.git
     GIT_TAG master
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(soloud)
 
-# Fetch Signalsmith Stretch
+# Fetch Signalsmith Stretch with caching
 FetchContent_Declare(
     signalsmith-stretch
     GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
     GIT_TAG main
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(signalsmith-stretch)
 
-# Fetch Signalsmith Linear
+# Fetch Signalsmith Linear with caching
 FetchContent_Declare(
     signalsmith-linear
     GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-linear.git
     GIT_TAG main
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(signalsmith-linear)
 
-# Fetch nlohmann/json
+# Fetch nlohmann/json with caching
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
@@ -219,16 +227,16 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# Create precompiled header if enabled
+# Create precompiled header if enabled - simplified version
 if(ENABLE_PCH)
-    # Create a PCH header with commonly used includes
+    # Create a minimal PCH header with only essential includes
     set(PCH_HEADER "${CMAKE_CURRENT_BINARY_DIR}/pch.h")
     set(PCH_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/pch.cpp")
     
-    # Generate PCH header - only include C++ compatible headers
+    # Generate minimal PCH header
     file(WRITE ${PCH_HEADER}
 "#pragma once
-// Precompiled header for commonly used includes
+// Minimal precompiled header for essential includes only
 #include <string>
 #include <vector>
 #include <memory>
@@ -239,29 +247,19 @@ if(ENABLE_PCH)
 #include <chrono>
 #include <thread>
 #include <mutex>
-#include <condition_variable>
 #include <map>
 #include <set>
-#include <unordered_map>
-#include <unordered_set>
 #include <functional>
-#include <type_traits>
 #include <utility>
 #include <array>
 #include <tuple>
 #include <optional>
-#include <variant>
-#include <any>
-#include <initializer_list>
 #include <stdexcept>
-#include <system_error>
 #include <limits>
-#include <numeric>
 #include <cmath>
 #include <cstring>
 #include <cassert>
 #include <cstdint>
-#include <cstddef>
 ")
     
     # Generate PCH source
@@ -270,16 +268,33 @@ if(ENABLE_PCH)
     # Add PCH to sources
     list(PREPEND DYNAMIX_SOURCES ${PCH_SOURCE})
     
-    # Enable PCH for the target - specify C++ compilation
+    # Enable PCH for the target
     target_precompile_headers(dynamix PRIVATE ${PCH_HEADER})
     
-    message(STATUS "Precompiled headers enabled")
+    message(STATUS "Precompiled headers enabled (minimal)")
 endif()
 
-# Add SoLoud sources (core, backend/sdl2, audiosource/wav, audiosource/wavstream)
-file(GLOB SOLOUD_CORE_SOURCES ${soloud_SOURCE_DIR}/src/core/*.cpp)
+# Add SoLoud sources - explicit list instead of globbing
 set(SOLOUD_SOURCES
-    ${SOLOUD_CORE_SOURCES}
+    ${soloud_SOURCE_DIR}/src/core/soloud.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_audiosource.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_bus.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_3d.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_basicops.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_faderops.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_filterops.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_getters.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_setters.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_voicegroup.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_core_voiceops.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_fft.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_fft_lut.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_file.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_fader.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_filter.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_misc.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_queue.cpp
+    ${soloud_SOURCE_DIR}/src/core/soloud_thread.cpp
     ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wav.cpp
     ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wavstream.cpp
     ${soloud_SOURCE_DIR}/src/backend/sdl2_static/soloud_sdl2_static.cpp
@@ -301,46 +316,46 @@ set(SOLOUD_SOURCES
 target_sources(dynamix PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
 
 # Find SDL2 - prefer pkg-config to avoid framework issues
-    if(BUNDLE_SDL2 AND SDL2_DYLIB)
-        # For bundled builds, we already found SDL2 above
-        set(SDL2_FOUND TRUE)
-        set(SDL2_INCLUDE_DIRS ${BREW_PREFIX}/include/SDL2)
-    else()
+if(BUNDLE_SDL2 AND SDL2_DYLIB)
+    # For bundled builds, we already found SDL2 above
+    set(SDL2_FOUND TRUE)
+    set(SDL2_INCLUDE_DIRS ${BREW_PREFIX}/include/SDL2)
+else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2 REQUIRED sdl2)
 
     # If pkg-config fails, fall back to traditional find_package
-            if(NOT SDL2_FOUND)
-                find_package(SDL2 REQUIRED)
-                if(NOT SDL2_FOUND)
-                    message(FATAL_ERROR "SDL2 not found.")
-                endif()
+    if(NOT SDL2_FOUND)
+        find_package(SDL2 REQUIRED)
+        if(NOT SDL2_FOUND)
+            message(FATAL_ERROR "SDL2 not found.")
+        endif()
     endif()
 endif()
 
 # Find PNG
-    find_package(PNG REQUIRED)
-    if(NOT PNG_FOUND)
-        message(FATAL_ERROR "PNG not found.")
+find_package(PNG REQUIRED)
+if(NOT PNG_FOUND)
+    message(FATAL_ERROR "PNG not found.")
 endif()
 
 # Find JPEG
-    find_package(JPEG REQUIRED)
-    if(NOT JPEG_FOUND)
-        message(FATAL_ERROR "JPEG not found.")
+find_package(JPEG REQUIRED)
+if(NOT JPEG_FOUND)
+    message(FATAL_ERROR "JPEG not found.")
 endif()
 
 # Find OpenAL
-    find_package(OpenAL REQUIRED)
-    if(NOT OPENAL_FOUND)
-        message(FATAL_ERROR "OpenAL not found.")
+find_package(OpenAL REQUIRED)
+if(NOT OPENAL_FOUND)
+    message(FATAL_ERROR "OpenAL not found.")
 endif()
 
 # Find GLEW (only on non-Apple platforms)
 if(NOT APPLE)
-        find_package(GLEW REQUIRED)
-        if(NOT GLEW_FOUND)
-            message(FATAL_ERROR "GLEW not found.")
+    find_package(GLEW REQUIRED)
+    if(NOT GLEW_FOUND)
+        message(FATAL_ERROR "GLEW not found.")
     endif()
 endif()
 
@@ -436,8 +451,6 @@ else()
     # endif()
 endif()
 
-
-
 # Bundle SDL2 dylib if requested
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
     add_custom_command(TARGET dynamix POST_BUILD
@@ -467,4 +480,10 @@ add_custom_target(static_build ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${CMAKE_SOURCE_DIR}/static_build/assets"
     COMMENT "Creating static_build folder with only the required files"
     DEPENDS dynamix
+) 
+
+add_custom_target(clean-all
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Full clean: removed build directory and CMake-generated files."
+    COMMENT "Cleaning all build files and CMake cache."
 ) 
