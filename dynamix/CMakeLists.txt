@@ -3,7 +3,7 @@ project(dynamix VERSION 0.1.0)
 
 # Build optimization options
 option(ENABLE_UNITY_BUILD "Enable unity builds for faster compilation" ON)
-option(ENABLE_PCH "Enable precompiled headers" ON)
+option(ENABLE_PCH "Enable precompiled headers" OFF)
 option(ENABLE_CCACHE "Enable ccache for faster rebuilds" ON)
 option(ENABLE_LTO "Enable Link Time Optimization" ON)
 
