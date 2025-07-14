@@ -30,12 +30,12 @@
         {
             "label": "Build Dynamix (Release - Unix)",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "./build-macos.sh",
             "osx": {
-                "command": "./build.sh"
+                "command": "./build-macos.sh"
             },
             "linux": {
-                "command": "./build.sh"
+                "command": "./build-linux.sh"
             },
             "group": "build",
             "presentation": {
@@ -94,18 +94,18 @@
         {
             "label": "Build Dynamix (Debug - Unix)",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "./build-macos.sh",
             "args": [
                 "debug"
             ],
             "osx": {
-                "command": "./build.sh",
+                "command": "./build-macos.sh",
                 "args": [
                     "debug"
                 ]
             },
             "linux": {
-                "command": "./build.sh",
+                "command": "./build-linux.sh",
                 "args": [
                     "debug"
                 ]
@@ -172,12 +172,12 @@
         {
             "label": "Build Dynamix (Fast - Unix)",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "./build-macos.sh",
             "osx": {
-                "command": "./build.sh"
+                "command": "./build-macos.sh"
             },
             "linux": {
-                "command": "./build.sh"
+                "command": "./build-linux.sh"
             },
             "group": "build",
             "presentation": {
@@ -198,18 +198,18 @@
         {
             "label": "Clean Build",
             "type": "shell",
-            "command": "./build.sh",
+            "command": "./build-macos.sh",
             "args": [
                 "clean"
             ],
             "osx": {
-                "command": "./build.sh",
+                "command": "./build-macos.sh",
                 "args": [
                     "clean"
                 ]
             },
             "linux": {
-                "command": "./build.sh",
+                "command": "./build-linux.sh",
                 "args": [
                     "clean"
                 ]
