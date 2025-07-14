@@ -1,5 +1,7 @@
 # Build directories
 build/
+build_debug/
+static_build/
 debug/
 release/
 
