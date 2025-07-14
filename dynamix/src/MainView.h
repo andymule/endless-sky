@@ -1,5 +1,13 @@
 #pragma once
 
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include <SDL2/SDL.h>
+#include "imgui.h"
+
 #include "AudioController.h"
 #include "AudioState.h"
 #include "FileBrowser.h"
@@ -7,11 +15,6 @@
 #include "Views/BusView.h"
 #include "Views/SongView.h"
 #include "Views/SpeedView.h"
-#include "imgui.h"
-#include <SDL2/SDL.h>
-#include <filesystem>
-#include <string>
-#include <vector>
 
 // Pure View class that only handles UI rendering
 class MainView {
@@ -96,7 +99,6 @@ public:
 private:
     void cleanup();
     void RenderMainWindow();
-
     void RenderEventsWindow();
     void RenderDirectoryInput();
     void RenderGlobalControls();
@@ -108,13 +110,13 @@ private:
     Dynamix::StateSnapshot CaptureCurrentState();
 
     // Modular hold-to-action button system
-    enum class HoldActionType { Delete, SAVE };
+    enum class HoldActionType { DELETE, SAVE };
     struct HoldActionState {
         std::string actionId = ""; // Unique identifier for the action
         float holdTime = 0.0f;
         bool isHolding = false;
         bool hasTriggered = false; // Prevent multiple actions per button press
-        HoldActionType actionType = HoldActionType::Delete;
+        HoldActionType actionType = HoldActionType::DELETE;
         static constexpr float HOLD_DURATION = 1.0f; // 1 second
     };
 
@@ -146,7 +148,6 @@ private:
     ActiveWindow m_activeWindow = ActiveWindow::MAIN;
     bool m_mainWindowWasFocused = false;
     bool m_controlsWindowWasFocused = false;
-    // bool m_secondaryWindowWasFocused = false; // Future: for secondary window support
 
     // Events UI state
     bool m_showEventsWindow = true;
@@ -164,7 +165,7 @@ private:
     bool m_showFileDialog = false;
     std::string m_defaultDirectory = "";
 
-    // File browser components (replaces old custom file browser state)
+    // File browser components
     Dynamix::FileBrowser m_directoryBrowser;
     Dynamix::FileBrowser m_oggFileBrowser;
 
@@ -183,7 +184,7 @@ private:
     std::string m_lastTriggeredSongEvent = "";
     std::string m_lastTriggeredSongName = ""; // Which song the last song event was from
 
-    // Modular hold-to-action state (replaces old delete state)
+    // Modular hold-to-action state
     HoldActionState m_holdActionState;
 
     // Controller reference (managed externally)

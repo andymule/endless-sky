@@ -980,7 +980,7 @@ bool MainView::RenderHoldActionButton(const std::string& actionId, const char* b
 bool MainView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
     return RenderHoldActionButton(
         eventId, "X", ("Hold for 1 second to delete \"" + std::string(eventName) + "\"").c_str(),
-        HoldActionType::Delete, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
+        HoldActionType::DELETE, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
         ImVec4(0.9f, 0.2f, 0.2f, 1.0f),                         // Red progress
         ImVec4(0.9f, 0.2f, 0.2f, 0.3f)                          // Light red background
     );

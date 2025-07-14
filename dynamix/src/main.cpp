@@ -60,7 +60,6 @@ void dynamix_loadSongsFromDirectory(const char* directory) {
 
 // Get the directory where the executable is located
 std::string getExecutableDirectory() {
-// On macOS, we can use _NSGetExecutablePath
 #ifdef __APPLE__
     char path[1024];
     uint32_t size = sizeof(path);
@@ -69,7 +68,6 @@ std::string getExecutableDirectory() {
         return exePath.parent_path().string();
     }
 #elif defined(_WIN32)
-    // On Windows, use GetModuleFileName to get the executable path
     char path[MAX_PATH];
     if (GetModuleFileNameA(NULL, path, MAX_PATH) != 0) {
         std::filesystem::path exePath(path);
@@ -77,7 +75,6 @@ std::string getExecutableDirectory() {
     }
 #endif
 
-    // Fallback: use a simple approach without filesystem operations
     return ".";
 }
 
@@ -88,33 +85,25 @@ std::string getExecutableDirectory() {
 #endif
 
 int main(int argc, char* argv[]) {
-#ifdef _WIN32
-    // Remove the MessageBox for production - it was just for debugging
-    // MessageBoxA(NULL, "main() reached", "Dynamix", MB_OK);
-#endif
-    std::cout << "[LOG] Entered main()" << std::endl;
+    LOG_INFO("Starting Dynamix application");
+    
     // Get the executable directory for proper path resolution
     std::string exeDir = getExecutableDirectory();
-    std::cout << "[LOG] Got executable directory: " << exeDir << std::endl;
     LOG_INFO("Executable directory: " + exeDir);
 
-    std::cout << "[LOG] Initializing SDL" << std::endl;
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         LOG_ERROR("Error initializing SDL: " + std::string(SDL_GetError()));
-        std::cout << "[LOG] SDL_Init failed: " << SDL_GetError() << std::endl;
         return 1;
     }
-    std::cout << "[LOG] SDL initialized" << std::endl;
 
-    // For MacOS, use OpenGL 3.2 Core Profile
+    // Configure OpenGL context for macOS
     const char* glsl_version = "#version 150";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-    std::cout << "[LOG] Creating SDL window" << std::endl;
     // Create window with graphics context
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -124,10 +113,9 @@ int main(int argc, char* argv[]) {
                          SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!window) {
         LOG_ERROR("Error creating SDL window: " + std::string(SDL_GetError()));
-        std::cout << "[LOG] SDL_CreateWindow failed: " << SDL_GetError() << std::endl;
+        SDL_Quit();
         return 1;
     }
-    std::cout << "[LOG] SDL window created" << std::endl;
 
     // Load and set window icon
     SDL_Surface* iconSurface = SDL_LoadBMP("assets/icon.bmp");
@@ -135,56 +123,52 @@ int main(int argc, char* argv[]) {
         SDL_SetWindowIcon(window, iconSurface);
         SDL_FreeSurface(iconSurface);
     } else {
-        // Try PNG format (requires SDL2_image)
-        LOG_INFO(
-            "Note: No icon.bmp found. For PNG support, install SDL2_image and use SDL_image.h");
+        LOG_INFO("Note: No icon.bmp found. For PNG support, install SDL2_image and use SDL_image.h");
     }
 
-    std::cout << "[LOG] Creating OpenGL context" << std::endl;
+    // Create OpenGL context
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
         LOG_ERROR("Error creating OpenGL context: " + std::string(SDL_GetError()));
-        std::cout << "[LOG] SDL_GL_CreateContext failed: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return 1;
     }
     SDL_GL_MakeCurrent(window, glContext);
     SDL_GL_SetSwapInterval(1); // Enable vsync
-    std::cout << "[LOG] OpenGL context created" << std::endl;
 
     // Create MVC components
-    std::cout << "[LOG] Creating AudioController and MainView" << std::endl;
     Dynamix::AudioController controller;
     MainView view;
-    std::cout << "[LOG] AudioController and MainView created" << std::endl;
-
+    
     // Store global controller reference for external API
     g_controller = &controller;
 
     // Wire up the MVC architecture
     view.SetController(&controller);
 
-    std::cout << "[LOG] Initializing AudioController" << std::endl;
     // Initialize components with executable directory
     if (!controller.initialize(exeDir)) {
         LOG_ERROR("Failed to initialize AudioController");
-        std::cout << "[LOG] AudioController initialization failed" << std::endl;
+        SDL_GL_DeleteContext(glContext);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return 1;
     }
-    std::cout << "[LOG] AudioController initialized" << std::endl;
 
-    std::cout << "[LOG] Initializing MainView" << std::endl;
     if (!view.Initialize(window, glContext)) {
-        LOG_ERROR("Failed to initialize TesterView");
-        std::cout << "[LOG] MainView initialization failed" << std::endl;
+        LOG_ERROR("Failed to initialize MainView");
+        controller.cleanup();
+        SDL_GL_DeleteContext(glContext);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return 1;
     }
-    std::cout << "[LOG] MainView initialized" << std::endl;
 
     // Initialize timing for deltaTime calculation
     Uint32 lastTime = SDL_GetTicks();
 
     // Main loop
-    std::cout << "[LOG] Entering main loop" << std::endl;
     while (view.IsRunning()) {
         // Calculate deltaTime
         Uint32 currentTime = SDL_GetTicks();
@@ -206,7 +190,6 @@ int main(int argc, char* argv[]) {
 
         view.Render();
     }
-    std::cout << "[LOG] Exited main loop" << std::endl;
 
     // Cleanup
     g_controller = nullptr; // Clear global reference
@@ -215,6 +198,7 @@ int main(int argc, char* argv[]) {
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    std::cout << "[LOG] Program exiting normally" << std::endl;
+    
+    LOG_INFO("Program exiting normally");
     return 0;
 } 
