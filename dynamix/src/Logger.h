@@ -5,7 +5,7 @@
 
 namespace Dynamix {
 
-    enum class LogLevel { ERROR = 0, WARN = 1, INFO = 2, DEBUG = 3, TRACE = 4 };
+    enum class LogLevel { Error = 0, WARN = 1, INFO = 2, DEBUG = 3, TRACE = 4 };
 
     class Logger {
     public:

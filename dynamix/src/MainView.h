@@ -108,13 +108,13 @@ private:
     Dynamix::StateSnapshot CaptureCurrentState();
 
     // Modular hold-to-action button system
-    enum class HoldActionType { DELETE, SAVE };
+    enum class HoldActionType { Delete, SAVE };
     struct HoldActionState {
         std::string actionId = ""; // Unique identifier for the action
         float holdTime = 0.0f;
         bool isHolding = false;
         bool hasTriggered = false; // Prevent multiple actions per button press
-        HoldActionType actionType = HoldActionType::DELETE;
+        HoldActionType actionType = HoldActionType::Delete;
         static constexpr float HOLD_DURATION = 1.0f; // 1 second
     };
 

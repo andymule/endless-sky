@@ -81,16 +81,9 @@ std::string getExecutableDirectory() {
     return ".";
 }
 
-// Windows-specific SDL main handling
+int main() {
 #ifdef _WIN32
-#define SDL_MAIN_HANDLED
-#include <SDL2/SDL_main.h>
-#endif
-
-int main(int argc, char* argv[]) {
-#ifdef _WIN32
-    // Remove the MessageBox for production - it was just for debugging
-    // MessageBoxA(NULL, "main() reached", "Dynamix", MB_OK);
+    MessageBoxA(NULL, "main() reached", "Dynamix", MB_OK);
 #endif
     std::cout << "[LOG] Entered main()" << std::endl;
     // Get the executable directory for proper path resolution
@@ -217,4 +210,4 @@ int main(int argc, char* argv[]) {
     SDL_Quit();
     std::cout << "[LOG] Program exiting normally" << std::endl;
     return 0;
-} 
+}

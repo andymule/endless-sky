@@ -60,18 +60,36 @@
         },
         {
             "name": "Build and Run (Fast)",
-            "type": "node",
+            "type": "lldb",
             "request": "launch",
-            "program": "/usr/bin/true",
-            "runtimeExecutable": "/bin/bash",
-            "runtimeArgs": [
-                "-c",
-                "cd '${workspaceFolder}' && ./build.sh && ./build/dynamix"
-            ],
+            "program": "${workspaceFolder}/build/dynamix",
+            "windows": {
+                "program": "${workspaceFolder}/build/dynamix.exe"
+            },
+            "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "skipFiles": [
-                "<node_internals>/**"
+            "preLaunchTask": "Build and Run (Fast) - Cross Platform",
+            "stopOnEntry": false,
+            "initCommands": [
+                "settings set target.process.stop-on-sharedlibrary-events false"
+            ]
+        },
+        {
+            "name": "Build and Run (Fast) - No Debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/dynamix",
+            "windows": {
+                "program": "${workspaceFolder}/build/dynamix.exe"
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build and Run (Fast) - Cross Platform",
+            "stopOnEntry": false,
+            "initCommands": [
+                "settings set target.process.stop-on-sharedlibrary-events false"
             ]
         },
         {
@@ -103,6 +121,6 @@
                 "settings set target.process.stop-on-sharedlibrary-events false"
             ],
             "preLaunchTask": "Build Dynamix (Static)"
-        }
+        },
     ]
 }

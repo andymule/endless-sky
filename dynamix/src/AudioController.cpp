@@ -136,8 +136,8 @@ namespace Dynamix {
             return (std::filesystem::path(m_executableDirectory) / relativePath).string();
         }
 
-        // Otherwise, resolve relative to current working directory
-        return (std::filesystem::current_path() / relativePath).string();
+        // Otherwise, just return the relative path as-is (safer than current_path)
+        return relativePath;
     }
 
     void AudioController::setCurrentSong(const std::string& songName) {

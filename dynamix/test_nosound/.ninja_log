@@ -1,0 +1,22 @@
+# ninja log v7
+3	604	7739691439864222	CMakeFiles/test_soloud_nosound.dir/test_soloud_nosound.cpp.obj	e059a85c9f5445a9
+174	461	7739696242504376	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_fft_lut.cpp.obj	b0eb16ab18ec194c
+27	862	7739696241031215	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_audiosource.cpp.obj	765ba2e3781c6df1
+57	1046	7739696241322725	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_basicops.cpp.obj	6854976fb162280f
+143	1063	7739696242187615	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_fader.cpp.obj	a6cd8972f2ba988a
+67	1077	7739696241417939	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_faderops.cpp.obj	738c4477a193b631
+93	1079	7739696241694777	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_getters.cpp.obj	333c59367d1b54ea
+78	1080	7739696241533509	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_filterops.cpp.obj	1d73315917a160e
+37	1083	7739696241126555	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_bus.cpp.obj	7f4d52bb917f013f
+130	1087	7739696242076714	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_voiceops.cpp.obj	20beaed11c355114
+117	1093	7739696241925789	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_voicegroup.cpp.obj	a96efa5548f0b2fb
+47	1145	7739696241217275	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_3d.cpp.obj	ce43ddf0930de85
+105	1159	7739696241810343	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_core_setters.cpp.obj	949d55c85fd46ff0
+205	1160	7739696242846892	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_filter.cpp.obj	746b083591b533a9
+221	1214	7739696243033068	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_misc.cpp.obj	fb6c2ebda97a7d7f
+190	1219	7739696242655356	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_file.cpp.obj	c22c928e841e9358
+261	1254	7739696243416736	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_queue.cpp.obj	6a6d8e4f7debe040
+970	1484	7739696250881807	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/backend/nosound/soloud_nosound.cpp.obj	bd7a53b052f39bd3
+156	1612	7739696242313264	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_fft.cpp.obj	e5c2934e82329b15
+18	1665	7739696240935978	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud.cpp.obj	732ede2fa4b2c79c
+509	2556	7739696246044512	CMakeFiles/test_soloud_nosound.dir/_deps/soloud-src/src/core/soloud_thread.cpp.obj	6b32be39b50ce2e6

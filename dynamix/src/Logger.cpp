@@ -19,7 +19,7 @@ namespace Dynamix {
         ss << " " << message;
 
         // Output to appropriate stream based on level
-        if (level == LogLevel::ERROR) {
+        if (level == LogLevel::Error) {
             std::cerr << ss.str() << std::endl;
         } else {
             std::cout << ss.str() << std::endl;
@@ -28,7 +28,7 @@ namespace Dynamix {
 
     std::string Logger::levelToString(LogLevel level) const {
         switch (level) {
-            case LogLevel::ERROR:
+            case LogLevel::Error:
                 return "ERROR";
             case LogLevel::WARN:
                 return "WARN";
@@ -44,7 +44,7 @@ namespace Dynamix {
     }
 
     void Logger::error(const std::string& message, const std::string& component) {
-        log(LogLevel::ERROR, message, component);
+        log(LogLevel::Error, message, component);
     }
 
     void Logger::warn(const std::string& message, const std::string& component) {

@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
 project(dynamix VERSION 0.1.0)
 
+# Build optimization options
+option(ENABLE_UNITY_BUILD "Enable unity builds for faster compilation" ON)
+option(ENABLE_PCH "Enable precompiled headers" ON)
+option(ENABLE_CCACHE "Enable ccache for faster rebuilds" ON)
+option(ENABLE_LTO "Enable Link Time Optimization" ON)
+
 # Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
 # Only enable SDL2 bundling by default on macOS
 if(APPLE)
@@ -17,6 +23,39 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+# Enable ccache if available and requested
+if(ENABLE_CCACHE)
+    find_program(CCACHE_PROGRAM ccache)
+    if(CCACHE_PROGRAM)
+        set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+        message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    else()
+        message(STATUS "ccache not found, continuing without it")
+    endif()
+endif()
+
+# Optimize compiler flags based on build type
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Release optimizations
+    if(MSVC)
+        add_compile_options(/O2 /DNDEBUG /GL /Gy)
+        add_link_options(/LTCG)
+    else()
+        add_compile_options(-O3 -DNDEBUG -march=native)
+        if(ENABLE_LTO)
+            add_compile_options(-flto)
+            add_link_options(-flto)
+        endif()
+    endif()
+else()
+    # Debug optimizations - still optimize for speed but keep debug info
+    if(MSVC)
+        add_compile_options(/Od /Zi)
+    else()
+        add_compile_options(-O1 -g)
+    endif()
+endif()
+
 # Add warning flags
 if(MSVC)
     add_compile_options(/W4)
@@ -28,6 +67,13 @@ else()
     # Suppress specific warnings for third-party code
     add_compile_options(-Wno-unused-parameter)
     add_compile_options(-Wno-unused-variable)
+endif()
+
+# Enable unity builds if requested
+if(ENABLE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD ON)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 5)  # Group 5 files together
+    message(STATUS "Unity builds enabled with batch size 5")
 endif()
 
 # SDL2 bundling configuration
@@ -65,6 +111,7 @@ add_definitions(
     -DIMGUI_DISABLE_OBSOLETE_KEYIO
     -DIMGUI_IMPL_OPENGL_LOADER_GL3W
     -DIMGUI_IMPL_OPENGL_USE_DESKTOP_GL
+    -DIMGUI_DEFINE_MATH_OPERATORS
     -DSOLOUD_STATIC
     -DWITH_SDL2_STATIC
 )
@@ -72,6 +119,7 @@ add_definitions(
 # Set up sources for dynamix
 set(DYNAMIX_SOURCES
     src/main.cpp
+    # src/winmain_forward.cpp  # Temporarily disabled to test infinite loop
     src/AudioSystem.cpp
     src/AudioController.cpp
     src/MainView.cpp
@@ -171,6 +219,63 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
+# Create precompiled header if enabled
+if(ENABLE_PCH)
+    # Create a PCH header with commonly used includes
+    set(PCH_HEADER "${CMAKE_CURRENT_BINARY_DIR}/pch.h")
+    set(PCH_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/pch.cpp")
+    
+    # Generate PCH header - only include C++ compatible headers
+    file(WRITE ${PCH_HEADER}
+"#pragma once
+// Precompiled header for commonly used includes
+#include <string>
+#include <vector>
+#include <memory>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+#include <chrono>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+#include <type_traits>
+#include <utility>
+#include <array>
+#include <tuple>
+#include <optional>
+#include <variant>
+#include <any>
+#include <initializer_list>
+#include <stdexcept>
+#include <system_error>
+#include <limits>
+#include <numeric>
+#include <cmath>
+#include <cstring>
+#include <cassert>
+#include <cstdint>
+#include <cstddef>
+")
+    
+    # Generate PCH source
+    file(WRITE ${PCH_SOURCE} "#include \"pch.h\"\n")
+    
+    # Add PCH to sources
+    list(PREPEND DYNAMIX_SOURCES ${PCH_SOURCE})
+    
+    # Enable PCH for the target - specify C++ compilation
+    target_precompile_headers(dynamix PRIVATE ${PCH_HEADER})
+    
+    message(STATUS "Precompiled headers enabled")
+endif()
+
 # Add SoLoud sources (core, backend/sdl2, audiosource/wav, audiosource/wavstream)
 file(GLOB SOLOUD_CORE_SOURCES ${soloud_SOURCE_DIR}/src/core/*.cpp)
 set(SOLOUD_SOURCES
@@ -196,46 +301,46 @@ set(SOLOUD_SOURCES
 target_sources(dynamix PRIVATE ${IMGUI_SOURCES} ${SOLOUD_SOURCES})
 
 # Find SDL2 - prefer pkg-config to avoid framework issues
-if(BUNDLE_SDL2 AND SDL2_DYLIB)
-    # For bundled builds, we already found SDL2 above
-    set(SDL2_FOUND TRUE)
-    set(SDL2_INCLUDE_DIRS ${BREW_PREFIX}/include/SDL2)
-else()
+    if(BUNDLE_SDL2 AND SDL2_DYLIB)
+        # For bundled builds, we already found SDL2 above
+        set(SDL2_FOUND TRUE)
+        set(SDL2_INCLUDE_DIRS ${BREW_PREFIX}/include/SDL2)
+    else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2 REQUIRED sdl2)
 
     # If pkg-config fails, fall back to traditional find_package
-    if(NOT SDL2_FOUND)
-        find_package(SDL2 REQUIRED)
-        if(NOT SDL2_FOUND)
-            message(FATAL_ERROR "SDL2 not found.")
-        endif()
+            if(NOT SDL2_FOUND)
+                find_package(SDL2 REQUIRED)
+                if(NOT SDL2_FOUND)
+                    message(FATAL_ERROR "SDL2 not found.")
+                endif()
     endif()
 endif()
 
 # Find PNG
-find_package(PNG REQUIRED)
-if(NOT PNG_FOUND)
-    message(FATAL_ERROR "PNG not found.")
+    find_package(PNG REQUIRED)
+    if(NOT PNG_FOUND)
+        message(FATAL_ERROR "PNG not found.")
 endif()
 
 # Find JPEG
-find_package(JPEG REQUIRED)
-if(NOT JPEG_FOUND)
-    message(FATAL_ERROR "JPEG not found.")
+    find_package(JPEG REQUIRED)
+    if(NOT JPEG_FOUND)
+        message(FATAL_ERROR "JPEG not found.")
 endif()
 
 # Find OpenAL
-find_package(OpenAL REQUIRED)
-if(NOT OPENAL_FOUND)
-    message(FATAL_ERROR "OpenAL not found.")
+    find_package(OpenAL REQUIRED)
+    if(NOT OPENAL_FOUND)
+        message(FATAL_ERROR "OpenAL not found.")
 endif()
 
 # Find GLEW (only on non-Apple platforms)
 if(NOT APPLE)
-    find_package(GLEW REQUIRED)
-    if(NOT GLEW_FOUND)
-        message(FATAL_ERROR "GLEW not found.")
+        find_package(GLEW REQUIRED)
+        if(NOT GLEW_FOUND)
+            message(FATAL_ERROR "GLEW not found.")
     endif()
 endif()
 
@@ -325,9 +430,10 @@ if(APPLE)
     target_compile_definitions(dynamix PRIVATE GL_SILENCE_DEPRECATION)
 else()
     target_link_libraries(dynamix PRIVATE OpenGL::GL)
-    if(NOT APPLE)
-        target_link_libraries(dynamix PRIVATE GLEW::glew_s)
-    endif()
+    # Temporarily comment out GLEW for testing
+    # if(NOT APPLE)
+    #     target_link_libraries(dynamix PRIVATE GLEW::glew_s)
+    # endif()
 endif()
 
 

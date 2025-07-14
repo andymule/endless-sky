@@ -13,7 +13,9 @@
     "C_Cpp.default.intelliSenseMode": "macos-clang-arm64",
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
-    "editor.rulers": [100],
+    "editor.rulers": [
+        100
+    ],
     "files.associations": {
         "*.h": "cpp",
         "*.hpp": "cpp",
@@ -26,6 +28,11 @@
         "CMAKE_BUILD_TYPE": "Debug"
     },
     "cmake.generator": "Ninja",
+    "cmake.defaultVariants": {
+        "buildType": {
+            "default": "release"
+        }
+    },
     "files.exclude": {
         "**/build": false,
         "**/.cache": true,
@@ -43,5 +50,8 @@
         "**/vcpkg/buildtrees": true,
         "**/vcpkg/downloads": true,
         "**/vcpkg/packages": true
+    },
+    "settings.merge": {
+        "windows": "${workspaceFolder}/.vscode/settings-windows.json"
     }
-} 
+}

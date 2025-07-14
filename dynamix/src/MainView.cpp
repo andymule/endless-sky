@@ -594,14 +594,15 @@ void MainView::RenderSongEvents() {
             ImGui::Text("Load a directory with song folders containing _song.json");
         } else {
             for (const auto& song : songs) {
-                ImGui::PushID(song.folderPath.filename().c_str());
+                std::string songName = song.folderPath.filename().string();
+                ImGui::PushID(songName.c_str());
 
                 // Song header - also expanded by default
-                bool songOpen = ImGui::TreeNodeEx(song.folderPath.filename().c_str(),
+                bool songOpen = ImGui::TreeNodeEx(songName.c_str(),
                                                   ImGuiTreeNodeFlags_DefaultOpen);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
-                    ImGui::Text("Song: %s", song.folderPath.filename().c_str());
+                    ImGui::Text("Song: %s", songName.c_str());
                     ImGui::Text("Events: %d", static_cast<int>(song.events.size()));
                     ImGui::Text("Path: %s", song.folderPath.string().c_str());
                     ImGui::EndTooltip();
@@ -979,7 +980,7 @@ bool MainView::RenderHoldActionButton(const std::string& actionId, const char* b
 bool MainView::RenderDeleteButton(const std::string& eventId, const char* eventName) {
     return RenderHoldActionButton(
         eventId, "X", ("Hold for 1 second to delete \"" + std::string(eventName) + "\"").c_str(),
-        HoldActionType::DELETE, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
+        HoldActionType::Delete, ImVec4(0.9f, 0.2f, 0.2f, 1.0f), // Red text
         ImVec4(0.9f, 0.2f, 0.2f, 1.0f),                         // Red progress
         ImVec4(0.9f, 0.2f, 0.2f, 0.3f)                          // Light red background
     );

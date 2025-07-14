@@ -149,6 +149,64 @@
                     "message": 5
                 }
             }
+        },
+        {
+            "label": "Build and Run (Fast) - Cross Platform",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-windows-fast.bat",
+            "windows": {
+                "command": "${workspaceFolder}/build-windows-fast.bat"
+            },
+            "osx": {
+                "command": "./build.sh"
+            },
+            "linux": {
+                "command": "./build.sh"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Run Dynamix (MSYS2)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-msys2.bat",
+            "windows": {
+                "command": "${workspaceFolder}/run-msys2.bat"
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and Run (MSYS2)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build and Run (Fast) - Cross Platform",
+                "Run Dynamix (MSYS2)"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            }
         }
     ]
 }
