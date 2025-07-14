@@ -74,7 +74,7 @@ Install all required system libraries:
 
 ```bash
 # Core development tools
-brew install cmake ninja pkg-config
+brew install cmake ninja pkg-config ccache
 
 # Audio and multimedia libraries
 brew install sdl2 libpng jpeg openal-soft
@@ -155,6 +155,20 @@ For faster iterations after the initial build:
 ```
 
 This only runs ninja without dependency checks, perfect for code changes.
+
+### Build Performance Optimization
+
+This project is optimized for fast development cycles:
+
+- **ccache**: Automatically caches compiled objects for 2x-10x faster rebuilds
+- **Unity builds**: Combines multiple source files to reduce compilation overhead
+- **Pre-downloaded dependencies**: Dependencies are cached locally for instant configuration
+- **Ninja build system**: Highly parallel builds with minimal overhead
+
+For maximum build performance:
+1. Install ccache: `brew install ccache` (already included in dependencies above)
+2. Use incremental builds: `ninja` or `./quick-build.sh` for code changes
+3. See `build-times.md` for detailed optimization strategies
 
 ## Binary Distribution
 

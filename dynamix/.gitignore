@@ -41,3 +41,6 @@ sound_staging/
 imgui.ini 
 # Static build executable
 static_build/dynamix
+
+# ccache cache (user-specific, auto-managed)
+.ccache/
