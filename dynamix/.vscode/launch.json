@@ -3,17 +3,17 @@
     "configurations": [
         {
             "name": "Debug Dynamix (Windows)",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
-            "program": "${workspaceFolder}/build_debug/dynamix.exe",
+            "program": "${workspaceFolder}/build/dynamix.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "Build and Run (Debug - Windows)"
+            "preLaunchTask": "Build Dynamix (Debug - Windows)"
         },
         {
             "name": "Debug Dynamix (macOS/Linux)",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
             "args": [],
@@ -74,15 +74,12 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
+            "noDebug": true,
             "env": {
                 "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
                 "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
             },
-            "preLaunchTask": "Build Dynamix (Fast - Unix)",
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
-            ]
+            "preLaunchTask": "Build Dynamix (Fast - Unix)"
         },
         {
             "name": "Run Dynamix (Direct - Windows)",
@@ -95,7 +92,7 @@
         },
         {
             "name": "Run Dynamix (Direct - macOS/Linux)",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
             "program": "${workspaceFolder}/build/dynamix",
             "args": [],
@@ -117,6 +114,18 @@
             "args": [
                 "/c",
                 "echo Cleaned build directory."
+            ],
+            "cwd": "${workspaceFolder}",
+            "noDebug": true,
+            "preLaunchTask": "Clean Build"
+        },
+        {
+            "name": "Clean Build (macOS/Linux)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/bin/echo",
+            "args": [
+                "Cleaned build directory."
             ],
             "cwd": "${workspaceFolder}",
             "noDebug": true,

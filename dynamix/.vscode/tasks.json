@@ -173,11 +173,20 @@
             "label": "Build Dynamix (Fast - Unix)",
             "type": "shell",
             "command": "./build-macos.sh",
+            "args": [
+                "debug"
+            ],
             "osx": {
-                "command": "./build-macos.sh"
+                "command": "./build-macos.sh",
+                "args": [
+                    "debug"
+                ]
             },
             "linux": {
-                "command": "./build-linux.sh"
+                "command": "./build-linux.sh",
+                "args": [
+                    "debug"
+                ]
             },
             "group": "build",
             "presentation": {
