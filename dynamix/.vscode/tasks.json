@@ -335,6 +335,28 @@
                 "panel": "shared"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Clean Build Only (Preserve Dependencies)",
+            "type": "shell",
+            "command": "cmake --build build --target clean-build-only",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Download Dependencies",
+            "type": "shell",
+            "command": "cmake -B build -DUSE_PREDOWNLOADED_DEPS=ON",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
         }
     ]
 }

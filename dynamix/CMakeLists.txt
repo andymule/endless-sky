@@ -6,6 +6,7 @@ option(ENABLE_UNITY_BUILD "Enable unity builds for faster compilation" ON)
 option(ENABLE_PCH "Enable precompiled headers" OFF)
 option(ENABLE_CCACHE "Enable ccache for faster rebuilds" ON)
 option(ENABLE_LTO "Enable Link Time Optimization" ON)
+option(USE_PREDOWNLOADED_DEPS "Use pre-downloaded dependencies for faster configures" ON)
 
 # Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
 # Only enable SDL2 bundling by default on macOS
@@ -22,6 +23,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
+
+# Define persistent dependencies directory (outside of build directory)
+set(PERSISTENT_DEPS_DIR "${CMAKE_SOURCE_DIR}/.deps")
 
 # Cache Homebrew prefix to avoid repeated execution
 if(APPLE AND NOT DEFINED BREW_PREFIX)
@@ -168,53 +172,110 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_
 # Add the executable target
 add_executable(dynamix ${DYNAMIX_SOURCES})
 
-# Find or fetch ImGui
-include(FetchContent)
+# Function to download dependency if not present
+function(download_dependency_if_needed dep_name repo_url commit_hash)
+    set(dep_dir "${PERSISTENT_DEPS_DIR}/${dep_name}")
+    set(dep_marker "${dep_dir}/.downloaded")
+    
+    if(NOT EXISTS ${dep_marker})
+        message(STATUS "Downloading ${dep_name} to persistent location...")
+        file(MAKE_DIRECTORY ${dep_dir})
+        
+        # Clone the repository
+        execute_process(
+            COMMAND git clone --depth 1 --branch ${commit_hash} ${repo_url} .
+            WORKING_DIRECTORY ${dep_dir}
+            RESULT_VARIABLE clone_result
+        )
+        
+        if(clone_result EQUAL 0)
+            # Create marker file to indicate successful download
+            file(WRITE ${dep_marker} "Downloaded on ${CMAKE_CURRENT_DATE_TIME}")
+            message(STATUS "${dep_name} downloaded successfully")
+        else()
+            message(FATAL_ERROR "Failed to download ${dep_name}")
+        endif()
+    else()
+        message(STATUS "Using pre-downloaded ${dep_name}")
+    endif()
+endfunction()
 
-# Fetch ImGui with caching
-FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.90.1
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(imgui)
-
-# Fetch SoLoud with caching
-FetchContent_Declare(
-    soloud
-    GIT_REPOSITORY https://github.com/jarikomppa/soloud.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(soloud)
-
-# Fetch Signalsmith Stretch with caching
-FetchContent_Declare(
-    signalsmith-stretch
-    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
-    GIT_TAG main
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(signalsmith-stretch)
-
-# Fetch Signalsmith Linear with caching
-FetchContent_Declare(
-    signalsmith-linear
-    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-linear.git
-    GIT_TAG main
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(signalsmith-linear)
-
-# Fetch nlohmann/json with caching
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.3
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(nlohmann_json)
+# Download dependencies if using pre-downloaded deps
+if(USE_PREDOWNLOADED_DEPS)
+    message(STATUS "Using pre-downloaded dependencies from: ${PERSISTENT_DEPS_DIR}")
+    
+    # Download dependencies to persistent location
+    download_dependency_if_needed("imgui" "https://github.com/ocornut/imgui.git" "v1.90.1")
+    download_dependency_if_needed("soloud" "https://github.com/jarikomppa/soloud.git" "master")
+    download_dependency_if_needed("signalsmith-stretch" "https://github.com/Signalsmith-Audio/signalsmith-stretch.git" "main")
+    download_dependency_if_needed("signalsmith-linear" "git@github.com:Signalsmith-Audio/linear.git" "main")
+    download_dependency_if_needed("nlohmann-json" "https://github.com/nlohmann/json.git" "v3.11.3")
+    
+    # Set source directories to persistent locations
+    set(imgui_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/imgui")
+    set(soloud_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/soloud")
+    set(signalsmith-stretch_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/signalsmith-stretch")
+    set(signalsmith-linear_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/signalsmith-linear")
+    set(nlohmann_json_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/nlohmann-json")
+    
+    # Add nlohmann_json subdirectory to create the target
+    add_subdirectory(${nlohmann_json_SOURCE_DIR} EXCLUDE_FROM_ALL)
+else()
+    # Fallback to FetchContent for dependencies
+    include(FetchContent)
+    
+    message(STATUS "Fetching ImGui...")
+    FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui.git
+        GIT_TAG v1.90.1
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(imgui)
+    message(STATUS "ImGui fetched successfully")
+    
+    message(STATUS "Fetching SoLoud...")
+    FetchContent_Declare(
+        soloud
+        GIT_REPOSITORY https://github.com/jarikomppa/soloud.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(soloud)
+    message(STATUS "SoLoud fetched successfully")
+    
+    message(STATUS "Fetching Signalsmith Stretch...")
+    FetchContent_Declare(
+        signalsmith-stretch
+        GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+        GIT_TAG 222093b
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(signalsmith-stretch)
+    message(STATUS "Signalsmith Stretch fetched successfully")
+    
+    message(STATUS "Fetching Signalsmith Linear...")
+    FetchContent_Declare(
+        signalsmith-linear
+        GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-linear.git
+        GIT_TAG fa5dbc0
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(signalsmith-linear)
+    message(STATUS "Signalsmith Linear fetched successfully")
+    
+    message(STATUS "Fetching nlohmann/json...")
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+    message(STATUS "nlohmann/json fetched successfully")
+endif()
 
 # Add ImGui sources
 set(IMGUI_SOURCES
@@ -480,10 +541,23 @@ add_custom_target(static_build ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${CMAKE_SOURCE_DIR}/static_build/assets"
     COMMENT "Creating static_build folder with only the required files"
     DEPENDS dynamix
-) 
+)
 
 add_custom_target(clean-all
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E echo "Full clean: removed build directory and CMake-generated files."
     COMMENT "Cleaning all build files and CMake cache."
+)
+
+# Add a target to clean only build files but preserve dependencies
+add_custom_target(clean-build-only
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/CMakeFiles"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/CMakeCache.txt"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/cmake_install.cmake"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/build.ninja"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/.ninja_deps"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/.ninja_log"
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/compile_commands.json"
+    COMMAND ${CMAKE_COMMAND} -E echo "Build files cleaned, dependencies preserved."
+    COMMENT "Cleaning build files only, preserving dependencies."
 ) 
