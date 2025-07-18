@@ -324,11 +324,11 @@ void MainView::RenderMainWindow() {
     }
 
     // Show dialogs
-    if (m_showNewMasterDialog) {
+    if (m_makeNewProjectInCurrentRoot) {
         RenderNewMasterDialog();
     }
-    if (m_showFileDialog) {
-        RenderFileDialog();
+    if (m_showSetRootDialog) {
+        RenderSetRootFolderDialog();
     }
 
     ImGui::End();
@@ -1000,7 +1000,7 @@ void MainView::RenderNewMasterDialog() {
     ImGui::OpenPopup("New Master Directory");
     ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiCond_FirstUseEver);
 
-    if (ImGui::BeginPopupModal("New Master Directory", &m_showNewMasterDialog)) {
+    if (ImGui::BeginPopupModal("New Master Directory", &m_makeNewProjectInCurrentRoot)) {
         ImGui::Text("Create new master directory:");
         ImGui::Separator();
 
@@ -1014,7 +1014,7 @@ void MainView::RenderNewMasterDialog() {
                 bool success = m_controller->createNewMasterDirectory(m_newMasterName);
                 if (success) {
                     ImGui::CloseCurrentPopup();
-                    m_showNewMasterDialog = false;
+                    m_makeNewProjectInCurrentRoot = false;
                 } else {
                     strcpy(m_errorMessage, "Failed to create master directory");
                     m_showErrorPopup = true;
@@ -1027,17 +1027,18 @@ void MainView::RenderNewMasterDialog() {
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {
             ImGui::CloseCurrentPopup();
-            m_showNewMasterDialog = false;
+            m_makeNewProjectInCurrentRoot = false;
         }
 
         ImGui::EndPopup();
     }
 }
 
-void MainView::RenderFileDialog() {
+void MainView::RenderSetRootFolderDialog() {
     // Use the FileBrowser component to render the directory selection dialog
-    m_directoryBrowser.render(m_showFileDialog);
+    m_directoryBrowser.render(m_showSetRootDialog);
 }
+
 
 bool MainView::CopyOggFileToSong(const std::string& sourcePath, const std::string& songName) {
     try {
@@ -1080,8 +1081,11 @@ void MainView::cleanup() {
 void MainView::RenderMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open Directory", "Ctrl+O")) {
-                m_showFileDialog = true;
+            if (ImGui::MenuItem("Set Root Directory", "Ctrl+O")) {
+                m_showSetRootDialog = true;
+            }
+            if (ImGui::MenuItem("New Project in Current Root", "Ctrl+P")) {
+				
             }
             if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
                 m_songView->ShowOggFileDialog();

@@ -42,7 +42,8 @@ The system follows a layered architecture with clear separation of concerns:
 - `dynamix_triggerSongEvent()` - Trigger song-specific events
 - `dynamix_triggerMasterEvent()` - Trigger global master events
 - `dynamix_triggerEvent()` - Universal event trigger
-- `dynamix_loadSongsFromDirectory()` - Load music from directory
+- `dynamix_loadSongsFromDirectory()` - Load music from directory //TODO refactor as load project?
+- TODO `dynamix_loadAndPlaySong()` - Load song from current project
 
 **Dependencies**: SDL2, OpenGL, Dear ImGui, AudioController, TesterView
 

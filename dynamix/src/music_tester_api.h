@@ -38,6 +38,8 @@ void dynamix_triggerEvent(const char* eventName);
  */
 void dynamix_loadSongsFromDirectory(const char* directory);
 
+// TODO loadAndPlaySong()
+
 #ifdef __cplusplus
 }
 #endif

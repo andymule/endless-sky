@@ -66,7 +66,7 @@ public:
     // File menu methods
     void RenderNewMasterDialog();
     void RenderNewSongDialog();
-    void RenderFileDialog();
+    void RenderSetRootFolderDialog();
     void InitializeDefaultDirectory();
     void RefreshBrowserEntries();
 
@@ -158,11 +158,11 @@ private:
     float m_newEventFadeTime = 1.0f;
 
     // File menu state
-    bool m_showNewMasterDialog = false;
+    bool m_makeNewProjectInCurrentRoot = false;
     char m_newMasterName[256] = "";
 
     // File dialog state
-    bool m_showFileDialog = false;
+    bool m_showSetRootDialog = false;
     std::string m_defaultDirectory = "";
 
     // File browser components

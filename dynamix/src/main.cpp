@@ -56,6 +56,8 @@ void dynamix_loadSongsFromDirectory(const char* directory) {
         g_controller->setMusicDirectory(directory);
     }
 }
+
+// TODO loadAndPlaySong()
 }
 
 // Get the directory where the executable is located
