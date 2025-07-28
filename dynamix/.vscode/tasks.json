@@ -4,9 +4,21 @@
         {
             "label": "Build Dynamix (Release - Windows)",
             "type": "shell",
-            "command": "${workspaceFolder}/build-windows-fast.bat",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/build-windows-fast.ps1"
+            ],
             "windows": {
-                "command": "${workspaceFolder}/build-windows-fast.bat"
+                "command": "powershell.exe",
+                "args": [
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    "${workspaceFolder}/build-windows-fast.ps1"
+                ]
             },
             "group": {
                 "kind": "build",
@@ -56,9 +68,17 @@
         {
             "label": "Build Dynamix (Debug - Windows)",
             "type": "shell",
-            "command": "build-windows-debug.bat",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "build-windows-debug.bat"
+            ],
             "windows": {
-                "command": "build-windows-debug.bat"
+                "command": "cmd.exe",
+                "args": [
+                    "/c",
+                    "build-windows-debug.bat"
+                ]
             },
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -129,9 +149,17 @@
         {
             "label": "Copy DLLs (Windows)",
             "type": "shell",
-            "command": "copy-dlls.bat",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "copy-dlls.bat"
+            ],
             "windows": {
-                "command": "copy-dlls.bat"
+                "command": "cmd.exe",
+                "args": [
+                    "/c",
+                    "copy-dlls.bat"
+                ]
             },
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -146,9 +174,21 @@
         {
             "label": "Build Dynamix (Fast - Windows)",
             "type": "shell",
-            "command": "build-windows-fast.bat",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/build-windows-fast.ps1"
+            ],
             "windows": {
-                "command": "build-windows-fast.bat"
+                "command": "powershell.exe",
+                "args": [
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    "${workspaceFolder}/build-windows-fast.ps1"
+                ]
             },
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -267,9 +307,17 @@
         {
             "label": "Run Dynamix (No Build - Windows)",
             "type": "shell",
-            "command": "run-dynamix.bat",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "run-dynamix.bat"
+            ],
             "windows": {
-                "command": "run-dynamix.bat"
+                "command": "cmd.exe",
+                "args": [
+                    "/c",
+                    "run-dynamix.bat"
+                ]
             },
             "options": {
                 "cwd": "${workspaceFolder}"

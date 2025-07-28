@@ -4,6 +4,8 @@ build_debug/
 static_build/
 debug/
 release/
+.deps/
+.deps
 
 # CMake generated files
 CMakeCache.txt

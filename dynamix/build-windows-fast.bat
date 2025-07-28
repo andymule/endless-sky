@@ -22,6 +22,37 @@ if not exist "%MSYS2_ROOT%\msys2_shell.cmd" (
     exit /b 1
 )
 
+REM Check if required MSYS2 packages are installed
+echo Checking MSYS2 dependencies...
+"%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "which cmake"
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: cmake not found in MSYS2/MinGW64
+    echo Please install required packages by running in MSYS2 MinGW64 terminal:
+    echo pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang
+    pause
+    exit /b 1
+)
+
+"%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "which ninja"
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: ninja not found in MSYS2/MinGW64
+    echo Please install required packages by running in MSYS2 MinGW64 terminal:
+    echo pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang
+    pause
+    exit /b 1
+)
+
+"%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "which clang"
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: clang not found in MSYS2/MinGW64
+    echo Please install required packages by running in MSYS2 MinGW64 terminal:
+    echo pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang
+    pause
+    exit /b 1
+)
+
+echo All MSYS2 dependencies found!
+
 REM Check if we need to force a clean rebuild (when optimizations change)
 set FORCE_REBUILD=0
 if not exist "%BUILD_DIR%\CMakeCache.txt" set FORCE_REBUILD=1
@@ -40,7 +71,7 @@ echo.
 REM Build using MSYS2 MinGW64 shell
 if %FORCE_REBUILD%==1 (
     echo CMakeLists.txt changed, forcing clean rebuild...
-    "%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd /c/Users/xxsha/source/endless-sky/dynamix && rm -rf build && mkdir build && cd build && cmake -G 'Ninja' -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_MAKE_PROGRAM=ninja -DENABLE_UNITY_BUILD=ON -DENABLE_PCH=OFF -DENABLE_CCACHE=ON -DENABLE_LTO=OFF .."
+    "%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "rm -rf build && mkdir build && cd build && cmake -G 'Ninja' -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_MAKE_PROGRAM=ninja -DENABLE_UNITY_BUILD=ON -DENABLE_PCH=OFF -DENABLE_CCACHE=ON -DENABLE_LTO=OFF -DUSE_PREDOWNLOADED_DEPS=OFF .."
 ) else (
     echo CMake already configured, skipping configuration...
 )
@@ -56,7 +87,7 @@ echo Step 2: Compiling with Ninja (maximal concurrency)...
 echo.
 
 REM Run the build with maximal concurrency
-"%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd /c/Users/xxsha/source/endless-sky/dynamix/build && ninja -j 0"
+"%MSYS2_ROOT%\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd build && ninja -j 0"
 
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Build failed!

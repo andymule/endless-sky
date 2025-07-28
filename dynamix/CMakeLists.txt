@@ -208,7 +208,7 @@ if(USE_PREDOWNLOADED_DEPS)
     download_dependency_if_needed("imgui" "https://github.com/ocornut/imgui.git" "v1.90.1")
     download_dependency_if_needed("soloud" "https://github.com/jarikomppa/soloud.git" "master")
     download_dependency_if_needed("signalsmith-stretch" "https://github.com/Signalsmith-Audio/signalsmith-stretch.git" "main")
-    download_dependency_if_needed("signalsmith-linear" "git@github.com:Signalsmith-Audio/linear.git" "main")
+    download_dependency_if_needed("signalsmith-linear" "https://github.com/Signalsmith-Audio/linear.git" "main")
     download_dependency_if_needed("nlohmann-json" "https://github.com/nlohmann/json.git" "v3.11.3")
     
     # Set source directories to persistent locations
