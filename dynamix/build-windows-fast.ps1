@@ -13,7 +13,6 @@ $SRC_DIR = $PSScriptRoot
 if (-not (Test-Path "$MSYS2_ROOT\msys2_shell.cmd")) {
     Write-Host "ERROR: MSYS2 not found at $MSYS2_ROOT" -ForegroundColor Red
     Write-Host "Please install MSYS2 from https://www.msys2.org/" -ForegroundColor Red
-    Read-Host "Press Enter to continue"
     exit 1
 }
 
@@ -25,7 +24,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: cmake not found in MSYS2/MinGW64" -ForegroundColor Red
     Write-Host "Please install required packages by running in MSYS2 MinGW64 terminal:" -ForegroundColor Red
     Write-Host "pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang" -ForegroundColor Red
-    Read-Host "Press Enter to continue"
     exit 1
 }
 
@@ -34,7 +32,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: ninja not found in MSYS2/MinGW64" -ForegroundColor Red
     Write-Host "Please install required packages by running in MSYS2 MinGW64 terminal:" -ForegroundColor Red
     Write-Host "pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang" -ForegroundColor Red
-    Read-Host "Press Enter to continue"
     exit 1
 }
 
@@ -43,7 +40,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: clang not found in MSYS2/MinGW64" -ForegroundColor Red
     Write-Host "Please install required packages by running in MSYS2 MinGW64 terminal:" -ForegroundColor Red
     Write-Host "pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang" -ForegroundColor Red
-    Read-Host "Press Enter to continue"
     exit 1
 }
 
@@ -74,7 +70,6 @@ if ($FORCE_REBUILD) {
     $cmakeResult = & "$MSYS2_ROOT\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "rm -rf build && mkdir build && cd build && cmake -G 'Ninja' -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_MAKE_PROGRAM=ninja -DENABLE_UNITY_BUILD=ON -DENABLE_PCH=OFF -DENABLE_CCACHE=ON -DENABLE_LTO=OFF -DUSE_PREDOWNLOADED_DEPS=OFF .."
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: CMake configuration failed!" -ForegroundColor Red
-        Read-Host "Press Enter to continue"
         exit 1
     }
 } else {
@@ -83,15 +78,19 @@ if ($FORCE_REBUILD) {
 
 Write-Host ""
 Write-Host "Step 2: Compiling with Ninja (maximal concurrency)..." -ForegroundColor Yellow
+Write-Host "Compilation progress will be shown below:" -ForegroundColor Cyan
 Write-Host ""
 
-# Run the build with maximal concurrency
-$buildResult = & "$MSYS2_ROOT\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd build && ninja -j 0"
+# Run the build with maximal concurrency and verbose output
+Write-Host "Starting compilation..." -ForegroundColor Green
+$buildResult = & "$MSYS2_ROOT\msys2_shell.cmd" -mingw64 -defterm -here -no-start -c "cd build && ninja -j 0 -v"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Build failed!" -ForegroundColor Red
-    Read-Host "Press Enter to continue"
     exit 1
 }
+
+Write-Host ""
+Write-Host "Compilation completed successfully!" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Step 3: Copying required DLLs..." -ForegroundColor Yellow

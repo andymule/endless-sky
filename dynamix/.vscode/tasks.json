@@ -52,7 +52,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": {
                 "pattern": {
@@ -86,7 +90,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": {
                 "pattern": {
@@ -133,7 +141,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": {
                 "pattern": {
@@ -167,7 +179,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": []
         },
@@ -196,7 +212,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": {
                 "pattern": {
@@ -231,7 +251,11 @@
             "group": "build",
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "echo": true,
+                "focus": false
             },
             "problemMatcher": {
                 "pattern": {
