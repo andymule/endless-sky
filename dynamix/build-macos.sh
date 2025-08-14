@@ -71,7 +71,7 @@ echo "Homebrew prefix: $BREW_PREFIX"
 export LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${LIBRARY_PATH}"
 export LD_LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${LD_LIBRARY_PATH}"
 export DYLD_LIBRARY_PATH="${BREW_PREFIX}/lib:/usr/local/lib:${DYLD_LIBRARY_PATH}"
-export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/libvorbis/lib/pkgconfig:${BREW_PREFIX}/opt/libogg/lib/pkgconfig:${BREW_PREFIX}/opt/libpng/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/libvorbis/lib/pkgconfig:${BREW_PREFIX}/opt/libogg/lib/pkgconfig:${BREW_PREFIX}/opt/libpng/lib/pkgconfig:${BREW_PREFIX}/opt/jpeg/lib/pkgconfig:${BREW_PREFIX}/opt/openal-soft/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 # Get the script directory
 SCRIPT_DIR="$(dirname "$0")"
@@ -121,7 +121,7 @@ LAST_CHECK_DATE=0
 if [ "$LAST_CHECK_DATE" != "$CURRENT_DATE" ] || [ "$CLEAN_BUILD" = true ]; then
     # Check for required packages
     echo "Checking for required libraries..."
-    REQUIRED_PACKAGES=("pkg-config" "sdl2" "libpng" "jpeg" "openal-soft")
+    REQUIRED_PACKAGES=("pkg-config" "sdl2" "libpng" "jpeg" "openal-soft" "cmake" "ninja")
     MISSING_PACKAGES=()
     
     # Check all packages in a single brew call to speed up checks
@@ -147,7 +147,9 @@ fi
 
 # Check if vcpkg is already set up correctly - if so, skip setup
 VCPKG_CONFIGURED=false
+echo "Checking for parent vcpkg at: $PARENT_DIR/vcpkg"
 if [ -d "$PARENT_DIR/vcpkg" ]; then
+    echo "Found parent vcpkg directory"
     VCPKG_DIR="$PARENT_DIR/vcpkg"
     # Check if minizip is already installed
     if [ -d "$VCPKG_DIR/installed/${MINIZIP_TRIPLET}/share/unofficial-minizip" ] || \
@@ -169,7 +171,8 @@ else
     
     # Set up vcpkg locally if needed
     if [ ! -d "$DYNAMIX_DIR/vcpkg" ]; then
-        git clone --depth=1 https://github.com/microsoft/vcpkg.git
+        cd "$DYNAMIX_DIR"
+        git clone --depth=1 https://github.com/microsoft/vcpkg.git vcpkg
         cd "$DYNAMIX_DIR/vcpkg"
         ./bootstrap-vcpkg.sh -disableMetrics
         cd "$DYNAMIX_DIR"
@@ -219,7 +222,7 @@ if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ] || [ "$CL
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake"
         -Dunofficial-minizip_DIR="$MINIZIP_DIR"
-        -DCMAKE_PREFIX_PATH="${BREW_PREFIX};/usr/local"
+        -DCMAKE_PREFIX_PATH="${BREW_PREFIX};${BREW_PREFIX}/opt/jpeg;${BREW_PREFIX}/opt/openal-soft;/usr/local"
         -DCMAKE_FIND_FRAMEWORK=LAST
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     )
