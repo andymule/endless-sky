@@ -15,6 +15,7 @@
 #include "Views/BusView.h"
 #include "Views/SongView.h"
 #include "Views/SpeedView.h"
+#include "ConsoleLog.h"
 
 // Pure View class that only handles UI rendering
 class MainView {
@@ -42,6 +43,9 @@ public:
             m_songView->SetOggFileDialogCallback([this]() {
                 m_showOggFileDialog = true;
             });
+
+            // Connect console log for error reporting
+            m_controller->setConsoleLog(&m_consoleLog);
         }
 
         // Update the directory input with the current directory from controller
@@ -97,6 +101,9 @@ public:
     // Theme persistence methods
     void LoadThemeFromConfig();
     void SaveThemeToConfig();
+
+    // Console log access
+    Dynamix::ConsoleLog& GetConsoleLog() { return m_consoleLog; }
 
 private:
     void cleanup();
@@ -204,4 +211,7 @@ private:
     std::unique_ptr<Dynamix::Views::SongView> m_songView;
     std::unique_ptr<Dynamix::Views::BusView> m_busView;
     std::unique_ptr<Dynamix::Views::SpeedView> m_speedView;
+    
+    // Console log system
+    Dynamix::ConsoleLog m_consoleLog;
 };

@@ -60,14 +60,6 @@ namespace Dynamix {
                     ImGui::SetTooltip("Pitch-preserving tempo stretching\nLatency: %.1f ms",
                                       latency);
                 }
-
-                ImGui::Separator();
-
-                // Help text
-                ImGui::TextWrapped(
-                    "Tape Speed: Classic tape-style speed control (changes pitch).\n"
-                    "Future: Granular pitch-preserving tempo and pitch shifting will be "
-                    "implemented outside SoLoud's filter system.");
             }
 
             ImGui::End();

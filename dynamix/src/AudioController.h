@@ -93,6 +93,11 @@ namespace Dynamix {
             m_state.onStateChanged = callback;
         }
 
+        // Console log integration for error reporting
+        void setConsoleLog(Dynamix::ConsoleLog* consoleLog) { 
+            m_songManager.setConsoleLog(consoleLog); 
+        }
+
         // Current directory access
         const std::string& getCurrentDirectory() const { return m_currentDirectory; }
         

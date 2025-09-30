@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioState.h"
+#include "JsonValidator.h"
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -8,6 +9,9 @@
 #include <vector>
 
 namespace Dynamix {
+
+    // Forward declaration
+    class ConsoleLog;
 
     class SongManager {
     public:
@@ -46,9 +50,16 @@ namespace Dynamix {
         // Clear all loaded data
         void clear();
 
+        // Console log integration for error reporting
+        void setConsoleLog(ConsoleLog* consoleLog) { m_consoleLog = consoleLog; }
+
     private:
         std::vector<Song> m_songs;
         MasterBus m_masterBus;
+        
+        // JSON validation
+        JsonValidator m_jsonValidator;
+        ConsoleLog* m_consoleLog = nullptr;
 
         // JSON parsing helpers
         bool parseStateSnapshot(const nlohmann::json& json, StateSnapshot& state);

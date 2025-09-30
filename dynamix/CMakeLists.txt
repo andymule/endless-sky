@@ -140,6 +140,8 @@ set(DYNAMIX_SOURCES
     src/TrackManager.cpp
     src/SyncWav.cpp
     src/ThemeManager.cpp
+    src/JsonValidator.cpp
+    src/ConsoleLog.cpp
     src/Views/SongView.cpp
     src/Views/BusView.cpp
     src/Views/SpeedView.cpp
@@ -162,6 +164,8 @@ set(DYNAMIX_HEADERS
     src/TrackManager.h
     src/SyncWav.h
     src/ThemeManager.h
+    src/JsonValidator.h
+    src/ConsoleLog.h
     src/Views/SongView.h
     src/Views/BusView.h
 )

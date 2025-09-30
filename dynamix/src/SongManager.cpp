@@ -1,4 +1,5 @@
 #include "SongManager.h"
+#include "ConsoleLog.h"
 #include "Logger.h"
 #include <algorithm>
 #include <fstream>
@@ -58,9 +59,21 @@ namespace Dynamix {
                 return false;
             }
 
-            if (!validateSongJson(json)) {
+            // Use comprehensive JSON validation
+            auto validationResult = m_jsonValidator.validateSongJson(json, songFolder);
+            if (!validationResult.isValid) {
                 logError("Invalid song JSON: " + jsonPath.string());
+                
+                // Report detailed validation errors to console
+                if (m_consoleLog) {
+                    m_consoleLog->LogValidationResult(validationResult, "Song JSON (" + songFolder.filename().string() + ")");
+                }
                 return false;
+            } else if (!validationResult.warnings.empty()) {
+                // Report warnings to console even if validation passed
+                if (m_consoleLog) {
+                    m_consoleLog->LogValidationResult(validationResult, "Song JSON (" + songFolder.filename().string() + ")");
+                }
             }
 
             Song song;
@@ -156,9 +169,21 @@ namespace Dynamix {
                 return false;
             }
 
-            if (!validateMasterJson(json)) {
+            // Use comprehensive JSON validation  
+            auto validationResult = m_jsonValidator.validateMasterJson(json);
+            if (!validationResult.isValid) {
                 logError("Invalid master JSON: " + masterJsonPath.string());
+                
+                // Report detailed validation errors to console
+                if (m_consoleLog) {
+                    m_consoleLog->LogValidationResult(validationResult, "Master JSON");
+                }
                 return false;
+            } else if (!validationResult.warnings.empty()) {
+                // Report warnings to console even if validation passed
+                if (m_consoleLog) {
+                    m_consoleLog->LogValidationResult(validationResult, "Master JSON");
+                }
             }
 
             m_masterBus.name = json.value("name", "Master Bus");

@@ -236,6 +236,10 @@ void MainView::ProcessEvents(const SDL_Event& event) {
                             m_songView->ShowOggFileDialog();
                         }
                         break;
+                    case SDLK_BACKQUOTE: // Ctrl+` - Toggle Console
+                    case SDLK_c: // Ctrl+C - Toggle Console (alternative)
+                        m_consoleLog.Toggle();
+                        break;
                     case SDLK_q: // Ctrl+Q - Exit
                         m_isRunning = false;
                         break;
@@ -283,6 +287,10 @@ void MainView::Render() {
     // Update which window is currently active/focused
     UpdateActiveWindow();
 
+    // Render console log drawer (must be after all other windows)
+    ImVec2 windowSize = ImGui::GetIO().DisplaySize;
+    m_consoleLog.Render(windowSize);
+
     // Rendering
     ImGui::Render();
     glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
@@ -306,6 +314,7 @@ void MainView::Render() {
 void MainView::RenderMainWindow() {
     ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
     ImGui::Begin(GetWindowTitle().c_str());
+
 
     // Track if this window is focused for keyboard input routing
     m_mainWindowWasFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -1167,6 +1176,8 @@ void MainView::RenderMenuBar() {
 
         std::string projectDisplayText = m_currentProject.empty() ? "No Project" : m_currentProject;
         if (ImGui::BeginCombo("##project_menu", projectDisplayText.c_str())) {
+            // Auto-refresh project list when opening combo
+            DiscoverAvailableProjects();
             for (const auto& project : m_availableProjects) {
                 bool isSelected = (project == m_currentProject);
                 if (ImGui::Selectable(("📁 " + project).c_str(), isSelected)) {
@@ -1204,6 +1215,10 @@ void MainView::RenderMenuBar() {
         std::string currentSong = m_controller->getCurrentSong();
         std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
         if (ImGui::BeginCombo("##song_menu", songDisplayText.c_str())) {
+            // Auto-refresh song list when opening combo (reload directory)
+            if (m_controller && !m_controller->getCurrentDirectory().empty()) {
+                m_controller->loadMusicFromDirectory();
+            }
             const auto* songManager = m_controller->getSongManager();
             if (songManager) {
                 const auto& songs = songManager->getSongs();
@@ -1246,13 +1261,13 @@ void MainView::RenderMenuBar() {
             ImGui::EndCombo();
         }
 
-        // Refresh button on menu bar
+        // Console toggle button in place of refresh button
         ImGui::SameLine();
-        if (ImGui::Button("🔄")) {
-            DiscoverAvailableProjects();
+        if (ImGui::Button("…")) {
+            m_consoleLog.Toggle();
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Refresh project list");
+            ImGui::SetTooltip("Toggle Console (Ctrl+C)\nView system messages and errors");
         }
 
         ImGui::EndMainMenuBar();

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ninja)",
+      "Bash(./dynamix)",
+      "Bash(ninja:*)",
+      "Bash(./build/dynamix)"
+    ]
+  },
+  "outputStyle": "default"
+}
