@@ -221,6 +221,26 @@ void MainView::ProcessEvents(const SDL_Event& event) {
                     m_controller->toggleGlobalPlayback();
                 }
             }
+            // Handle Ctrl+key combinations
+            else if (event.key.keysym.mod & KMOD_CTRL) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_o: // Ctrl+O - Set Root Directory
+                        m_showSetRootDialog = true;
+                        break;
+                    case SDLK_p: // Ctrl+P - New Project in Current Root
+                        m_makeNewProjectInCurrentRoot = true;
+                        strcpy(m_newMasterName, "");
+                        break;
+                    case SDLK_a: // Ctrl+A - Add OGG File
+                        if (m_songView) {
+                            m_songView->ShowOggFileDialog();
+                        }
+                        break;
+                    case SDLK_q: // Ctrl+Q - Exit
+                        m_isRunning = false;
+                        break;
+                }
+            }
             // Handle number keys 1-9, 0 for track toggling
             else if (event.key.keysym.sym >= SDLK_1 && event.key.keysym.sym <= SDLK_9) {
                 int keyNumber = event.key.keysym.sym - SDLK_1 + 1; // Convert to 1-9
@@ -329,6 +349,9 @@ void MainView::RenderMainWindow() {
     }
     if (m_showSetRootDialog) {
         RenderSetRootFolderDialog();
+    }
+    if (m_showOggFileDialog) {
+        m_oggFileBrowser.render(m_showOggFileDialog);
     }
 
     ImGui::End();
@@ -1013,6 +1036,14 @@ void MainView::RenderNewMasterDialog() {
             if (strlen(m_newMasterName) > 0) {
                 bool success = m_controller->createNewMasterDirectory(m_newMasterName);
                 if (success) {
+                    // Refresh the project list to show the new project
+                    DiscoverAvailableProjects();
+                    
+                    // Auto-switch to the newly created project
+                    m_currentProject = m_newMasterName;
+                    std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
+                    m_controller->setMusicDirectory(projectPath);
+                    
                     ImGui::CloseCurrentPopup();
                     m_makeNewProjectInCurrentRoot = false;
                 } else {
@@ -1085,7 +1116,8 @@ void MainView::RenderMenuBar() {
                 m_showSetRootDialog = true;
             }
             if (ImGui::MenuItem("New Project in Current Root", "Ctrl+P")) {
-				
+                m_makeNewProjectInCurrentRoot = true;
+                strcpy(m_newMasterName, ""); // Clear the input field
             }
             if (ImGui::MenuItem("Add OGG File", "Ctrl+A")) {
                 m_songView->ShowOggFileDialog();
@@ -1195,6 +1227,19 @@ void MainView::RenderMenuBar() {
                 if (songs.empty()) {
                     ImGui::TextDisabled("No songs in project");
                 }
+                
+                // Add separator and "+ New Song" button at the bottom
+                if (!songs.empty()) {
+                    ImGui::Separator();
+                }
+                
+                if (ImGui::Selectable("+ New Song", false)) {
+                    // Trigger the new song dialog through SongView
+                    if (m_songView) {
+                        m_songView->ShowNewSongDialog();
+                    }
+                }
+                
             } else {
                 ImGui::TextDisabled("No song manager");
             }
@@ -1252,7 +1297,34 @@ void MainView::onDirectorySelected(const std::filesystem::path& path) {
     std::string selectedPath = path.string();
     strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
     m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
-    m_controller->setMusicDirectory(selectedPath);
+    
+    // Set the root directory (where projects are stored)
+    m_defaultDirectory = selectedPath;
+    
+    // Clear current project state since we're changing root
+    m_currentProject = "";
+    m_availableProjects.clear();
+    
+    // Discover projects in the new root directory
+    DiscoverAvailableProjects();
+    
+    // If projects were found, auto-load the first one
+    if (!m_availableProjects.empty()) {
+        m_currentProject = m_availableProjects[0];
+        std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
+        m_controller->setMusicDirectory(projectPath);
+        
+        // Auto-select the first song in the new project
+        const auto* songManager = m_controller->getSongManager();
+        if (songManager) {
+            const auto& songs = songManager->getSongs();
+            if (!songs.empty()) {
+                std::string folderName = songs[0].folderPath.filename().string();
+                m_controller->setCurrentSong(folderName);
+                ClearLastTriggeredEvents();
+            }
+        }
+    }
 }
 
 void MainView::onOggFileSelected(const std::filesystem::path& path) {

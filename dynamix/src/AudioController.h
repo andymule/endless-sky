@@ -95,6 +95,9 @@ namespace Dynamix {
 
         // Current directory access
         const std::string& getCurrentDirectory() const { return m_currentDirectory; }
+        
+        // Root directory access (parent of current directory for project creation)
+        std::string getRootDirectory() const;
 
         // Event creation and management
         bool createSongEvent(const std::string& songName, const std::string& eventName,

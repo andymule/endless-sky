@@ -37,6 +37,11 @@ public:
             m_songView = std::make_unique<Dynamix::Views::SongView>(m_controller);
             m_busView = std::make_unique<Dynamix::Views::BusView>(m_controller);
             m_speedView = std::make_unique<Dynamix::Views::SpeedView>(m_controller);
+            
+            // Set up callback for OGG file dialog
+            m_songView->SetOggFileDialogCallback([this]() {
+                m_showOggFileDialog = true;
+            });
         }
 
         // Update the directory input with the current directory from controller
@@ -65,14 +70,11 @@ public:
 
     // File menu methods
     void RenderNewMasterDialog();
-    void RenderNewSongDialog();
     void RenderSetRootFolderDialog();
     void InitializeDefaultDirectory();
     void RefreshBrowserEntries();
 
-    // .ogg file browser methods
-    void RenderOggFileDialog();
-    void RefreshOggBrowserEntries();
+    // .ogg file browser methods (handled by FileBrowser component)
     bool CopyOggFileToSong(const std::string& sourcePath, const std::string& songName);
 
     // Project and song selection methods
@@ -163,6 +165,7 @@ private:
 
     // File dialog state
     bool m_showSetRootDialog = false;
+    bool m_showOggFileDialog = false;
     std::string m_defaultDirectory = "";
 
     // File browser components

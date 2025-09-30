@@ -644,14 +644,28 @@ namespace Dynamix {
         return m_songManager.deleteMasterEvent(eventName);
     }
 
-    bool AudioController::createNewMasterDirectory(const std::string& directoryName) {
+    std::string AudioController::getRootDirectory() const {
         if (m_currentDirectory.empty()) {
-            LOG_ERROR_COMP("AudioController", "No current directory set");
+            return "";
+        }
+        
+        // Get the parent directory of the current project directory
+        std::filesystem::path currentPath(m_currentDirectory);
+        if (currentPath.has_parent_path()) {
+            return currentPath.parent_path().string();
+        }
+        
+        return m_currentDirectory; // Fallback if no parent
+    }
+
+    bool AudioController::createNewMasterDirectory(const std::string& directoryName) {
+        std::string rootDir = getRootDirectory();
+        if (rootDir.empty()) {
+            LOG_ERROR_COMP("AudioController", "No root directory available");
             return false;
         }
 
-        std::filesystem::path newDirPath =
-            std::filesystem::path(m_currentDirectory) / directoryName;
+        std::filesystem::path newDirPath = std::filesystem::path(rootDir) / directoryName;
 
         try {
             if (std::filesystem::exists(newDirPath)) {
@@ -708,8 +722,8 @@ namespace Dynamix {
                 return false;
             }
 
-            // Create empty song JSON file
-            std::filesystem::path songJsonPath = songDirPath / (songName + ".json");
+            // Create empty song JSON file with correct name
+            std::filesystem::path songJsonPath = songDirPath / "_song.json";
             std::ofstream songFile(songJsonPath);
             if (!songFile.is_open()) {
                 LOG_ERROR_COMP("AudioController",

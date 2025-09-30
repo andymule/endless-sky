@@ -38,7 +38,11 @@ void dynamix_triggerEvent(const char* eventName);
  */
 void dynamix_loadSongsFromDirectory(const char* directory);
 
-// TODO loadAndPlaySong()
+/**
+ * Load and switch to a specific song by name
+ * @param songName Name of the song folder to load and play
+ */
+void dynamix_loadAndPlaySong(const char* songName);
 
 #ifdef __cplusplus
 }

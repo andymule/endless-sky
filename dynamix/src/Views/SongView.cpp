@@ -24,9 +24,6 @@ namespace Dynamix {
             if (m_showNewSongDialog) {
                 RenderNewSongDialog();
             }
-            if (m_showOggFileDialog) {
-                RenderOggFileDialog();
-            }
         }
 
         void SongView::RenderTrackControls() {
@@ -406,6 +403,13 @@ namespace Dynamix {
             return clicked;
         }
 
+        void SongView::ShowOggFileDialog() {
+            // Forward to MainView's FileBrowser via callback
+            if (m_oggFileDialogCallback) {
+                m_oggFileDialogCallback();
+            }
+        }
+
         void SongView::RenderNewSongDialog() {
             ImGui::OpenPopup("Create New Song");
             if (ImGui::BeginPopupModal("Create New Song", nullptr,
@@ -415,7 +419,15 @@ namespace Dynamix {
 
                 if (ImGui::Button("Create")) {
                     if (strlen(m_newSongName) > 0) {
-                        m_controller->createNewSong();
+                        // Use the custom name instead of auto-generated one
+                        bool success = m_controller->createNewSongFolder(std::string(m_newSongName));
+                        if (success) {
+                            // Reload the current directory to refresh song list
+                            m_controller->loadMusicFromDirectory();
+                            
+                            // Auto-switch to the newly created song
+                            m_controller->setCurrentSong(std::string(m_newSongName));
+                        }
                         m_showNewSongDialog = false;
                         std::fill(std::begin(m_newSongName), std::end(m_newSongName), 0);
                     }
@@ -430,69 +442,6 @@ namespace Dynamix {
             }
         }
 
-        void SongView::RenderOggFileDialog() {
-            ImGui::OpenPopup("Add .ogg File");
-            if (ImGui::BeginPopupModal("Add .ogg File", nullptr,
-                                       ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text("Select an .ogg file to add to the current song:");
-
-                // Simple file selection (in a real implementation, you'd want a proper file
-                // browser)
-                static char filePath[512] = "";
-                ImGui::InputText("File path", filePath, sizeof(filePath));
-
-                if (ImGui::Button("Add File")) {
-                    if (strlen(filePath) > 0) {
-                        std::string currentSong = m_controller->getCurrentSong();
-                        if (!currentSong.empty()) {
-                            CopyOggFileToSong(filePath, currentSong);
-                        }
-                        m_showOggFileDialog = false;
-                        std::fill(std::begin(filePath), std::end(filePath), 0);
-                    }
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Cancel")) {
-                    m_showOggFileDialog = false;
-                    std::fill(std::begin(filePath), std::end(filePath), 0);
-                }
-
-                ImGui::EndPopup();
-            }
-        }
-
-        bool SongView::CopyOggFileToSong(const std::string& sourcePath,
-                                         const std::string& songName) {
-            try {
-                std::filesystem::path sourceFilePath(sourcePath);
-                if (!std::filesystem::exists(sourceFilePath)) {
-                    LOG_ERROR_COMP("SongView", "Source file does not exist: " + sourcePath);
-                    return false;
-                }
-
-                // Get the song folder path
-                std::filesystem::path songFolderPath = m_controller->getCurrentSongFolderPath();
-                if (songFolderPath.empty()) {
-                    LOG_ERROR_COMP("SongView", "No song folder found for: " + songName);
-                    return false;
-                }
-
-                // Copy the file to the song folder
-                std::filesystem::path destPath = songFolderPath / sourceFilePath.filename();
-                std::filesystem::copy_file(sourceFilePath, destPath,
-                                           std::filesystem::copy_options::overwrite_existing);
-
-                // Add the track to the current song
-                std::string filename = sourceFilePath.filename().string();
-                m_controller->addTrackToCurrentEvent(filename);
-
-                LOG_INFO_COMP("SongView", "Added track to song: " + filename);
-                return true;
-            } catch (const std::exception& e) {
-                LOG_ERROR_COMP("SongView", "Error copying file: " + std::string(e.what()));
-                return false;
-            }
-        }
 
     } // namespace Views
 } // namespace Dynamix

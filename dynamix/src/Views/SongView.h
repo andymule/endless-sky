@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -21,7 +22,10 @@ namespace Dynamix {
 
             // Dialog control methods
             void ShowNewSongDialog() { m_showNewSongDialog = true; }
-            void ShowOggFileDialog() { m_showOggFileDialog = true; }
+            void ShowOggFileDialog(); // Forward to MainView's FileBrowser
+            
+            // Callback for OGG file dialog
+            void SetOggFileDialogCallback(std::function<void()> callback) { m_oggFileDialogCallback = callback; }
 
         private:
             void RenderTrackControls();
@@ -29,17 +33,17 @@ namespace Dynamix {
             bool RenderDeleteButton(const std::string& eventId, const char* eventName);
             bool RenderSaveButton(const std::string& eventId, const char* eventName);
             void RenderNewSongDialog();
-            void RenderOggFileDialog();
-            bool CopyOggFileToSong(const std::string& sourcePath, const std::string& songName);
 
             Dynamix::AudioController* m_controller;
 
             // Dialog state
             bool m_showNewSongDialog = false;
-            bool m_showOggFileDialog = false;
 
             // Dialog input state
             char m_newSongName[256] = "";
+            
+            // Callback for OGG file dialog
+            std::function<void()> m_oggFileDialogCallback;
         };
 
     } // namespace Views
