@@ -1263,7 +1263,7 @@ void MainView::RenderMenuBar() {
 
         // Console toggle button in place of refresh button
         ImGui::SameLine();
-        if (ImGui::Button("…")) {
+        if (ImGui::Button("...")) {
             m_consoleLog.Toggle();
         }
         if (ImGui::IsItemHovered()) {
