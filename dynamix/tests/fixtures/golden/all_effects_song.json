@@ -1,0 +1,70 @@
+{
+  "events": [
+    {
+      "name": "AllEffects",
+      "fadeTime": 2.0,
+      "state": {
+        "masterTempo": 1.0,
+        "granularTempo": 1.0,
+        "tracks": [
+          {
+            "file": "track1.ogg",
+            "volume": 0.8,
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 0.5,
+                  "1": 0.3,
+                  "2": 0.4
+                }
+              },
+              "freeverb": {
+                "parameters": {
+                  "0": 0.3,
+                  "2": 0.6,
+                  "3": 0.5,
+                  "4": 0.8
+                }
+              },
+              "lofi": {
+                "parameters": {
+                  "0": 0.2,
+                  "1": 8000,
+                  "2": 8
+                }
+              },
+              "flanger": {
+                "parameters": {
+                  "0": 0.4,
+                  "1": 0.003,
+                  "2": 1.5
+                }
+              },
+              "waveshaper": {
+                "parameters": {
+                  "0": 0.3,
+                  "1": 0.2
+                }
+              },
+              "robotize": {
+                "parameters": {
+                  "0": 0.2,
+                  "1": 3.0,
+                  "2": 0
+                }
+              },
+              "biquad": {
+                "parameters": {
+                  "0": 0.5,
+                  "1": 0,
+                  "2": 2000,
+                  "3": 1.5
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

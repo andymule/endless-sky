@@ -1,0 +1,26 @@
+{
+  "events": [
+    {
+      "name": "BadParams",
+      "fadeTime": -5.0,
+      "state": {
+        "masterTempo": 100.0,
+        "granularTempo": -1.0,
+        "tracks": [
+          {
+            "file": "track1.ogg",
+            "volume": 999.0,
+            "effects": {
+              "echo": {
+                "parameters": {
+                  "0": 50.0,
+                  "1": -1.0
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

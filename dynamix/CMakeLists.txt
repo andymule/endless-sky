@@ -539,6 +539,17 @@ endif()
 
 # The OAML-related definition has been removed 
 
+# ============================================================================
+# Test Suite (optional)
+# ============================================================================
+option(BUILD_TESTS "Build the test suite" OFF)
+
+if(BUILD_TESTS)
+    message(STATUS "Building test suite")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 add_custom_target(static_build ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/static_build"
     COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:dynamix>" "${CMAKE_SOURCE_DIR}/static_build/"

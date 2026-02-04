@@ -1,0 +1,19 @@
+{
+  "events": [
+    {
+      "name": "Default",
+      "fadeTime": 1.0,
+      "state": {
+        "masterTempo": 1.0,
+        "granularTempo": 1.0,
+        "tracks": [
+          {
+            "file": "track1.ogg",
+            "volume": 1.0,
+            "effects": {}
+          }
+        ]
+      }
+    }
+  ]
+}
