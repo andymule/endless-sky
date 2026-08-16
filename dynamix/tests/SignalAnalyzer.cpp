@@ -14,9 +14,33 @@
 
 namespace DynamixTest {
 
+namespace {
+// calculateSpectrum evaluates bin k at k/numBins cycles per sample, so the bins
+// span the whole sample rate and everything above numBins/2 is a mirror image.
+size_t frequencyToBin(float frequency, int sampleRate, size_t numBins) {
+    const float binWidth = static_cast<float>(sampleRate) / static_cast<float>(numBins);
+    return static_cast<size_t>(frequency / binWidth + 0.5f);
+}
+} // namespace
+
 // ============================================================================
 // Basic Measurements
 // ============================================================================
+
+std::vector<float> SignalAnalyzer::extractChannel(const std::vector<float>& interleaved,
+                                                  int channels, int channel) {
+    if (channels <= 0 || channel < 0 || channel >= channels) {
+        return {};
+    }
+
+    const size_t stride = static_cast<size_t>(channels);
+    std::vector<float> mono;
+    mono.reserve(interleaved.size() / stride);
+    for (size_t i = static_cast<size_t>(channel); i < interleaved.size(); i += stride) {
+        mono.push_back(interleaved[i]);
+    }
+    return mono;
+}
 
 float SignalAnalyzer::calculateRMS(const std::vector<float>& samples) {
     if (samples.empty()) {
@@ -93,26 +117,46 @@ float SignalAnalyzer::findDominantFrequency(const std::vector<float>& samples, i
         autocorr[lag - minLag] = sum / static_cast<double>(count);
     }
 
-    // Find first significant peak after zero crossing
-    size_t peakLag = minLag;
-    double peakValue = autocorr[0];
+    // Autocorrelation peaks at every multiple of the period, so take the first
+    // peak after the initial zero crossing. Taking the global maximum instead
+    // picks an arbitrary multiple of the period and reports a subharmonic.
+    size_t peakIndex = 0;
     bool foundZeroCrossing = false;
 
-    for (size_t i = 1; i < autocorr.size(); ++i) {
-        if (!foundZeroCrossing && autocorr[i] < 0) {
-            foundZeroCrossing = true;
+    for (size_t i = 1; i + 1 < autocorr.size(); ++i) {
+        if (!foundZeroCrossing) {
+            if (autocorr[i] < 0.0) {
+                foundZeroCrossing = true;
+            }
+            continue;
         }
-        if (foundZeroCrossing && autocorr[i] > peakValue) {
-            peakValue = autocorr[i];
-            peakLag = i + minLag;
+        if (autocorr[i] > autocorr[i - 1] && autocorr[i] >= autocorr[i + 1]) {
+            peakIndex = i;
+            break;
         }
     }
 
-    if (peakLag <= minLag) {
+    if (peakIndex == 0) {
         return 0.0f;
     }
 
-    return static_cast<float>(sampleRate) / static_cast<float>(peakLag);
+    // Parabolic interpolation around the peak, so the resolution isn't limited
+    // to whole-sample lags (at 44.1kHz that is ~4Hz of error near 440Hz).
+    const double prev = autocorr[peakIndex - 1];
+    const double curr = autocorr[peakIndex];
+    const double next = autocorr[peakIndex + 1];
+    const double denom = 2.0 * (prev - 2.0 * curr + next);
+
+    double peakLag = static_cast<double>(peakIndex + minLag);
+    if (std::abs(denom) > 1e-12) {
+        peakLag += (prev - next) / denom;
+    }
+
+    if (peakLag <= 0.0) {
+        return 0.0f;
+    }
+
+    return static_cast<float>(static_cast<double>(sampleRate) / peakLag);
 }
 
 std::vector<float> SignalAnalyzer::calculateSpectrum(const std::vector<float>& samples,
@@ -156,11 +200,8 @@ bool SignalAnalyzer::hasFrequencyPeak(const std::vector<float>& spectrum, float 
         return false;
     }
 
-    // Convert frequency to bin index
-    float binWidth = static_cast<float>(sampleRate) / (2.0f * static_cast<float>(spectrum.size()));
-    size_t targetBin = static_cast<size_t>(targetFreq / binWidth);
-
-    if (targetBin >= spectrum.size()) {
+    const size_t targetBin = frequencyToBin(targetFreq, sampleRate, spectrum.size());
+    if (targetBin >= spectrum.size() / 2) {
         return false;
     }
 
@@ -185,10 +226,9 @@ float SignalAnalyzer::measureHighFrequencyRatio(const std::vector<float>& sample
         return 0.0f;
     }
 
-    float binWidth = static_cast<float>(sampleRate) / (2.0f * 256.0f);
-    size_t cutoffBin = static_cast<size_t>(cutoffHz / binWidth);
-
-    if (cutoffBin >= spectrum.size()) {
+    const size_t nyquistBin = spectrum.size() / 2;
+    const size_t cutoffBin = frequencyToBin(cutoffHz, sampleRate, spectrum.size());
+    if (cutoffBin >= nyquistBin) {
         return 0.0f;
     }
 
@@ -199,7 +239,7 @@ float SignalAnalyzer::measureHighFrequencyRatio(const std::vector<float>& sample
         lowEnergy += spectrum[i] * spectrum[i];
     }
 
-    for (size_t i = cutoffBin; i < spectrum.size(); ++i) {
+    for (size_t i = cutoffBin; i < nyquistBin; ++i) {
         highEnergy += spectrum[i] * spectrum[i];
     }
 
@@ -400,34 +440,41 @@ bool SignalAnalyzer::hasDistortion(const std::vector<float>& dry, const std::vec
 
 float SignalAnalyzer::measureTHD(const std::vector<float>& samples, float fundamentalFreq,
                                  int sampleRate) {
-    auto spectrum = calculateSpectrum(samples, 512);
+    constexpr size_t kNumBins = 512;
+    auto spectrum = calculateSpectrum(samples, kNumBins);
     if (spectrum.empty()) {
         return 0.0f;
     }
 
-    float binWidth = static_cast<float>(sampleRate) / (2.0f * 512.0f);
-    size_t fundamentalBin = static_cast<size_t>(fundamentalFreq / binWidth);
+    const size_t nyquistBin = kNumBins / 2;
 
-    if (fundamentalBin >= spectrum.size()) {
-        return 0.0f;
-    }
-
-    float fundamentalPower = spectrum[fundamentalBin] * spectrum[fundamentalBin];
-    float harmonicPower = 0.0f;
-
-    // Sum power of first 5 harmonics
-    for (int h = 2; h <= 6; ++h) {
-        size_t harmonicBin = fundamentalBin * static_cast<size_t>(h);
-        if (harmonicBin < spectrum.size()) {
-            harmonicPower += spectrum[harmonicBin] * spectrum[harmonicBin];
+    // A partial that does not land exactly on a bin leaks into its neighbours,
+    // so measure each one over a small window rather than a single bin.
+    auto partialPower = [&](int harmonic) {
+        const size_t center =
+            frequencyToBin(fundamentalFreq * static_cast<float>(harmonic), sampleRate, kNumBins);
+        if (center == 0 || center >= nyquistBin) {
+            return 0.0f;
         }
-    }
 
+        float power = 0.0f;
+        for (size_t bin = center - 1; bin <= std::min(center + 1, nyquistBin - 1); ++bin) {
+            power += spectrum[bin] * spectrum[bin];
+        }
+        return power;
+    };
+
+    const float fundamentalPower = partialPower(1);
     if (fundamentalPower <= 0.0f) {
         return 0.0f;
     }
 
-    return 100.0f * std::sqrt(harmonicPower) / std::sqrt(fundamentalPower);
+    float harmonicPower = 0.0f;
+    for (int h = 2; h <= 6; ++h) {
+        harmonicPower += partialPower(h);
+    }
+
+    return 100.0f * std::sqrt(harmonicPower / fundamentalPower);
 }
 
 bool SignalAnalyzer::hasFrequencyShift(const std::vector<float>& dry, const std::vector<float>& wet,
@@ -530,9 +577,12 @@ std::vector<size_t> SignalAnalyzer::findPeakPositions(const std::vector<float>& 
         return peaks;
     }
 
+    // Rising-or-equal then falling, so that a plateau counts once instead of
+    // not at all: in an interleaved buffer one impulse occupies as many equal
+    // adjacent samples as there are channels.
     for (size_t i = 1; i < samples.size() - 1; ++i) {
         float val = std::abs(samples[i]);
-        if (val >= threshold && val > std::abs(samples[i - 1]) && val > std::abs(samples[i + 1])) {
+        if (val >= threshold && val >= std::abs(samples[i - 1]) && val > std::abs(samples[i + 1])) {
             peaks.push_back(i);
         }
     }

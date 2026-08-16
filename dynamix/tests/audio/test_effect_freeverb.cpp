@@ -31,20 +31,30 @@ TEST_CASE("Freeverb effect produces reverb tail", "[audio][freeverb]") {
     }
 
     SECTION("Reverb produces sustained tail") {
+        const size_t lastHalfSamples =
+            static_cast<size_t>(0.5f * static_cast<float>(harness.getSampleRate() *
+                                                          harness.getChannels()));
+        auto tailRMS = [&](const std::vector<float>& audio) {
+            return SignalAnalyzer::calculateRMS(
+                std::vector<float>(audio.end() - lastHalfSamples, audio.end()));
+        };
+
+        // Measure the dry tail first: a single impulse spread over 500ms is
+        // quiet in absolute terms, so compare against dry instead of a
+        // hand-picked level.
+        const float dryTail = tailRMS(harness.processSeconds(2.0f));
+
+        harness.clearAllTracks();
+        trackIdx = harness.loadTrackFromMemory(impulse, impulse.size() / 2);
+        harness.playAllTracks();
         harness.setFilterParameter(static_cast<size_t>(trackIdx), "freeverb", 0, 1.0f);  // wet
         harness.setFilterParameter(static_cast<size_t>(trackIdx), "freeverb", 2, 0.9f);  // large room
         harness.setFilterParameter(static_cast<size_t>(trackIdx), "freeverb", 3, 0.3f);  // low damp
 
-        auto wet = harness.processSeconds(2.0f);
+        const float wetTail = tailRMS(harness.processSeconds(2.0f));
 
-        // Calculate RMS in last 500ms - should have reverb tail
-        size_t lastHalfSamples = static_cast<size_t>(0.5f * harness.getSampleRate() * 2);
-        std::vector<float> lastHalf(wet.end() - lastHalfSamples, wet.end());
-        float tailRMS = SignalAnalyzer::calculateRMS(lastHalf);
-
-        // With reverb, tail should have noticeable energy
-        // Note: Exact threshold depends on reverb implementation
-        REQUIRE(tailRMS > 0.001f);
+        REQUIRE(wetTail > 0.0001f);
+        REQUIRE(wetTail > dryTail * 10.0f);
     }
 }
 

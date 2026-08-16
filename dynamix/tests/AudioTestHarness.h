@@ -26,6 +26,7 @@ namespace SoLoud {
 class Soloud;
 class Wav;
 class Bus;
+class Filter;
 } // namespace SoLoud
 
 namespace Dynamix {
@@ -128,6 +129,11 @@ public:
 
     /**
      * Set a filter parameter on a track
+     *
+     * The filter is created and attached to the track on first use. Because a
+     * SoLoud voice only picks up filters when it starts, attaching a filter to
+     * an already playing track restarts that track from the beginning.
+     *
      * @param trackIndex Track index
      * @param filterName Filter name (e.g., "echo", "freeverb")
      * @param paramId Parameter ID (0 = wet level for most filters)
@@ -143,6 +149,9 @@ public:
 
     /**
      * Set a filter parameter on the master bus
+     *
+     * Attaching the first bus filter restarts the bus voice, which also
+     * restarts the tracks playing through it, so playback positions reset.
      */
     void setBusFilterParameter(const std::string& filterName, int paramId, float value);
 
@@ -224,13 +233,26 @@ private:
     int m_channels;
     int m_bufferSize;
     bool m_initialized = false;
+    float m_busVolume = 1.0f;
 
-    // Internal filter tracking per track
-    struct TrackFilterState {
-        std::map<std::string, std::map<int, float>> parameters;
+    // A live SoLoud filter plus the parameter values set on it. The slot is the
+    // filter slot it occupies on its audio source.
+    struct FilterInstance {
+        std::unique_ptr<SoLoud::Filter> filter;
+        int slot = -1;
+        bool attached = false;
+        std::map<int, float> parameters;
     };
-    std::vector<TrackFilterState> m_trackFilters;
-    TrackFilterState m_busFilters;
+    struct FilterSet {
+        std::map<std::string, FilterInstance> filters;
+    };
+    std::vector<FilterSet> m_trackFilters;
+    FilterSet m_busFilters;
+
+    FilterInstance* ensureFilter(FilterSet& set, const std::string& filterName);
+    std::vector<float> buildParameterValues(const std::string& filterName,
+                                            const std::map<int, float>& values) const;
+    void pushParametersToVoice(const FilterSet& set, unsigned int voiceHandle) const;
 };
 
 /**

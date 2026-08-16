@@ -41,6 +41,9 @@ namespace Dynamix {
                               float value) const;
         bool isValidParameter(const std::string& filterName, int paramId, float value) const;
 
+        // Accepts integer IDs ("0") or parameter names ("wet", "bitdepth"), case-insensitive.
+        int resolveParameterId(const std::string& filterName, const std::string& key) const;
+
         // Parameter info
         float getParameterMin(const std::string& filterName, const std::string& paramName) const;
         float getParameterMax(const std::string& filterName, const std::string& paramName) const;

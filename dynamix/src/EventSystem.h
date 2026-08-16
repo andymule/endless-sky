@@ -49,6 +49,7 @@ namespace Dynamix {
         // Helper methods
         void startSongTransition(const StateSnapshot& target, float fadeTime);
         void startMasterTransition(const MasterBusState& target, float fadeTime);
+        void completeTransition();
         void lerpStates(float t);
         void applyStateSnapshot(const StateSnapshot& state);
         void applyMasterBusState(const MasterBusState& state);

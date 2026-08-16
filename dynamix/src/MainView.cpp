@@ -135,24 +135,27 @@ void MainView::DiscoverAvailableProjects() {
         // Sort projects alphabetically
         std::sort(m_availableProjects.begin(), m_availableProjects.end());
 
-        // Update current project based on current directory
+        // Prefer a child project folder (e.g. project1). A leftover _master.json in
+        // Music/Dynamix itself must not lock us onto the library root.
         std::string currentDir = m_controller->getCurrentDirectory();
+        std::string currentName;
         if (!currentDir.empty()) {
-            std::filesystem::path currentPath(currentDir);
-            std::string currentProjectName = currentPath.filename().string();
-
-            // Check if current directory is a project
-            std::filesystem::path masterJsonPath = currentPath / "_master.json";
-            if (std::filesystem::exists(masterJsonPath)) {
-                m_currentProject = currentProjectName;
-            }
+            currentName = std::filesystem::path(currentDir).filename().string();
         }
+        const bool currentIsListedProject =
+            !currentName.empty() &&
+            std::find(m_availableProjects.begin(), m_availableProjects.end(), currentName) !=
+                m_availableProjects.end();
 
-        // Set current project if not set
-        if (m_currentProject.empty() && !m_availableProjects.empty()) {
+        if (currentIsListedProject) {
+            m_currentProject = currentName;
+        } else if (!m_availableProjects.empty() &&
+                   (m_currentProject.empty() ||
+                    std::find(m_availableProjects.begin(), m_availableProjects.end(),
+                              m_currentProject) == m_availableProjects.end())) {
             m_currentProject = m_availableProjects[0];
-            // Auto-load the first project
-            std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
+            std::string projectPath =
+                (std::filesystem::path(m_defaultDirectory) / m_currentProject).string();
             m_controller->setMusicDirectory(projectPath);
 
             // Auto-select the first song in the project
@@ -192,13 +195,13 @@ bool MainView::Initialize(SDL_Window* window, SDL_GLContext glContext) {
 
     // Setup Platform/Renderer backends
     if (!ImGui_ImplSDL2_InitForOpenGL(window, glContext)) {
-        LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui SDL2 backend");
+        LOG_ERROR_COMP("MainView", "Failed to initialize ImGui SDL2 backend");
         return false;
     }
 
     const char* glsl_version = "#version 150";
     if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
-        LOG_ERROR_COMP("TesterView", "Failed to initialize ImGui OpenGL3 backend");
+        LOG_ERROR_COMP("MainView", "Failed to initialize ImGui OpenGL3 backend");
         return false;
     }
 
@@ -572,7 +575,7 @@ void MainView::RenderMasterEvents() {
                     ImGui::Text("Master Event: %s", event.name.c_str());
                     ImGui::Text("Fade Time: %.1f seconds", event.fadeTime);
                     ImGui::Text("Master Tempo: %.2fx", event.state.masterTempo);
-                    ImGui::Text("Granular Tempo: %.2fx", event.state.granularTempo);
+                    ImGui::Text("Grain Tempo: %.2fx", event.state.granularTempo);
                     ImGui::Text("Volume: %.2f", event.state.volume);
                     ImGui::Text("Effects: %d", static_cast<int>(event.state.effects.size()));
                     if (isLastTriggered) {
@@ -681,7 +684,7 @@ void MainView::RenderSongEvents() {
                                 ImGui::Text("Event: %s", event.name.c_str());
                                 ImGui::Text("Fade Time: %.1f seconds", event.fadeTime);
                                 ImGui::Text("Master Tempo: %.2fx", event.state.masterTempo);
-                                ImGui::Text("Granular Tempo: %.2fx", event.state.granularTempo);
+                                ImGui::Text("Grain Tempo: %.2fx", event.state.granularTempo);
                                 ImGui::Text("Tracks: %d",
                                             static_cast<int>(event.state.tracks.size()));
 
@@ -772,13 +775,13 @@ void MainView::ShowCreateEventDialog() {
             const auto& state = m_controller->getState();
             if (m_eventCreationType == EventCreationType::MASTER) {
                 ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
-                ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
+                ImGui::Text("Grain Tempo: %.2fx", m_controller->getGranularTempo());
                 ImGui::Text("Bus Volume: %.2f", state.busVolume);
                 ImGui::Text("Bus Effects: (will be captured)");
             } else {
                 ImGui::Text("Tracks: %d", static_cast<int>(state.getTrackCount()));
                 ImGui::Text("Master Tempo: %.2fx", m_controller->getMasterTempo());
-                ImGui::Text("Granular Tempo: %.2fx", m_controller->getGranularTempo());
+                ImGui::Text("Grain Tempo: %.2fx", m_controller->getGranularTempo());
                 ImGui::Text("Track Effects: (will be captured)");
             }
         }
@@ -1050,7 +1053,8 @@ void MainView::RenderNewMasterDialog() {
                     
                     // Auto-switch to the newly created project
                     m_currentProject = m_newMasterName;
-                    std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
+                    std::string projectPath =
+                        (std::filesystem::path(m_defaultDirectory) / m_currentProject).string();
                     m_controller->setMusicDirectory(projectPath);
                     
                     ImGui::CloseCurrentPopup();
@@ -1182,8 +1186,8 @@ void MainView::RenderMenuBar() {
                 bool isSelected = (project == m_currentProject);
                 if (ImGui::Selectable(("📁 " + project).c_str(), isSelected)) {
                     m_currentProject = project;
-                    // Load the project directory
-                    std::string projectPath = m_defaultDirectory + "/" + project;
+                    std::string projectPath =
+                        (std::filesystem::path(m_defaultDirectory) / project).string();
                     m_controller->setMusicDirectory(projectPath);
 
                     // Auto-select the first song in the new project
@@ -1215,10 +1219,6 @@ void MainView::RenderMenuBar() {
         std::string currentSong = m_controller->getCurrentSong();
         std::string songDisplayText = currentSong.empty() ? "No Song" : currentSong;
         if (ImGui::BeginCombo("##song_menu", songDisplayText.c_str())) {
-            // Auto-refresh song list when opening combo (reload directory)
-            if (m_controller && !m_controller->getCurrentDirectory().empty()) {
-                m_controller->loadMusicFromDirectory();
-            }
             const auto* songManager = m_controller->getSongManager();
             if (songManager) {
                 const auto& songs = songManager->getSongs();
@@ -1308,36 +1308,50 @@ void MainView::ClearLastTriggeredEvents() {
 }
 
 void MainView::onDirectorySelected(const std::filesystem::path& path) {
-    // Handle directory selection for the main file browser
-    std::string selectedPath = path.string();
-    strncpy(m_dirInput, selectedPath.c_str(), DIR_INPUT_SIZE);
-    m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
-    
-    // Set the root directory (where projects are stored)
-    m_defaultDirectory = selectedPath;
-    
-    // Clear current project state since we're changing root
-    m_currentProject = "";
-    m_availableProjects.clear();
-    
-    // Discover projects in the new root directory
-    DiscoverAvailableProjects();
-    
-    // If projects were found, auto-load the first one
-    if (!m_availableProjects.empty()) {
-        m_currentProject = m_availableProjects[0];
-        std::string projectPath = m_defaultDirectory + "/" + m_currentProject;
-        m_controller->setMusicDirectory(projectPath);
-        
-        // Auto-select the first song in the new project
-        const auto* songManager = m_controller->getSongManager();
-        if (songManager) {
-            const auto& songs = songManager->getSongs();
-            if (!songs.empty()) {
-                std::string folderName = songs[0].folderPath.filename().string();
-                m_controller->setCurrentSong(folderName);
-                ClearLastTriggeredEvents();
+    std::filesystem::path selected = path;
+    if (std::filesystem::is_regular_file(selected)) {
+        selected = selected.parent_path();
+    }
+
+    auto hasMasterJson = [](const std::filesystem::path& dir) {
+        return std::filesystem::exists(dir / "_master.json");
+    };
+    auto hasChildProjects = [&](const std::filesystem::path& dir) {
+        if (!std::filesystem::is_directory(dir)) {
+            return false;
+        }
+        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+            if (entry.is_directory() && hasMasterJson(entry.path())) {
+                return true;
             }
+        }
+        return false;
+    };
+
+    strncpy(m_dirInput, selected.string().c_str(), DIR_INPUT_SIZE);
+    m_dirInput[DIR_INPUT_SIZE - 1] = '\0';
+
+    // Selecting a project folder (has _master.json, no nested projects) loads that project.
+    // Selecting a library folder (Music/Dynamix) discovers child projects.
+    if (hasMasterJson(selected) && !hasChildProjects(selected)) {
+        m_defaultDirectory = selected.parent_path().string();
+        m_currentProject = selected.filename().string();
+        m_availableProjects.clear();
+        DiscoverAvailableProjects();
+        m_controller->setMusicDirectory(selected.string());
+    } else {
+        m_defaultDirectory = selected.string();
+        m_currentProject = "";
+        m_availableProjects.clear();
+        DiscoverAvailableProjects();
+    }
+
+    const auto* songManager = m_controller->getSongManager();
+    if (songManager) {
+        const auto& songs = songManager->getSongs();
+        if (!songs.empty()) {
+            m_controller->setCurrentSong(songs[0].folderPath.filename().string());
+            ClearLastTriggeredEvents();
         }
     }
 }

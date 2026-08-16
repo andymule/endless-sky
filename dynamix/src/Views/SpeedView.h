@@ -22,8 +22,9 @@ namespace Dynamix {
 
             Dynamix::AudioController* m_controller;
 
-            // Local UI state for tempo control to avoid ImGui slider issues
+            // Local UI state so sliders don't fight event lerping while dragging
             float m_masterTempoUI = 1.0f;
+            float m_granularTempoUI = 1.0f;
         };
 
     } // namespace Views

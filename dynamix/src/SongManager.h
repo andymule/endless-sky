@@ -56,15 +56,18 @@ namespace Dynamix {
     private:
         std::vector<Song> m_songs;
         MasterBus m_masterBus;
+        std::filesystem::path m_loadedDirectory;
         
         // JSON validation
         JsonValidator m_jsonValidator;
+        FilterManager m_filterManager;
         ConsoleLog* m_consoleLog = nullptr;
 
         // JSON parsing helpers
         bool parseStateSnapshot(const nlohmann::json& json, StateSnapshot& state);
         bool parseMasterBusState(const nlohmann::json& json, MasterBusState& state);
-        bool parseEffectState(const nlohmann::json& json, EffectState& effect);
+        bool parseEffectState(const nlohmann::json& json, EffectState& effect,
+                              const std::string& effectName);
         bool parseTrackState(const nlohmann::json& json, TrackStateExtended& track);
 
         // Validation

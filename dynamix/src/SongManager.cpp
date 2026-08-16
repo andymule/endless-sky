@@ -13,6 +13,7 @@ namespace Dynamix {
 
         try {
             std::filesystem::path dirPath(directory);
+            m_loadedDirectory = dirPath;
 
             if (!std::filesystem::exists(dirPath)) {
                 logError("Directory does not exist: " + directory);
@@ -31,7 +32,8 @@ namespace Dynamix {
                     auto songFolder = entry.path();
                     auto songJsonPath = songFolder / "_song.json";
 
-                    if (std::filesystem::exists(songJsonPath)) {
+                    if (std::filesystem::exists(songJsonPath) &&
+                        !std::filesystem::exists(songFolder / "_master.json")) {
                         logInfo("Found song folder: " + songFolder.filename().string());
                         loadSong(songFolder);
                     }
@@ -61,19 +63,15 @@ namespace Dynamix {
 
             // Use comprehensive JSON validation
             auto validationResult = m_jsonValidator.validateSongJson(json, songFolder);
-            if (!validationResult.isValid) {
+            if (!validationResult.errors.empty() || !validationResult.warnings.empty()) {
+                logError(validationResult.getErrorSummary());
+                if (m_consoleLog) {
+                    m_consoleLog->LogValidationResult(validationResult, "Song JSON (" + songFolder.filename().string() + ")");
+                }
+            }
+            if (!json.is_object()) {
                 logError("Invalid song JSON: " + jsonPath.string());
-                
-                // Report detailed validation errors to console
-                if (m_consoleLog) {
-                    m_consoleLog->LogValidationResult(validationResult, "Song JSON (" + songFolder.filename().string() + ")");
-                }
                 return false;
-            } else if (!validationResult.warnings.empty()) {
-                // Report warnings to console even if validation passed
-                if (m_consoleLog) {
-                    m_consoleLog->LogValidationResult(validationResult, "Song JSON (" + songFolder.filename().string() + ")");
-                }
             }
 
             Song song;
@@ -82,13 +80,12 @@ namespace Dynamix {
             // Discover tracks in the folder (this is the source of truth)
             auto trackFiles = discoverTracks(songFolder);
             if (trackFiles.empty()) {
-                logError("No audio tracks found in: " + songFolder.string());
-                return false;
+                logInfo("No audio tracks yet in: " + songFolder.string());
             }
 
             // Parse events and ensure all folder tracks are included and all event tracks exist in
             // folder
-            if (json.contains("events") && json["events"].is_array()) {
+            if (json.contains("events") && json["events"].is_array() && !json["events"].empty()) {
                 for (const auto& eventJson : json["events"]) {
                     SongEvent event;
                     event.name = eventJson.value("name", "Unnamed Event");
@@ -101,7 +98,6 @@ namespace Dynamix {
                         }
                     }
 
-                    // Remove tracks from event that do not exist in the folder
                     event.state.tracks.erase(
                         std::remove_if(event.state.tracks.begin(), event.state.tracks.end(),
                                        [&trackFiles](const TrackStateExtended& track) {
@@ -110,9 +106,7 @@ namespace Dynamix {
                                        }),
                         event.state.tracks.end());
 
-                    // Ensure all tracks from the folder are included in this event
                     for (const auto& trackFile : trackFiles) {
-                        // Check if this track is already in the event
                         bool trackExists = false;
                         for (const auto& existingTrack : event.state.tracks) {
                             if (existingTrack.file == trackFile) {
@@ -120,11 +114,10 @@ namespace Dynamix {
                                 break;
                             }
                         }
-                        // If track is not in the event, add it with default settings
                         if (!trackExists) {
                             TrackStateExtended newTrack;
                             newTrack.file = trackFile;
-                            newTrack.volume = 0.0f; // Default to muted
+                            newTrack.volume = 0.0f;
                             event.state.tracks.push_back(newTrack);
                             logInfo("Added missing track to event: " + trackFile);
                         }
@@ -132,19 +125,18 @@ namespace Dynamix {
 
                     song.events.push_back(event);
                 }
-            } else {
-                // No events in JSON, create a default event with all tracks
+            }
+
+            if (song.events.empty()) {
                 SongEvent defaultEvent;
                 defaultEvent.name = "Default";
                 defaultEvent.fadeTime = 1.0f;
-
                 for (const auto& trackFile : trackFiles) {
                     TrackStateExtended track;
                     track.file = trackFile;
                     track.volume = 1.0f;
                     defaultEvent.state.tracks.push_back(track);
                 }
-
                 song.events.push_back(defaultEvent);
                 logInfo("Created default event with " + std::to_string(trackFiles.size()) +
                         " tracks");
@@ -171,19 +163,17 @@ namespace Dynamix {
 
             // Use comprehensive JSON validation  
             auto validationResult = m_jsonValidator.validateMasterJson(json);
-            if (!validationResult.isValid) {
-                logError("Invalid master JSON: " + masterJsonPath.string());
-                
-                // Report detailed validation errors to console
+            if (!validationResult.errors.empty() || !validationResult.warnings.empty()) {
+                if (!validationResult.isValid) {
+                    logError("Master JSON issues: " + masterJsonPath.string());
+                }
+                logError(validationResult.getErrorSummary());
                 if (m_consoleLog) {
                     m_consoleLog->LogValidationResult(validationResult, "Master JSON");
                 }
+            }
+            if (!json.is_object()) {
                 return false;
-            } else if (!validationResult.warnings.empty()) {
-                // Report warnings to console even if validation passed
-                if (m_consoleLog) {
-                    m_consoleLog->LogValidationResult(validationResult, "Master JSON");
-                }
             }
 
             m_masterBus.name = json.value("name", "Master Bus");
@@ -204,6 +194,17 @@ namespace Dynamix {
 
                     m_masterBus.events.push_back(event);
                 }
+            }
+
+            if (m_masterBus.events.empty()) {
+                MasterEvent defaultEvent;
+                defaultEvent.name = "Normal";
+                defaultEvent.fadeTime = 0.0f;
+                defaultEvent.state.volume = 1.0f;
+                defaultEvent.state.masterTempo = 1.0f;
+                defaultEvent.state.granularTempo = 1.0f;
+                m_masterBus.events.push_back(defaultEvent);
+                logInfo("Created default master event");
             }
 
             logInfo("Loaded master bus: " + m_masterBus.name + " (" +
@@ -270,6 +271,7 @@ namespace Dynamix {
         m_songs.clear();
         m_masterBus.events.clear();
         m_masterBus.name.clear();
+        m_loadedDirectory.clear();
     }
 
     bool SongManager::parseStateSnapshot(const nlohmann::json& json, StateSnapshot& state) {
@@ -302,8 +304,8 @@ namespace Dynamix {
 
         try {
             // Parse master tempo settings with defaults
-            state.masterTempo = json.value("masterTempo", 1.0f);
-            state.granularTempo = json.value("granularTempo", 1.0f);
+            state.masterTempo = std::clamp(json.value("masterTempo", 1.0f), 0.1f, 4.0f);
+            state.granularTempo = std::clamp(json.value("granularTempo", 1.0f), 0.5f, 2.0f);
 
             // Parse track states if present
             if (json.contains("tracks") && json["tracks"].is_array()) {
@@ -326,18 +328,24 @@ namespace Dynamix {
 
     bool SongManager::parseMasterBusState(const nlohmann::json& json, MasterBusState& state) {
         try {
-            state.masterTempo = json.value("masterTempo", 1.0f);
-            state.granularTempo = json.value("granularTempo", 1.0f);
+            state.masterTempo = std::clamp(json.value("masterTempo", 1.0f), 0.1f, 4.0f);
+            state.granularTempo = std::clamp(json.value("granularTempo", 1.0f), 0.5f, 2.0f);
 
             if (json.contains("bus")) {
                 const auto& busJson = json["bus"];
-                state.volume = busJson.value("volume", 1.0f);
+                state.volume = std::clamp(busJson.value("volume", 1.0f),
+                                          JsonValidator::ValidationConstants::MIN_VOLUME,
+                                          JsonValidator::ValidationConstants::MAX_VOLUME);
 
                 if (busJson.contains("effects") && busJson["effects"].is_object()) {
                     state.effects.clear();
                     for (const auto& [effectName, effectJson] : busJson["effects"].items()) {
+                        if (!m_filterManager.isValidFilterName(effectName)) {
+                            logInfo("Ignoring unknown master effect: " + effectName);
+                            continue;
+                        }
                         EffectState effect;
-                        if (parseEffectState(effectJson, effect)) {
+                        if (parseEffectState(effectJson, effect, effectName)) {
                             state.effects[effectName] = effect;
                         }
                     }
@@ -351,15 +359,30 @@ namespace Dynamix {
         }
     }
 
-    bool SongManager::parseEffectState(const nlohmann::json& json, EffectState& effect) {
+    bool SongManager::parseEffectState(const nlohmann::json& json, EffectState& effect,
+                                       const std::string& effectName) {
         try {
             if (json.contains("parameters") && json["parameters"].is_object()) {
                 effect.parameters.clear();
-                for (const auto& [paramName, paramValue] : json["parameters"].items()) {
-                    if (paramValue.is_number()) {
-                        float value = paramValue.get<float>();
-                        effect.parameters[paramName] = value;
+                for (const auto& [paramKey, paramValue] : json["parameters"].items()) {
+                    if (!paramValue.is_number()) {
+                        continue;
                     }
+                    const int paramId = m_filterManager.resolveParameterId(effectName, paramKey);
+                    if (paramId < 0) {
+                        continue;
+                    }
+                    float value = paramValue.get<float>();
+                    const std::string paramName = m_filterManager.getParameterName(effectName, paramId);
+                    const float minVal = m_filterManager.getParameterMin(effectName, paramName);
+                    const float maxVal = m_filterManager.getParameterMax(effectName, paramName);
+                    if (value < minVal || value > maxVal) {
+                        logInfo("Clamping " + effectName + "." + paramName + " from " +
+                                std::to_string(value) + " to [" + std::to_string(minVal) + ", " +
+                                std::to_string(maxVal) + "]");
+                        value = std::clamp(value, minVal, maxVal);
+                    }
+                    effect.parameters[std::to_string(paramId)] = value;
                 }
             }
             return true;
@@ -372,14 +395,20 @@ namespace Dynamix {
     bool SongManager::parseTrackState(const nlohmann::json& json, TrackStateExtended& track) {
         try {
             track.file = json.value("file", "");
-            track.volume = json.value("volume", 1.0f);
+            track.volume = std::clamp(json.value("volume", 1.0f),
+                                      JsonValidator::ValidationConstants::MIN_VOLUME,
+                                      JsonValidator::ValidationConstants::MAX_VOLUME);
             // Note: active field removed - tracks are always active, use volume for enable/disable
 
             if (json.contains("effects") && json["effects"].is_object()) {
                 track.effects.clear();
                 for (const auto& [effectName, effectJson] : json["effects"].items()) {
+                    if (!m_filterManager.isValidFilterName(effectName)) {
+                        logInfo("Ignoring unknown effect: " + effectName);
+                        continue;
+                    }
                     EffectState effect;
-                    if (parseEffectState(effectJson, effect)) {
+                    if (parseEffectState(effectJson, effect, effectName)) {
                         track.effects[effectName] = effect;
                     }
                 }
@@ -705,7 +734,9 @@ namespace Dynamix {
     }
 
     std::string SongManager::getCurrentMasterDirectory() const {
-        // For now, use the parent directory of the first song
+        if (!m_loadedDirectory.empty()) {
+            return m_loadedDirectory.string();
+        }
         if (!m_songs.empty()) {
             return m_songs[0].folderPath.parent_path().string();
         }

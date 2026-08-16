@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include <mutex>
 #include <string>
 
 namespace Dynamix {
@@ -15,8 +15,14 @@ namespace Dynamix {
         }
 
         // Set the current log level
-        void setLevel(LogLevel level) { m_currentLevel = level; }
-        LogLevel getLevel() const { return m_currentLevel; }
+        void setLevel(LogLevel level) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_currentLevel = level;
+        }
+        LogLevel getLevel() const {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            return m_currentLevel;
+        }
 
         // Logging methods
         void error(const std::string& message, const std::string& component = "");
@@ -35,6 +41,7 @@ namespace Dynamix {
         std::string levelToString(LogLevel level) const;
 
         LogLevel m_currentLevel;
+        mutable std::mutex m_mutex;
     };
 
 // Convenience macros for easier usage

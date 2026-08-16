@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "AudioState.h"
+#include "AudioTestHarness.h"
 #include "SongManager.h"
 #include "TestHelpers.h"
 

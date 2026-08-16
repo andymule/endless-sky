@@ -58,8 +58,11 @@ TEST_CASE("Echo effect produces audible delay", "[audio][echo]") {
 
         auto wet = harness.processSeconds(0.5f);
 
-        // Signals should be different
-        REQUIRE(SignalAnalyzer::signalsDifferent(dry, wet, 0.01f));
+        // A lone impulse carries very little energy across half a second, so the
+        // echo has to be measured against the dry signal's own level rather than
+        // an absolute threshold.
+        const float dryRMS = SignalAnalyzer::calculateRMS(dry);
+        REQUIRE(SignalAnalyzer::calculateDifference(dry, wet) > dryRMS * 0.5f);
     }
 }
 

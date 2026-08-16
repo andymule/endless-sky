@@ -18,35 +18,11 @@ This document tracks high-priority engineering improvements based on detailed co
 - Memory allocation analysis in audio paths
 - Add audio performance monitoring
 
-### 2. **JSON Schema Validation Missing** - HIGH PRIORITY
-**Issue**: No comprehensive validation of JSON configuration files
-**Evidence**:
-- `SongManager.cpp` has basic JSON parsing but limited schema validation
-- Event system relies heavily on JSON without format validation
-- Effect parameters from JSON not validated against filter capabilities
-- Malformed JSON can cause crashes or inconsistent state
+### 2. **JSON Schema Validation Missing** - DONE
+Implemented in `JsonValidator` + in-app `ConsoleLog`. Tempo/volume values are clamped on load.
 
-**Impact**: Application crashes, data corruption, poor user experience
-**Suggested Fix**:
-- Implement JSON schema validation for `_song.json` and `_master.json`
-- Add parameter range validation for all effects
-- Graceful error recovery for invalid JSON
-- User-friendly error messages for malformed files
-
-### 3. **External API Boundary Hardening** - HIGH PRIORITY
-**Issue**: C API functions lack robust error handling and validation
-**Evidence**:
-- `music_tester_api.h` functions designed for game engine integration
-- Limited parameter validation at API boundaries
-- Insufficient error reporting to external callers
-- Potential crashes if called with invalid parameters
-
-**Impact**: Game engine integration failures, crashes in production
-**Suggested Fix**:
-- Add comprehensive parameter validation to all C API functions
-- Implement proper error codes and error reporting
-- Add null pointer checks and bounds validation
-- Create API usage documentation with error handling examples
+### 3. **External API Boundary Hardening** - DONE
+`music_tester_api.h` now returns `DynamixErrorCode`; see `API_USAGE.md`.
 
 ## 🔧 **Audio System Robustness**
 
@@ -78,20 +54,16 @@ This document tracks high-priority engineering improvements based on detailed co
 
 ## 🧪 **Testing Infrastructure for Audio Applications**
 
-### 6. **Unit Testing for Audio Processing** - HIGH PRIORITY
-**Issue**: No automated testing for complex audio algorithms
-**Evidence**:
-- No test coverage for `AudioStreamProcessor` granular synthesis
-- Event system state transitions not tested
-- Filter parameter validation not tested
-- Complex audio synchronization logic not verified
+### 6. **Unit Testing for Audio Processing** - STARTED
+Catch2 suite lives in `tests/`. On Windows: `.\run-tests.bat` (builds with `-DBUILD_TESTS=ON` and runs `[unit]`). Unit tests now create placeholder audio files so JSON loaders pass file-existence checks.
 
-**Impact**: Regressions in audio quality, broken event transitions
-**Suggested Fix**:
-- Add unit tests for audio processing algorithms
-- Test event system state transitions with mock audio data
-- Add integration tests for complete audio workflows
-- Performance regression tests for audio latency
+The audio/integration tiers run too, via `.\build\dynamix_tests.exe` (SoLoud's null driver is compiled in, so they mix audio without a device). All 77 cases pass, in natural and randomized order.
+
+`AudioTestHarness::setFilterParameter` creates filters through `FilterManager` and attaches them to the track's audio source, so the effect tests measure real DSP. Two things to know when writing effect tests:
+- A SoLoud voice only creates filter instances when it starts, so attaching a filter to an already playing track restarts that track. Attaching a bus filter restarts the bus and every track through it.
+- `SignalAnalyzer` frequency analysis treats its input as one stream: pass `extractChannel()` output, not the interleaved capture.
+
+Effect assertions are best written relative to the dry signal rather than against absolute levels. An impulse spread over half a second has tiny RMS, which is what made the earlier absolute thresholds unreachable.
 
 ### 7. **Audio Quality Validation** - MEDIUM PRIORITY
 **Issue**: No automated validation of audio output quality

@@ -6,429 +6,99 @@
             "type": "shell",
             "command": "powershell.exe",
             "args": [
+                "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}/build-windows-fast.ps1"
+                "${workspaceFolder}/build-windows.ps1",
+                "-Config",
+                "Release"
             ],
-            "windows": {
-                "command": "powershell.exe",
-                "args": [
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    "${workspaceFolder}/build-windows-fast.ps1"
-                ]
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build Dynamix (Debug - Windows)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/build-windows.ps1",
+                "-Config",
+                "Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
+            "group": "build",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build and Test (Windows)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/build-windows.ps1",
+                "-Config",
+                "Release",
+                "-Tests"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Run Dynamix (Windows)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-dynamix.bat",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
         },
         {
             "label": "Build Dynamix (Release - Unix)",
             "type": "shell",
             "command": "./build-macos.sh",
-            "osx": {
-                "command": "./build-macos.sh"
-            },
-            "linux": {
-                "command": "./build-linux.sh"
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Build Dynamix (Debug - Windows)",
-            "type": "shell",
-            "command": "cmd.exe",
-            "args": [
-                "/c",
-                "build-windows-debug.bat"
-            ],
-            "windows": {
-                "command": "cmd.exe",
-                "args": [
-                    "/c",
-                    "build-windows-debug.bat"
-                ]
-            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Build and Run (Debug - Windows)",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "Build Dynamix (Debug - Windows)",
-                "Copy DLLs (Windows)"
-            ],
-            "group": "test",
-            "presentation": {
-                "reveal": "always"
+            "problemMatcher": ["$gcc"],
+            "windows": {
+                "command": "echo",
+                "args": ["Unix build task skipped on Windows"]
             }
         },
         {
             "label": "Build Dynamix (Debug - Unix)",
             "type": "shell",
             "command": "./build-macos.sh",
-            "args": [
-                "debug"
-            ],
-            "osx": {
-                "command": "./build-macos.sh",
-                "args": [
-                    "debug"
-                ]
-            },
-            "linux": {
-                "command": "./build-linux.sh",
-                "args": [
-                    "debug"
-                ]
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Copy DLLs (Windows)",
-            "type": "shell",
-            "command": "cmd.exe",
-            "args": [
-                "/c",
-                "copy-dlls.bat"
-            ],
-            "windows": {
-                "command": "cmd.exe",
-                "args": [
-                    "/c",
-                    "copy-dlls.bat"
-                ]
-            },
+            "args": ["debug"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build Dynamix (Fast - Windows)",
-            "type": "shell",
-            "command": "powershell.exe",
-            "args": [
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}/build-windows-fast.ps1"
-            ],
+            "problemMatcher": ["$gcc"],
             "windows": {
-                "command": "powershell.exe",
-                "args": [
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    "${workspaceFolder}/build-windows-fast.ps1"
-                ]
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
+                "command": "echo",
+                "args": ["Unix build task skipped on Windows"]
             }
-        },
-        {
-            "label": "Build Dynamix (Fast - Unix)",
-            "type": "shell",
-            "command": "./build-macos.sh",
-            "args": [
-                "debug"
-            ],
-            "osx": {
-                "command": "./build-macos.sh",
-                "args": [
-                    "debug"
-                ]
-            },
-            "linux": {
-                "command": "./build-linux.sh",
-                "args": [
-                    "debug"
-                ]
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "showReuseMessage": false,
-                "clear": false,
-                "echo": true,
-                "focus": false
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Clean Build",
-            "type": "shell",
-            "command": "./build-macos.sh",
-            "args": [
-                "clean"
-            ],
-            "osx": {
-                "command": "./build-macos.sh",
-                "args": [
-                    "clean"
-                ]
-            },
-            "linux": {
-                "command": "./build-linux.sh",
-                "args": [
-                    "clean"
-                ]
-            },
-            "windows": {
-                "command": "rmdir",
-                "args": [
-                    "/s",
-                    "/q",
-                    "build"
-                ]
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Quick Build (Ninja Only - Unix)",
-            "type": "shell",
-            "command": "mkdir -p build && cd build && ninja",
-            "osx": {
-                "command": "mkdir -p build && cd build && ninja"
-            },
-            "linux": {
-                "command": "mkdir -p build && cd build && ninja"
-            },
-            "group": "build",
-            "presentation": {
-                "reveal": "silent",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "Run Dynamix (No Build - Windows)",
-            "type": "shell",
-            "command": "cmd.exe",
-            "args": [
-                "/c",
-                "run-dynamix.bat"
-            ],
-            "windows": {
-                "command": "cmd.exe",
-                "args": [
-                    "/c",
-                    "run-dynamix.bat"
-                ]
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "test",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Run Dynamix (No Build - Unix)",
-            "type": "shell",
-            "command": "./build/dynamix",
-            "osx": {
-                "command": "./build/dynamix"
-            },
-            "linux": {
-                "command": "./build/dynamix"
-            },
-            "group": "test",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build and Run (Windows)",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "Build Dynamix (Fast - Windows)",
-                "Copy DLLs (Windows)"
-            ],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            }
-        },
-        {
-            "label": "Build and Run (Unix)",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "Build Dynamix (Fast - Unix)",
-                "Run Dynamix (No Build - Unix)"
-            ],
-            "group": "test",
-            "presentation": {
-                "reveal": "always"
-            }
-        },
-        {
-            "label": "CMake Clean All",
-            "type": "shell",
-            "command": "rm -rf build",
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Clean Build Only (Preserve Dependencies)",
-            "type": "shell",
-            "command": "cmake --build build --target clean-build-only",
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Download Dependencies",
-            "type": "shell",
-            "command": "cmake -B build -DUSE_PREDOWNLOADED_DEPS=ON",
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
         }
     ]
 }

@@ -1,10 +1,11 @@
 #include "AudioSystem.h"
+#include "AudioStreamProcessor.h"
 #include "Logger.h"
 #include "TrackManager.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
-#include <iostream>
 #include <vector>
 
 namespace Dynamix {
@@ -46,21 +47,7 @@ namespace Dynamix {
         m_busHandle = m_engine->get().play(m_masterBus->get());
         m_engine->get().setVolume(m_busHandle, m_busVolume);
 
-        // Initialize granular tempo processor
-        m_granularProcessor = std::make_unique<AudioStreamProcessor>();
-        if (!m_granularProcessor->initialize(44100, 2, 3.0, 2.0)) {
-            LOG_ERROR("Failed to initialize granular processor in AudioSystem");
-            // Don't fail completely - granular tempo just won't be available
-        } else if (!m_granularProcessor->start()) {
-            LOG_ERROR("Failed to start granular processor in AudioSystem");
-            // Don't fail completely - granular tempo just won't be available
-        }
-
-        // Create granular intercept filter
-        m_granularFilter = std::make_unique<GranularInterceptFilter>(m_granularProcessor.get(),
-                                                                     &m_granularEnabled);
-
-        // Master bus is ready
+        AudioStreamProcessor::setGlobalTempo(m_granularTempo);
 
         m_isInitialized = true;
         return true;
@@ -69,9 +56,6 @@ namespace Dynamix {
     void AudioSystem::cleanup() {
         if (m_isInitialized) {
             m_engine->get().stopAll();
-            if (m_granularProcessor) {
-                m_granularProcessor->stop();
-            }
             m_engine->deinitialize();
             m_isInitialized = false;
         }
@@ -84,16 +68,9 @@ namespace Dynamix {
 
         std::filesystem::path filePath(path);
         std::string extension = filePath.extension().string();
-
-        // More efficient case-insensitive comparison for .ogg extension
-        bool isSupported = false;
-        if (extension.length() == 4 &&
-            (extension[0] == '.' || extension[0] == 'O' || extension[0] == 'o') &&
-            (extension[1] == 'o' || extension[1] == 'O') &&
-            (extension[2] == 'g' || extension[2] == 'G') &&
-            (extension[3] == 'g' || extension[3] == 'G')) {
-            isSupported = true;
-        }
+        std::transform(extension.begin(), extension.end(), extension.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const bool isSupported = (extension == ".ogg");
 
         if (!isSupported) {
             LOG_ERROR("Unsupported file format: " + extension);
@@ -234,192 +211,35 @@ namespace Dynamix {
             return;
         }
 
-        // Store user tape speed for dual tape speed calculation
         m_userTapeSpeed = rate;
+        m_globalPlaybackRate = rate;
 
-        // Update the dual tape speed system
-        updateDualTapeSpeed();
+        for (size_t i = 0; i < m_trackManager.getTrackCount(); ++i) {
+            if (m_trackManager.getTrack(i).isPlaying && m_trackManager.getTrack(i).handle != 0) {
+                m_engine->get().setRelativePlaySpeed(m_trackManager.getTrack(i).handle, rate);
+            }
+        }
     }
 
-    // Granular tempo control (pitch-preserving)
     void AudioSystem::setGranularTempo(float tempo) {
-        // Store granular tempo for dual tape speed calculation
+        tempo = std::clamp(tempo, AudioStreamProcessor::kMinTempo, AudioStreamProcessor::kMaxTempo);
         m_granularTempo = tempo;
-
-        // Update the dual tape speed system
-        updateDualTapeSpeed();
-
-        // Auto-enable granular processing when tempo != 1.0
-        bool shouldEnable = std::abs(tempo - 1.0f) > 0.001f;
-        setGranularEnabled(shouldEnable);
+        AudioStreamProcessor::setGlobalTempo(tempo);
     }
 
-    float AudioSystem::getGranularTempo() const {
-        // Return the stored granular tempo value, not the processor's tempo
-        return m_granularTempo;
-    }
+    float AudioSystem::getGranularTempo() const { return m_granularTempo; }
 
     float AudioSystem::getGranularLatencyMs() const {
-        if (m_granularProcessor) {
-            return m_granularProcessor->getLatencyMs();
-        }
-        return 0.0f;
+        const int sampleRate = m_isInitialized
+                                   ? static_cast<int>(m_engine->get().getBackendSamplerate())
+                                   : 44100;
+        return AudioStreamProcessor::typicalLatencyMs(sampleRate > 0 ? sampleRate : 44100);
     }
 
-    bool AudioSystem::isGranularProcessorReady() const {
-        return m_granularProcessor && m_granularProcessor->isReady();
-    }
+    bool AudioSystem::isGranularProcessorReady() const { return true; }
 
-    void AudioSystem::setGranularEnabled(bool enabled) {
-        if (!m_granularProcessor || !m_granularProcessor->isReady() || !m_granularFilter) {
-            return;
-        }
-
-        if (enabled != m_granularEnabled) {
-            m_granularEnabled = enabled;
-
-            if (enabled) {
-                // Apply granular filter to master bus to intercept audio
-                m_masterBus->get().setFilter(0, m_granularFilter.get());
-                LOG_INFO("Granular tempo processing enabled - filter applied to master bus");
-            } else {
-                // Remove granular filter from master bus
-                m_masterBus->get().setFilter(0, nullptr);
-                LOG_INFO("Granular tempo processing disabled - filter removed from master bus");
-            }
-        }
-    }
-
-    bool AudioSystem::isGranularEnabled() const { return m_granularEnabled; }
-
-    void AudioSystem::processMasterOutput(float* buffer, unsigned int samples,
-                                          unsigned int channels) {
-        // This method will be called from updateSync() for now
-        // In the future, this could be hooked into SoLoud's audio pipeline more directly
-        if (!m_granularProcessor || !m_granularProcessor->isReady() || !m_granularEnabled) {
-            return;
-        }
-
-        // Skip processing if granular tempo is 1.0 (no change needed)
-        if (std::abs(m_granularTempo - 1.0f) < 0.001f) {
-            return;
-        }
-
-        const size_t totalSamples = samples * channels;
-
-        // Ensure capture buffer is large enough
-        if (m_captureBuffer.size() < totalSamples) {
-            m_captureBuffer.resize(totalSamples);
-        }
-
-        // Copy input audio to our buffer
-        std::memcpy(m_captureBuffer.data(), buffer, totalSamples * sizeof(float));
-
-        // Feed audio to granular processor
-        size_t samplesWritten =
-            m_granularProcessor->feedInput(m_captureBuffer.data(), totalSamples);
-
-        // Try to read processed audio
-        size_t processedSamples = m_granularProcessor->readOutput(buffer, totalSamples);
-
-        if (processedSamples < totalSamples) {
-            // Not enough processed audio available - fill remaining with silence or original
-            // This can happen during startup or tempo changes
-            if (processedSamples > 0) {
-                // Fill remaining with silence to avoid artifacts
-                std::memset(buffer + processedSamples, 0,
-                            (totalSamples - processedSamples) * sizeof(float));
-            }
-            // If no processed audio available, keep original (buffer already contains it)
-        }
-    }
-
-    void AudioSystem::testGranularProcessing() {
-        // Simple test: generate sine wave audio and process it through granular processor
-        // This tests that the basic processing pipeline works
-        const size_t testSamples = 512; // Small test buffer
-        const size_t channels = 2;
-        const size_t totalSamples = testSamples * channels;
-
-        // Ensure test buffer exists
-        static std::vector<float> testBuffer(totalSamples);
-        static size_t sampleCount = 0;
-
-        // Generate simple sine wave test audio (very quiet)
-        const float frequency = 440.0f; // A4 note
-        const float sampleRate = 44100.0f;
-        const float amplitude = 0.01f; // Very quiet for testing
-
-        for (size_t i = 0; i < testSamples; ++i) {
-            float value = amplitude * std::sin(2.0f * M_PI * frequency * sampleCount / sampleRate);
-            testBuffer[i * channels] = value;     // Left channel
-            testBuffer[i * channels + 1] = value; // Right channel
-            sampleCount++;
-        }
-
-        // Feed test audio to granular processor
-        size_t fed = m_granularProcessor->feedInput(testBuffer.data(), totalSamples);
-
-        // Try to read processed audio (discard for now - just testing the flow)
-        std::vector<float> outputBuffer(totalSamples);
-        size_t read = m_granularProcessor->readOutput(outputBuffer.data(), totalSamples);
-
-        // Optional: print debug info occasionally
-        static int debugCounter = 0;
-        if (++debugCounter % 1000 == 0) { // Every ~23 seconds at 44.1kHz
-            LOG_INFO("Granular test: fed " + std::to_string(fed) + " samples, read " +
-                     std::to_string(read) + ", granularTempo " + std::to_string(m_granularTempo));
-        }
-    }
-
-    // Granular Intercept Filter Implementation
-    GranularInterceptFilter::GranularInterceptFilter(AudioStreamProcessor* processor,
-                                                     bool* enabledFlag)
-        : m_processor(processor), m_enabledFlag(enabledFlag) {}
-
-    SoLoud::FilterInstance* GranularInterceptFilter::createInstance() {
-        return new GranularInterceptFilterInstance(m_processor, m_enabledFlag);
-    }
-
-    GranularInterceptFilterInstance::GranularInterceptFilterInstance(
-        AudioStreamProcessor* processor, bool* enabledFlag)
-        : m_processor(processor), m_enabledFlag(enabledFlag), m_lastPitchCompensation(1.0f) {
-        // No additional initialization needed for simplified approach
-    }
-
-    void GranularInterceptFilterInstance::filterChannel(float* aBuffer, unsigned int aSamples,
-                                                        float aSamplerate, double aTime,
-                                                        unsigned int aChannel,
-                                                        unsigned int aChannels) {
-        // Safety checks
-        if (!m_processor || !m_enabledFlag || !*m_enabledFlag) {
-            return; // Pass through unchanged
-        }
-
-        // Skip processing if granular tempo is 1.0 (no pitch compensation needed)
-        float pitchCompensation = m_processor->getPitchCompensation();
-        if (std::abs(pitchCompensation - 1.0f) < 0.001f) {
-            return; // Pass through unchanged - no pitch compensation needed
-        }
-
-        // Only process stereo audio (2 channels)
-        if (aChannels != 2) {
-            return; // Pass through unchanged for non-stereo audio
-        }
-
-        // Process each channel independently with identical settings
-        // This ensures both left and right channels get exactly the same processing
-        // The stereo-configured Signalsmith processor will handle each channel correctly
-
-        // Simple approach: process this channel directly with the mono method
-        // The AudioStreamProcessor uses a stereo-configured processor internally
-        // which ensures consistent processing across channels
-        bool success = m_processor->processPitchCompensation(aBuffer, aBuffer, aSamples);
-
-        // If processing failed, aBuffer remains unchanged (pass-through)
-        if (!success) {
-            // Already logged in processPitchCompensation, just pass through
-        }
+    bool AudioSystem::isGranularEnabled() const {
+        return AudioStreamProcessor::isGlobalStretchActive();
     }
 
     void AudioSystem::addFilterToTrack(size_t trackIndex, const std::string& filterName) {
@@ -1072,23 +892,7 @@ namespace Dynamix {
      * sessions where small timing differences can accumulate.
      */
     void AudioSystem::updateSync() {
-        // DEBUG: Simple heartbeat to confirm updateSync is being called
-        static int heartbeatCount = 0;
-        heartbeatCount++;
-        if (heartbeatCount % 1000 == 0) { // Log every 1000th call
-            LOG_INFO("UPDATE SYNC HEARTBEAT: call #" + std::to_string(heartbeatCount));
-        }
-
-        // Early exit if system not ready or no tracks playing
         if (!m_isInitialized || !m_syncState.isPlaying || m_trackManager.getTrackCount() == 0) {
-            // DEBUG: Log why updateSync is exiting early
-            static int earlyExitCount = 0;
-            earlyExitCount++;
-            if (earlyExitCount % 1000 == 0) { // Log every 1000th early exit to avoid spam
-                LOG_INFO("UPDATE SYNC EARLY EXIT: initialized=" + std::to_string(m_isInitialized) +
-                         ", isPlaying=" + std::to_string(m_syncState.isPlaying) +
-                         ", trackCount=" + std::to_string(m_trackManager.getTrackCount()));
-            }
             return;
         }
 
@@ -1297,106 +1101,6 @@ namespace Dynamix {
 
         // Check if difference exceeds tolerance (1ms)
         return timeDiff > SyncState::DRIFT_TOLERANCE;
-    }
-
-    // Dual tape speed architecture implementation
-    /**
-     * Updates the dual tape speed architecture for granular tempo control.
-     *
-     * This method implements the dual tape speed architecture that allows independent
-     * control of tempo and pitch. The architecture works as follows:
-     *
-     * 1. User Tape Speed: Direct playback rate control (0.1x - 4.0x)
-     * 2. Granular Tempo: Pitch-preserving tempo multiplier (0.5x - 2.0x)
-     * 3. Internal Tape Speed: Hidden calculation = userTapeSpeed * granularTempo
-     * 4. Pitch Compensation: Hidden calculation = 1.0 / granularTempo
-     *
-     * This eliminates complex buffering by maintaining perfect sample ratios while
-     * achieving independent pitch and tempo control. SoLoud handles time changes
-     * through tape speed, while Signalsmith Stretch handles pitch compensation.
-     *
-     * The method only updates when values actually change to avoid unnecessary
-     * processing and logging.
-     */
-    void AudioSystem::updateDualTapeSpeed() {
-        if (!m_isInitialized) {
-            return;
-        }
-
-        // Calculate the hidden internal values that make the architecture work
-        float newInternalTapeSpeed = calculateInternalTapeSpeed();
-        float newPitchCompensation = calculatePitchCompensation();
-
-        // PERFORMANCE OPTIMIZATION: Only update if values actually changed
-        // This prevents unnecessary processing and reduces log spam
-        bool valuesChanged = (std::abs(newInternalTapeSpeed - m_internalTapeSpeed) > 0.0001f) ||
-                             (std::abs(newPitchCompensation - m_pitchCompensation) > 0.0001f);
-
-        // Update the hidden internal values
-        m_internalTapeSpeed = newInternalTapeSpeed;
-        m_pitchCompensation = newPitchCompensation;
-
-        // Apply internal tape speed to all currently playing tracks
-        // This is what SoLoud actually uses for playback rate control
-        for (size_t i = 0; i < m_trackManager.getTrackCount(); ++i) {
-            if (m_trackManager.getTrack(i).isPlaying && m_trackManager.getTrack(i).handle != 0) {
-                m_engine->get().setRelativePlaySpeed(m_trackManager.getTrack(i).handle,
-                                                     m_internalTapeSpeed);
-            }
-        }
-
-        // Store for future tracks that get loaded
-        m_globalPlaybackRate = m_internalTapeSpeed;
-
-        // Update Signalsmith Stretch with pitch compensation
-        // This handles the pitch preservation part of the architecture
-        if (m_granularProcessor && m_granularProcessor->isReady()) {
-            // Set pitch compensation in the AudioStreamProcessor
-            // This counteracts the tempo change to preserve pitch
-            m_granularProcessor->setPitchCompensation(m_pitchCompensation);
-
-            // Only log when values actually change to reduce log spam
-            if (valuesChanged) {
-                LOG_INFO("Dual tape speed update: userSpeed=" + std::to_string(m_userTapeSpeed) +
-                         ", granularTempo=" + std::to_string(m_granularTempo) +
-                         ", internalSpeed=" + std::to_string(m_internalTapeSpeed) +
-                         ", pitchComp=" + std::to_string(m_pitchCompensation));
-            }
-        }
-    }
-
-    /**
-     * Calculates the internal tape speed for the dual tape speed architecture.
-     *
-     * This is the hidden calculation that combines user tape speed and granular tempo:
-     * Internal Tape Speed = userTapeSpeed * granularTempo
-     *
-     * The internal tape speed is what SoLoud actually uses for playback rate control.
-     * By combining both user controls, we achieve the desired tempo while maintaining
-     * the architecture's ability to preserve pitch through separate compensation.
-     *
-     * @return The calculated internal tape speed multiplier
-     */
-    float AudioSystem::calculateInternalTapeSpeed() const {
-        return m_userTapeSpeed * m_granularTempo;
-    }
-
-    /**
-     * Calculates the pitch compensation factor for the dual tape speed architecture.
-     *
-     * This is the hidden calculation that preserves pitch during tempo changes:
-     * Pitch Compensation = 1.0 / granularTempo
-     *
-     * When granular tempo changes the playback speed, this compensation factor
-     * is applied by Signalsmith Stretch to counteract the pitch shift. This allows
-     * independent control of tempo and pitch.
-     *
-     * The calculation includes a safety check to prevent division by zero.
-     *
-     * @return The calculated pitch compensation factor
-     */
-    float AudioSystem::calculatePitchCompensation() const {
-        return (m_granularTempo != 0.0f) ? (1.0f / m_granularTempo) : 1.0f;
     }
 
     void AudioSystem::setFilterParameterByName(size_t trackIndex, const std::string& filterName,

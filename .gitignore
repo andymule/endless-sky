@@ -65,6 +65,8 @@ docs/api/
 .cache
 .devcontainer
 .vscode
+!dynamix/.vscode/
+!dynamix/.vscode/**
 .vs
 .metadata
 *.psess

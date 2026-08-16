@@ -102,9 +102,9 @@ namespace Dynamix {
         // Tab colors
         colors[ImGuiCol_Tab] = ImVec4(0.25f, 0.08f, 0.08f, 0.86f);
         colors[ImGuiCol_TabHovered] = ImVec4(0.45f, 0.15f, 0.15f, 0.80f);
-        colors[ImGuiCol_TabActive] = ImVec4(0.35f, 0.12f, 0.12f, 1.00f);
-        colors[ImGuiCol_TabUnfocused] = ImVec4(0.20f, 0.07f, 0.07f, 0.97f);
-        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.30f, 0.10f, 0.10f, 1.00f);
+        colors[ImGuiCol_TabSelected] = ImVec4(0.35f, 0.12f, 0.12f, 1.00f);
+        colors[ImGuiCol_TabDimmed] = ImVec4(0.20f, 0.07f, 0.07f, 0.97f);
+        colors[ImGuiCol_TabDimmedSelected] = ImVec4(0.30f, 0.10f, 0.10f, 1.00f);
 
         // Scrollbar colors
         colors[ImGuiCol_ScrollbarBg] = ImVec4(0.12f, 0.04f, 0.04f, 0.53f);
@@ -139,7 +139,7 @@ namespace Dynamix {
         colors[ImGuiCol_DragDropTarget] = ImVec4(0.80f, 0.28f, 0.28f, 0.90f);
 
         // Navigation colors
-        colors[ImGuiCol_NavHighlight] = ImVec4(0.80f, 0.28f, 0.28f, 1.00f);
+        colors[ImGuiCol_NavCursor] = ImVec4(0.80f, 0.28f, 0.28f, 1.00f);
         colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
         colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
         colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
@@ -196,9 +196,9 @@ namespace Dynamix {
         // Tab colors
         colors[ImGuiCol_Tab] = ImVec4(0.85f, 0.85f, 0.85f, 0.86f);
         colors[ImGuiCol_TabHovered] = ImVec4(0.75f, 0.75f, 0.75f, 0.80f);
-        colors[ImGuiCol_TabActive] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-        colors[ImGuiCol_TabUnfocused] = ImVec4(0.90f, 0.90f, 0.90f, 0.97f);
-        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+        colors[ImGuiCol_TabSelected] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+        colors[ImGuiCol_TabDimmed] = ImVec4(0.90f, 0.90f, 0.90f, 0.97f);
+        colors[ImGuiCol_TabDimmedSelected] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
 
         // Scrollbar colors
         colors[ImGuiCol_ScrollbarBg] = ImVec4(0.88f, 0.88f, 0.88f, 0.53f);
@@ -233,7 +233,7 @@ namespace Dynamix {
         colors[ImGuiCol_DragDropTarget] = ImVec4(0.30f, 0.30f, 0.30f, 0.90f);
 
         // Navigation colors
-        colors[ImGuiCol_NavHighlight] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+        colors[ImGuiCol_NavCursor] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
         colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
         colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
         colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);

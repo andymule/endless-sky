@@ -36,13 +36,8 @@ compile_commands.json
 *.idb
 *.pdb
 
-# Sound staging files - these should be added manually if needed
-sound_staging/
-
-# imgui ini files
-imgui.ini 
-# Static build executable
-static_build/dynamix
+# ImGui layout, written next to the executable
+imgui.ini
 
 # ccache cache (user-specific, auto-managed)
 .ccache/

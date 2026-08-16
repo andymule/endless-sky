@@ -100,9 +100,12 @@ namespace Dynamix {
             return result;
         }
 
-        // Must have events array
+        // Must have a non-empty events array
         if (!requireArray(json, "events", result, "root")) {
             return result;
+        }
+        if (json["events"].empty()) {
+            result.addWarning("events array is empty; a Default event will be used");
         }
 
         // Optional name field should be string if present
@@ -123,9 +126,12 @@ namespace Dynamix {
             return result;
         }
 
-        // Must have events array
+        // Must have a non-empty events array
         if (!requireArray(json, "events", result, "root")) {
             return result;
+        }
+        if (json["events"].empty()) {
+            result.addWarning("events array is empty; a Default event will be used");
         }
 
         // Optional name field should be string if present  
@@ -375,8 +381,9 @@ namespace Dynamix {
         }
 
         // Check if file exists in song folder (if folder provided)
+        // Check if file exists in song folder (if folder provided)
         if (!songFolder.empty() && !fileExistsInFolder(fileName, songFolder)) {
-            result.addError("Audio file not found: " + fileName);
+            result.addWarning("Audio file not found: " + fileName);
         }
 
         // Validate volume if present
@@ -423,9 +430,10 @@ namespace Dynamix {
         result.isValid = true;
 
         // Check if effect name is valid
+        // Unknown effects are skipped on load rather than rejecting the whole song
         if (!m_filterManager.isValidFilterName(effectName)) {
-            result.addError("Unknown effect type: " + effectName);
-            return result; // Don't validate parameters for unknown effects
+            result.addWarning("Unknown effect type (ignored): " + effectName);
+            return result;
         }
 
         // Effect must be object
@@ -448,14 +456,22 @@ namespace Dynamix {
 
                     // Validate parameter ID and value range
                     try {
-                        int paramId = std::stoi(paramIdStr);
                         float value = paramValue.get<float>();
-                        
+                        int paramId = m_filterManager.resolveParameterId(effectName, paramIdStr);
+                        if (paramId < 0) {
+                            result.addWarning("Ignoring unknown parameter '" + paramIdStr +
+                                             "' on effect " + effectName);
+                            continue;
+                        }
+
                         if (!m_filterManager.isValidParameter(effectName, paramId, value)) {
-                            result.addError("Parameter ID " + paramIdStr + " value " + std::to_string(value) + " is out of valid range for effect " + effectName);
+                            result.addWarning("Parameter '" + paramIdStr + "' value " +
+                                             std::to_string(value) +
+                                             " is out of range for effect " + effectName +
+                                             " (will be clamped)");
                         }
                     } catch (const std::exception&) {
-                        result.addError("Parameter ID '" + paramIdStr + "' must be a valid integer");
+                        result.addError("Parameter '" + paramIdStr + "' must be a number");
                     }
                 }
             }

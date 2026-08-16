@@ -5,8 +5,9 @@
 namespace Dynamix {
 
     void Logger::log(LogLevel level, const std::string& message, const std::string& component) {
+        std::lock_guard<std::mutex> lock(m_mutex);
         if (level > m_currentLevel) {
-            return; // Skip logging if level is higher than current setting
+            return;
         }
 
         std::stringstream ss;

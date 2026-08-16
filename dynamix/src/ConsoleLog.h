@@ -8,6 +8,10 @@
 
 #include "JsonValidator.h"
 
+#ifdef ERROR
+#undef ERROR
+#endif
+
 namespace Dynamix {
 
     /**

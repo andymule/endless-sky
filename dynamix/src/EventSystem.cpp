@@ -3,7 +3,6 @@
 #include "Logger.h"
 #include "SongManager.h"
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <set>
 
@@ -41,7 +40,7 @@ namespace Dynamix {
         }
 
         LOG_INFO_COMP("EventSystem", "Triggering song event: " + songName + " -> " + eventName);
-        startSongTransition(eventIt->state, eventIt->fadeTime);
+        startSongTransition(eventIt->state, std::max(0.0f, eventIt->fadeTime));
     }
 
     void EventSystem::triggerMasterEvent(const std::string& eventName) {
@@ -68,9 +67,7 @@ namespace Dynamix {
         }
 
         LOG_INFO_COMP("EventSystem", "Triggering master event: " + eventName);
-
-        // Start transition
-        startMasterTransition(eventIt->state, eventIt->fadeTime);
+        startMasterTransition(eventIt->state, std::max(0.0f, eventIt->fadeTime));
     }
 
     void EventSystem::update(float deltaTime) {
@@ -78,26 +75,18 @@ namespace Dynamix {
             return;
         }
 
-        m_currentTime += deltaTime;
+        if (m_targetTime <= 0.0f) {
+            completeTransition();
+            return;
+        }
+
+        m_currentTime += std::max(0.0f, deltaTime);
 
         if (m_currentTime >= m_targetTime) {
-            // Transition complete
-            m_inTransition = false;
-            m_transitionType = TransitionType::NONE;
-
-            // Apply final state
-            if (m_transitionType == TransitionType::SONG) {
-                applyStateSnapshot(m_targetState);
-            } else if (m_transitionType == TransitionType::MASTER) {
-                applyMasterBusState(m_targetMasterState);
-            }
-
-            LOG_INFO_COMP("EventSystem", "Transition completed");
+            completeTransition();
         } else {
-            // Continue lerping with EASE_IN_OUT curve
-            float rawT = m_currentTime / m_targetTime;
-            float easedT = easeInOut(rawT);
-            lerpStates(easedT);
+            // Easing is applied inside lerpStates(); pass linear time here.
+            lerpStates(m_currentTime / m_targetTime);
         }
     }
 
@@ -116,31 +105,17 @@ namespace Dynamix {
         // This ensures we always lerp from the actual current position, not from interpolated
         // states
         m_startState = captureCurrentSongState();
-
-        // Debug: Show what was captured in the start state
-        LOG_INFO_COMP("EventSystem", "Captured start state:");
-        for (const auto& track : m_startState.tracks) {
-            std::string trackInfo =
-                "  Track: " + track.file + " (vol: " + std::to_string(track.volume) + ")";
-            if (!track.effects.empty()) {
-                trackInfo += " Effects: ";
-                for (const auto& [effectName, effect] : track.effects) {
-                    auto wetIt = effect.parameters.find("0");
-                    float wet = (wetIt != effect.parameters.end()) ? wetIt->second : 0.0f;
-                    trackInfo += effectName + "(" + std::to_string(wet) + ") ";
-                }
-            }
-            LOG_INFO_COMP("EventSystem", trackInfo);
-        }
-
         m_targetState = target;
 
-        // Setup transition
         m_inTransition = true;
         m_transitionType = TransitionType::SONG;
         m_transitionTime = fadeTime;
         m_targetTime = fadeTime;
         m_currentTime = 0.0f;
+
+        if (m_targetTime <= 0.0f) {
+            completeTransition();
+        }
     }
 
     void EventSystem::startMasterTransition(const MasterBusState& target, float fadeTime) {
@@ -160,6 +135,24 @@ namespace Dynamix {
         m_transitionTime = fadeTime;
         m_targetTime = fadeTime;
         m_currentTime = 0.0f;
+
+        if (m_targetTime <= 0.0f) {
+            completeTransition();
+        }
+    }
+
+    void EventSystem::completeTransition() {
+        const TransitionType type = m_transitionType;
+        m_inTransition = false;
+        m_transitionType = TransitionType::NONE;
+
+        if (type == TransitionType::SONG) {
+            applyStateSnapshot(m_targetState);
+        } else if (type == TransitionType::MASTER) {
+            applyMasterBusState(m_targetMasterState);
+        }
+
+        LOG_INFO_COMP("EventSystem", "Transition completed");
     }
 
     /**
@@ -238,24 +231,23 @@ namespace Dynamix {
                 // This helps with debugging while keeping performance high
                 if (t < 0.001f || t > 0.999f) {
                     if (startVol > 0.0f || targetVol > 0.0f) {
-                        LOG_INFO_COMP("EventSystem",
-                                      "Lerping volume - Start vol: " + std::to_string(startVol) +
-                                          ", End vol: " + std::to_string(targetVol) +
-                                          ", t: " + std::to_string(t));
+                        LOG_DEBUG_COMP("EventSystem",
+                                       "Lerping volume - Start vol: " + std::to_string(startVol) +
+                                           ", End vol: " + std::to_string(targetVol) +
+                                           ", t: " + std::to_string(t));
                     }
 
-                    // Show which track is being processed
-                    LOG_INFO_COMP("EventSystem", "Processing track: " + trackFile);
+                    LOG_DEBUG_COMP("EventSystem", "Processing track: " + trackFile);
 
                     // Show track matching info for debugging
                     if (targetTrack && startTrack) {
-                        LOG_INFO_COMP("EventSystem", "  Track matched: " + targetTrack->file +
-                                                         " (target) with " + startTrack->file +
-                                                         " (start)");
+                        LOG_DEBUG_COMP("EventSystem", "  Track matched: " + targetTrack->file +
+                                                          " (target) with " + startTrack->file +
+                                                          " (start)");
                     } else if (targetTrack) {
-                        LOG_INFO_COMP("EventSystem", "  Track target only: " + targetTrack->file);
+                        LOG_DEBUG_COMP("EventSystem", "  Track target only: " + targetTrack->file);
                     } else if (startTrack) {
-                        LOG_INFO_COMP("EventSystem", "  Track start only: " + startTrack->file);
+                        LOG_DEBUG_COMP("EventSystem", "  Track start only: " + startTrack->file);
                     }
                 }
 
@@ -284,7 +276,7 @@ namespace Dynamix {
                             for (const auto& effect : allEffects) {
                                 effectList += effect + " ";
                             }
-                            LOG_INFO_COMP("EventSystem", effectList);
+                            LOG_DEBUG_COMP("EventSystem", effectList);
                         }
                     }
 
@@ -320,12 +312,12 @@ namespace Dynamix {
 
                             // Debug logging for fade-out effects
                             if (t < 0.001f || t > 0.999f) {
-                                LOG_INFO_COMP("EventSystem",
-                                              "Fading out effect: " + effectName + " from wet: " +
-                                                  std::to_string(startEff->parameters.count("0")
-                                                                     ? startEff->parameters.at("0")
-                                                                     : 0.0f) +
-                                                  " to 0.0");
+                                LOG_DEBUG_COMP("EventSystem",
+                                               "Fading out effect: " + effectName + " from wet: " +
+                                                   std::to_string(startEff->parameters.count("0")
+                                                                      ? startEff->parameters.at("0")
+                                                                      : 0.0f) +
+                                                   " to 0.0");
                             }
 
                             lerpEffectState(*startEff, zeroTarget, lerpedTrack.effects[effectName],
@@ -341,12 +333,12 @@ namespace Dynamix {
 
                         // Debug logging for complete track fade-out
                         if (t < 0.001f || t > 0.999f) {
-                            LOG_INFO_COMP("EventSystem",
-                                          "Fading out effect: " + effectName + " from wet: " +
-                                              std::to_string(startEffect.parameters.count("0")
-                                                                 ? startEffect.parameters.at("0")
-                                                                 : 0.0f) +
-                                              " to 0.0 (track not in target)");
+                        LOG_DEBUG_COMP("EventSystem",
+                                       "Fading out effect: " + effectName + " from wet: " +
+                                           std::to_string(startEffect.parameters.count("0")
+                                                              ? startEffect.parameters.at("0")
+                                                              : 0.0f) +
+                                           " to 0.0 (track not in target)");
                         }
 
                         lerpEffectState(startEffect, zeroTarget, lerpedTrack.effects[effectName],

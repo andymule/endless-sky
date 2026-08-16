@@ -26,6 +26,20 @@ public:
     // ========== Basic Measurements ==========
 
     /**
+     * Pull one channel out of an interleaved buffer
+     *
+     * Frequency analysis treats its input as a single stream, so an interleaved
+     * buffer has to be split first or the channels read as one detuned signal.
+     *
+     * @param interleaved Interleaved audio samples
+     * @param channels Number of channels in the buffer
+     * @param channel Channel to extract
+     * @return The samples of that channel
+     */
+    static std::vector<float> extractChannel(const std::vector<float>& interleaved, int channels,
+                                             int channel = 0);
+
+    /**
      * Calculate RMS (Root Mean Square) level of audio samples
      * @param samples Audio samples
      * @return RMS value (0.0 to ~1.0 for normalized audio)

@@ -7,6 +7,7 @@ option(ENABLE_PCH "Enable precompiled headers" OFF)
 option(ENABLE_CCACHE "Enable ccache for faster rebuilds" ON)
 option(ENABLE_LTO "Enable Link Time Optimization" ON)
 option(USE_PREDOWNLOADED_DEPS "Use pre-downloaded dependencies for faster configures" ON)
+option(ENABLE_NATIVE_ARCH "Tune for the host CPU (-march=native). Off by default for portable binaries." OFF)
 
 # Option for bundling SDL2 (creates self-contained binary with bundled dependencies)
 # Only enable SDL2 bundling by default on macOS
@@ -55,7 +56,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(/O2 /DNDEBUG /GL /Gy)
         add_link_options(/LTCG)
     else()
-        add_compile_options(-O3 -DNDEBUG -march=native)
+        add_compile_options(-O3 -DNDEBUG)
+        if(ENABLE_NATIVE_ARCH)
+            add_compile_options(-march=native)
+        endif()
         if(ENABLE_LTO)
             add_compile_options(-flto)
             add_link_options(-flto)
@@ -121,6 +125,8 @@ add_definitions(
     -DIMGUI_DEFINE_MATH_OPERATORS
     -DSOLOUD_STATIC
     -DWITH_SDL2_STATIC
+    # Null driver: the test harness mixes audio manually with no output device
+    -DWITH_NULL
 )
 
 # Set up sources for dynamix
@@ -176,6 +182,15 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_
 # Add the executable target
 add_executable(dynamix ${DYNAMIX_SOURCES})
 
+# Pinned dependency versions. We declare linear before stretch so this pin wins
+# over the one stretch requests itself (0.3.1, which misses a <cstring> include
+# and fails to compile on MinGW/libstdc++).
+set(DYNAMIX_IMGUI_TAG   "v1.92.9b")
+set(DYNAMIX_SOLOUD_TAG  "e82fd32c1f62183922f08c14c814a02b58db1873")
+set(DYNAMIX_STRETCH_TAG "57b93f4e9206a089a45387eaa39bdc9f310d3308")
+set(DYNAMIX_LINEAR_TAG  "0.6.0")
+set(DYNAMIX_JSON_TAG    "v3.12.0")
+
 # Function to download dependency if not present
 function(download_dependency_if_needed dep_name repo_url commit_hash)
     set(dep_dir "${PERSISTENT_DEPS_DIR}/${dep_name}")
@@ -185,12 +200,20 @@ function(download_dependency_if_needed dep_name repo_url commit_hash)
         message(STATUS "Downloading ${dep_name} to persistent location...")
         file(MAKE_DIRECTORY ${dep_dir})
         
-        # Clone the repository
+        # Blobless clone instead of --depth 1 --branch so that plain commit
+        # hashes work as well as tags and branch names.
         execute_process(
-            COMMAND git clone --depth 1 --branch ${commit_hash} ${repo_url} .
+            COMMAND git clone --filter=blob:none ${repo_url} .
             WORKING_DIRECTORY ${dep_dir}
             RESULT_VARIABLE clone_result
         )
+        if(clone_result EQUAL 0)
+            execute_process(
+                COMMAND git checkout --quiet ${commit_hash}
+                WORKING_DIRECTORY ${dep_dir}
+                RESULT_VARIABLE clone_result
+            )
+        endif()
         
         if(clone_result EQUAL 0)
             # Create marker file to indicate successful download
@@ -209,11 +232,11 @@ if(USE_PREDOWNLOADED_DEPS)
     message(STATUS "Using pre-downloaded dependencies from: ${PERSISTENT_DEPS_DIR}")
     
     # Download dependencies to persistent location
-    download_dependency_if_needed("imgui" "https://github.com/ocornut/imgui.git" "v1.90.1")
-    download_dependency_if_needed("soloud" "https://github.com/jarikomppa/soloud.git" "master")
-    download_dependency_if_needed("signalsmith-stretch" "https://github.com/Signalsmith-Audio/signalsmith-stretch.git" "main")
-    download_dependency_if_needed("signalsmith-linear" "https://github.com/Signalsmith-Audio/linear.git" "main")
-    download_dependency_if_needed("nlohmann-json" "https://github.com/nlohmann/json.git" "v3.11.3")
+    download_dependency_if_needed("imgui" "https://github.com/ocornut/imgui.git" "${DYNAMIX_IMGUI_TAG}")
+    download_dependency_if_needed("soloud" "https://github.com/jarikomppa/soloud.git" "${DYNAMIX_SOLOUD_TAG}")
+    download_dependency_if_needed("signalsmith-stretch" "https://github.com/Signalsmith-Audio/signalsmith-stretch.git" "${DYNAMIX_STRETCH_TAG}")
+    download_dependency_if_needed("signalsmith-linear" "https://github.com/Signalsmith-Audio/linear.git" "${DYNAMIX_LINEAR_TAG}")
+    download_dependency_if_needed("nlohmann-json" "https://github.com/nlohmann/json.git" "${DYNAMIX_JSON_TAG}")
     
     # Set source directories to persistent locations
     set(imgui_SOURCE_DIR "${PERSISTENT_DEPS_DIR}/imgui")
@@ -232,7 +255,7 @@ else()
     FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG v1.90.1
+        GIT_TAG ${DYNAMIX_IMGUI_TAG}
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(imgui)
@@ -242,39 +265,38 @@ else()
     FetchContent_Declare(
         soloud
         GIT_REPOSITORY https://github.com/jarikomppa/soloud.git
-        GIT_TAG master
-        GIT_SHALLOW TRUE
+        GIT_TAG ${DYNAMIX_SOLOUD_TAG}
     )
     FetchContent_MakeAvailable(soloud)
     message(STATUS "SoLoud fetched successfully")
     
-    message(STATUS "Fetching Signalsmith Stretch...")
-    FetchContent_Declare(
-        signalsmith-stretch
-        GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
-        GIT_TAG 222093b
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-    )
-    FetchContent_MakeAvailable(signalsmith-stretch)
-    message(STATUS "Signalsmith Stretch fetched successfully")
-    
+    # Declared before stretch so this pin wins over stretch's nested request.
     message(STATUS "Fetching Signalsmith Linear...")
     FetchContent_Declare(
         signalsmith-linear
-        GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-linear.git
-        GIT_TAG fa5dbc0
+        GIT_REPOSITORY https://github.com/Signalsmith-Audio/linear.git
+        GIT_TAG ${DYNAMIX_LINEAR_TAG}
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(signalsmith-linear)
     message(STATUS "Signalsmith Linear fetched successfully")
     
+    message(STATUS "Fetching Signalsmith Stretch...")
+    FetchContent_Declare(
+        signalsmith-stretch
+        GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+        GIT_TAG ${DYNAMIX_STRETCH_TAG}
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(signalsmith-stretch)
+    message(STATUS "Signalsmith Stretch fetched successfully")
+    
     message(STATUS "Fetching nlohmann/json...")
     FetchContent_Declare(
         nlohmann_json
         GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.11.3
+        GIT_TAG ${DYNAMIX_JSON_TAG}
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(nlohmann_json)
@@ -363,12 +385,14 @@ set(SOLOUD_SOURCES
     ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wav.cpp
     ${soloud_SOURCE_DIR}/src/audiosource/wav/soloud_wavstream.cpp
     ${soloud_SOURCE_DIR}/src/backend/sdl2_static/soloud_sdl2_static.cpp
+    ${soloud_SOURCE_DIR}/src/backend/null/soloud_null.cpp
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_flac.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_mp3.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_wav.h
     ${soloud_SOURCE_DIR}/src/audiosource/wav/stb_vorbis.c
     ${soloud_SOURCE_DIR}/src/audiosource/wav/dr_impl.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_biquadresonantfilter.cpp
+    ${soloud_SOURCE_DIR}/src/filter/soloud_bassboostfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_echofilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_flangerfilter.cpp
     ${soloud_SOURCE_DIR}/src/filter/soloud_freeverbfilter.cpp
@@ -398,33 +422,6 @@ else()
     endif()
 endif()
 
-# Find PNG
-find_package(PNG REQUIRED)
-if(NOT PNG_FOUND)
-    message(FATAL_ERROR "PNG not found.")
-endif()
-
-# Find JPEG
-find_package(JPEG REQUIRED)
-if(NOT JPEG_FOUND)
-    message(FATAL_ERROR "JPEG not found.")
-endif()
-
-# Find OpenAL
-find_package(OpenAL REQUIRED)
-if(NOT OPENAL_FOUND)
-    message(FATAL_ERROR "OpenAL not found.")
-endif()
-
-# Find GLEW (only on non-Apple platforms)
-if(NOT APPLE)
-    find_package(GLEW REQUIRED)
-    if(NOT GLEW_FOUND)
-        message(FATAL_ERROR "GLEW not found.")
-    endif()
-endif()
-
-# Include directories
 target_include_directories(dynamix PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${signalsmith-stretch_SOURCE_DIR}/include
@@ -433,87 +430,46 @@ target_include_directories(dynamix PRIVATE
     ${imgui_SOURCE_DIR}/backends
     ${soloud_SOURCE_DIR}/include
     ${SDL2_INCLUDE_DIRS}
-    ${PNG_INCLUDE_DIRS}
-    ${JPEG_INCLUDE_DIRS}
-    ${OPENAL_INCLUDE_DIR}
 )
 
-# Add SDL2, PNG, JPEG include directories
 if(BUNDLE_SDL2 AND SDL2_DYLIB)
-    # For bundled builds, add Homebrew include paths
     target_include_directories(dynamix PRIVATE
         ${BREW_PREFIX}/include
         ${BREW_PREFIX}/include/SDL2
     )
-else()
-    # For system builds, use pkg-config paths
-    target_include_directories(dynamix PRIVATE
-        ${SDL2_INCLUDE_DIRS}
-        ${PNG_INCLUDE_DIRS}
-        ${JPEG_INCLUDE_DIRS}
-    )
 endif()
 
-# Handle minizip using vcpkg
-if(DEFINED unofficial-minizip_DIR)
-    # Use the provided path
-    find_package(unofficial-minizip CONFIG REQUIRED)
-    set(MINIZIP_LIBRARIES "unofficial::minizip::minizip")
-    message(STATUS "Found minizip from vcpkg")
-endif()
-
-# Handle OpenGL properly based on platform
 if(APPLE)
-    # On macOS, explicitly use the native framework to avoid X11 GL libraries
     find_library(OPENGL_FRAMEWORK OpenGL)
-    
-    # Find Accelerate framework for Signalsmith optimization
     find_library(ACCELERATE_FRAMEWORK Accelerate)
     if(ACCELERATE_FRAMEWORK)
         message(STATUS "Found Accelerate framework: ${ACCELERATE_FRAMEWORK}")
-        # Enable Signalsmith Accelerate optimization
         target_compile_definitions(dynamix PRIVATE SIGNALSMITH_USE_ACCELERATE)
     endif()
-    
     message(STATUS "Using macOS OpenGL framework: ${OPENGL_FRAMEWORK}")
 else()
     find_package(OpenGL REQUIRED)
 endif()
 
-# Link with SDL2, OpenGL, and other required libraries
 target_link_libraries(dynamix PRIVATE
-    ${MINIZIP_LIBRARIES}
     ${SDL2_LIBRARIES}
-    ${PNG_LIBRARIES}
-    ${JPEG_LIBRARIES}
-    ${OPENAL_LIBRARY}
     nlohmann_json::nlohmann_json
 )
 
-# Add SDL2 library directories and link flags from pkg-config
 if(SDL2_FOUND AND SDL2_LINK_LIBRARIES)
     target_link_directories(dynamix PRIVATE ${SDL2_LIBRARY_DIRS})
     target_link_libraries(dynamix PRIVATE ${SDL2_LINK_LIBRARIES})
 endif()
 
-# Link with OpenGL library based on platform
 if(APPLE)
     target_link_libraries(dynamix PRIVATE ${OPENGL_FRAMEWORK})
-    
-    # Link with Accelerate framework if available for Signalsmith optimization
     if(ACCELERATE_FRAMEWORK)
         target_link_libraries(dynamix PRIVATE ${ACCELERATE_FRAMEWORK})
         message(STATUS "Linked with Accelerate framework for optimized DSP")
     endif()
-    
-    # Apple deprecated OpenGL in MacOS 10.14, but we don't care
     target_compile_definitions(dynamix PRIVATE GL_SILENCE_DEPRECATION)
 else()
     target_link_libraries(dynamix PRIVATE OpenGL::GL)
-    # Temporarily comment out GLEW for testing
-    # if(NOT APPLE)
-    #     target_link_libraries(dynamix PRIVATE GLEW::glew_s)
-    # endif()
 endif()
 
 # Bundle SDL2 dylib if requested

@@ -12,9 +12,21 @@
 #include "soloud_waveshaperfilter.h"
 
 #include <algorithm>
+#include <cctype>
 #include <climits>
 
 namespace Dynamix {
+
+    namespace {
+        std::string normalizeParamName(std::string name) {
+            name.erase(std::remove_if(name.begin(), name.end(),
+                                      [](unsigned char c) { return c == '_' || c == '-'; }),
+                       name.end());
+            std::transform(name.begin(), name.end(), name.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return name;
+        }
+    }
 
     // Unified filter definitions that replace both AudioController and AudioSystem parameter
     // systems
@@ -24,12 +36,13 @@ namespace Dynamix {
              {"echo",
               {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
                {1, "delay", 0.01f, 2.0f, 0.2f, [](float v) { return v > 0.0f; }},
-               {2, "decay", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
+               {2, "decay", 0.0f, 1.0f, 0.5f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {3, "filter", 0.0f, 1.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }}},
               []() { return std::make_unique<SoLoud::EchoFilter>(); },
               [](SoLoud::Filter* f, const std::vector<float>& params) {
                   auto* filter = dynamic_cast<SoLoud::EchoFilter*>(f);
-                  if (filter && params.size() >= 3) {
-                      filter->setParams(params[1], params[2]);
+                  if (filter && params.size() >= 4) {
+                      filter->setParams(params[1], params[2], params[3]);
                   }
               }}},
             {"freeverb",
@@ -84,8 +97,8 @@ namespace Dynamix {
             {"robotize",
              {"robotize",
               {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
-               {1, "freq", 0.1f, 10.0f, 1.0f, [](float v) { return v > 0.0f; }},
-               {2, "waveform", 0.0f, 3.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 3.0f; }}},
+               {1, "freq", 0.1f, 100.0f, 1.0f, [](float v) { return v > 0.0f; }},
+               {2, "waveform", 0.0f, 6.0f, 0.0f, [](float v) { return v >= 0.0f && v <= 6.0f; }}},
               []() { return std::make_unique<SoLoud::RobotizeFilter>(); },
               [](SoLoud::Filter* f, const std::vector<float>& params) {
                   auto* filter = dynamic_cast<SoLoud::RobotizeFilter*>(f);
@@ -105,12 +118,23 @@ namespace Dynamix {
                   if (filter && params.size() >= 4) {
                       filter->setParams(params[1], params[2], params[3]);
                   }
+              }}},
+            {"bassboost",
+             {"bassboost",
+              {{0, "wet", 0.0f, 1.0f, 1.0f, [](float v) { return v >= 0.0f && v <= 1.0f; }},
+               {1, "boost", 0.0f, 10.0f, 2.0f, [](float v) { return v >= 0.0f && v <= 10.0f; }}},
+              []() { return std::make_unique<SoLoud::BassboostFilter>(); },
+              [](SoLoud::Filter* f, const std::vector<float>& params) {
+                  auto* filter = dynamic_cast<SoLoud::BassboostFilter*>(f);
+                  if (filter && params.size() >= 2) {
+                      filter->setParams(params[1]);
+                  }
               }}}};
 
     // Static filter list for backward compatibility
     const std::vector<std::string>& FilterManager::getAvailableFilters() {
         static const std::vector<std::string> availableFilters = {
-            "echo", "freeverb", "lofi", "flanger", "waveshaper", "robotize", "biquad"};
+            "echo", "freeverb", "lofi", "flanger", "waveshaper", "robotize", "biquad", "bassboost"};
         return availableFilters;
     }
 
@@ -118,6 +142,7 @@ namespace Dynamix {
     const std::vector<std::string>& FilterManager::getFiltersInSignalChainOrder() {
         static const std::vector<std::string> signalChainOrder = {
             "biquad",     // EQ first (affects frequency response)
+            "bassboost",  // Low-end emphasis
             "waveshaper", // Distortion/saturation
             "lofi",       // Bit reduction/sample rate reduction
             "flanger",    // Modulation effects
@@ -143,7 +168,7 @@ namespace Dynamix {
             return nullptr;
 
         for (const auto& param : filterDef->parameters) {
-            if (param.name == paramName) {
+            if (param.name == paramName || normalizeParamName(param.name) == normalizeParamName(paramName)) {
                 return &param;
             }
         }
@@ -174,6 +199,22 @@ namespace Dynamix {
     std::string FilterManager::getParameterName(const std::string& filterName, int paramId) const {
         const auto* paramDef = getParameterDefinition(filterName, paramId);
         return paramDef ? paramDef->name : "";
+    }
+
+    int FilterManager::resolveParameterId(const std::string& filterName,
+                                          const std::string& key) const {
+        if (key.empty()) {
+            return -1;
+        }
+        try {
+            size_t idx = 0;
+            const int id = std::stoi(key, &idx);
+            if (idx == key.size() && getParameterDefinition(filterName, id) != nullptr) {
+                return id;
+            }
+        } catch (const std::exception&) {
+        }
+        return getParameterId(filterName, key);
     }
 
     bool FilterManager::setFilterParameter(SoLoud::Filter* filter, const std::string& filterName,
@@ -281,13 +322,15 @@ namespace Dynamix {
     bool FilterManager::isValidParameter(const std::string& filterName,
                                          const std::string& paramName, float value) const {
         const auto* paramDef = getParameterDefinition(filterName, paramName);
-        return paramDef && paramDef->validator(value);
+        return paramDef && value >= paramDef->min && value <= paramDef->max &&
+               paramDef->validator(value);
     }
 
     bool FilterManager::isValidParameter(const std::string& filterName, int paramId,
                                          float value) const {
         const auto* paramDef = getParameterDefinition(filterName, paramId);
-        return paramDef && paramDef->validator(value);
+        return paramDef && value >= paramDef->min && value <= paramDef->max &&
+               paramDef->validator(value);
     }
 
     float FilterManager::getParameterMin(const std::string& filterName,

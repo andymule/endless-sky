@@ -94,7 +94,7 @@ namespace Dynamix {
                 if (entry.isDirectory) {
                     ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "[DIR]");
                 } else {
-                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), entry.fileType.c_str());
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s", entry.fileType.c_str());
                 }
             }
 

@@ -5,111 +5,130 @@
 #include "SignalAnalyzer.h"
 #include "TestHelpers.h"
 
+#include <cstddef>
+
 using namespace DynamixTest;
 using Catch::Matchers::WithinAbs;
 
-TEST_CASE("Granular tempo changes speed", "[audio][granular]") {
+namespace {
+
+std::vector<float> leftChannel(const std::vector<float>& interleaved, int channels) {
+    std::vector<float> left;
+    if (channels <= 0 || interleaved.empty()) {
+        return left;
+    }
+    left.reserve(interleaved.size() / static_cast<size_t>(channels));
+    for (size_t i = 0; i < interleaved.size(); i += static_cast<size_t>(channels)) {
+        left.push_back(interleaved[i]);
+    }
+    return left;
+}
+
+std::vector<float> dropSeconds(const std::vector<float>& interleaved, int channels, int sampleRate,
+                               float seconds) {
+    const size_t skip = static_cast<size_t>(seconds * static_cast<float>(sampleRate)) *
+                        static_cast<size_t>(channels);
+    if (skip >= interleaved.size()) {
+        return {};
+    }
+    return {interleaved.begin() + static_cast<std::ptrdiff_t>(skip), interleaved.end()};
+}
+
+} // namespace
+
+TEST_CASE("Grain tempo changes speed without changing pitch", "[audio][granular]") {
     AudioTestHarness harness;
     REQUIRE(harness.initialize());
 
-    auto sine = SignalAnalyzer::generateSineWave(440.0f, 2.0f, harness.getSampleRate());
-    int trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
-    REQUIRE(trackIdx >= 0);
-
+    auto sine = SignalAnalyzer::generateSineWave(440.0f, 6.0f, harness.getSampleRate());
+    REQUIRE(harness.loadTrackFromMemory(sine, sine.size() / 2) >= 0);
     harness.playAllTracks();
 
-    SECTION("Normal tempo (1.0x) produces expected frequency") {
-        harness.setGranularTempo(1.0f);
-        auto audio = harness.processSeconds(1.0f);
+    auto measurePitch = [&](float grainTempo) {
+        harness.setGranularTempo(grainTempo);
+        harness.setMasterTempo(1.0f);
+        auto audio = harness.processSeconds(1.2f);
+        auto steady = dropSeconds(audio, harness.getChannels(), harness.getSampleRate(), 0.3f);
+        auto left = leftChannel(steady, harness.getChannels());
+        REQUIRE(SignalAnalyzer::calculateRMS(left) > 0.01f);
+        return SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate());
+    };
 
-        float freq = SignalAnalyzer::findDominantFrequency(audio, harness.getSampleRate());
-        // Should be approximately 440Hz
-        REQUIRE_THAT(freq, WithinAbs(440.0f, 50.0f));
+    SECTION("1.0x grain is original pitch") {
+        REQUIRE_THAT(measurePitch(1.0f), WithinAbs(440.0f, 30.0f));
     }
 
-    SECTION("Granular tempo processes without crash") {
-        harness.setGranularTempo(1.5f);
-        auto audio = harness.processSeconds(0.5f);
-
-        // Should produce audio
-        float rms = SignalAnalyzer::calculateRMS(audio);
-        REQUIRE(rms > 0.0f);
+    SECTION("2.0x grain keeps pitch") {
+        REQUIRE_THAT(measurePitch(2.0f), WithinAbs(440.0f, 40.0f));
     }
 
-    SECTION("Different tempos produce different playback") {
-        harness.setGranularTempo(1.0f);
-        auto normal = harness.processSeconds(0.5f);
-
-        harness.clearAllTracks();
-        trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
-        harness.playAllTracks();
-        harness.setGranularTempo(2.0f);
-        auto fast = harness.processSeconds(0.5f);
-
-        // Different tempos should produce different audio
-        // (Note: This is a simplified test - real granular testing would verify pitch preservation)
-        REQUIRE(SignalAnalyzer::calculateRMS(normal) > 0.0f);
-        REQUIRE(SignalAnalyzer::calculateRMS(fast) > 0.0f);
+    SECTION("0.5x grain keeps pitch") {
+        REQUIRE_THAT(measurePitch(0.5f), WithinAbs(440.0f, 40.0f));
     }
 }
 
-TEST_CASE("Granular tempo preserves pitch", "[audio][granular]") {
+TEST_CASE("Tape speed changes pitch independently of grain tempo", "[audio][tempo]") {
     AudioTestHarness harness;
     REQUIRE(harness.initialize());
 
-    auto sine = SignalAnalyzer::generateSineWave(440.0f, 2.0f, harness.getSampleRate());
-
-    SECTION("Pitch is preserved at 2x tempo") {
-        int trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
-        harness.playAllTracks();
-        harness.setGranularTempo(2.0f);
-
-        auto audio = harness.processSeconds(1.0f);
-        float freq = SignalAnalyzer::findDominantFrequency(audio, harness.getSampleRate());
-
-        // Pitch should still be approximately 440Hz
-        // Allow larger tolerance for granular processing artifacts
-        REQUIRE_THAT(freq, WithinAbs(440.0f, 100.0f));
-    }
-
-    SECTION("Pitch is preserved at 0.5x tempo") {
-        int trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
-        harness.playAllTracks();
-        harness.setGranularTempo(0.5f);
-
-        auto audio = harness.processSeconds(1.0f);
-        float freq = SignalAnalyzer::findDominantFrequency(audio, harness.getSampleRate());
-
-        // Pitch should still be approximately 440Hz
-        REQUIRE_THAT(freq, WithinAbs(440.0f, 100.0f));
-    }
-}
-
-TEST_CASE("Master tempo affects pitch", "[audio][tempo]") {
-    AudioTestHarness harness;
-    REQUIRE(harness.initialize());
-
-    auto sine = SignalAnalyzer::generateSineWave(440.0f, 2.0f, harness.getSampleRate());
-    int trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
-    REQUIRE(trackIdx >= 0);
-
+    auto sine = SignalAnalyzer::generateSineWave(440.0f, 4.0f, harness.getSampleRate());
+    REQUIRE(harness.loadTrackFromMemory(sine, sine.size() / 2) >= 0);
     harness.playAllTracks();
+    harness.setGranularTempo(1.0f);
 
-    SECTION("2x master tempo doubles pitch") {
+    SECTION("2x tape doubles pitch") {
         harness.setMasterTempo(2.0f);
-        auto audio = harness.processSeconds(0.5f);
-
-        float freq = SignalAnalyzer::findDominantFrequency(audio, harness.getSampleRate());
-        // 2x tempo should approximately double the frequency
-        REQUIRE_THAT(freq, WithinAbs(880.0f, 100.0f));
+        auto audio = harness.processSeconds(0.6f);
+        auto left = leftChannel(audio, harness.getChannels());
+        float freq = SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate());
+        REQUIRE_THAT(freq, WithinAbs(880.0f, 80.0f));
     }
 
-    SECTION("0.5x master tempo halves pitch") {
+    SECTION("0.5x tape halves pitch") {
         harness.setMasterTempo(0.5f);
         auto audio = harness.processSeconds(1.0f);
+        auto left = leftChannel(audio, harness.getChannels());
+        float freq = SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate());
+        REQUIRE_THAT(freq, WithinAbs(220.0f, 40.0f));
+    }
+}
 
-        float freq = SignalAnalyzer::findDominantFrequency(audio, harness.getSampleRate());
-        // 0.5x tempo should approximately halve the frequency
-        REQUIRE_THAT(freq, WithinAbs(220.0f, 50.0f));
+TEST_CASE("Tape speed and grain tempo stack independently", "[audio][granular][tempo]") {
+    AudioTestHarness harness;
+    REQUIRE(harness.initialize());
+
+    auto sine = SignalAnalyzer::generateSineWave(440.0f, 8.0f, harness.getSampleRate());
+    REQUIRE(harness.loadTrackFromMemory(sine, sine.size() / 2) >= 0);
+    harness.playAllTracks();
+
+    SECTION("2x grain + 1x tape keeps pitch and produces audio") {
+        harness.setGranularTempo(2.0f);
+        harness.setMasterTempo(1.0f);
+        auto audio = harness.processSeconds(1.0f);
+        auto steady = dropSeconds(audio, harness.getChannels(), harness.getSampleRate(), 0.3f);
+        auto left = leftChannel(steady, harness.getChannels());
+        REQUIRE(SignalAnalyzer::calculateRMS(left) > 0.01f);
+        REQUIRE_THAT(SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate()),
+                     WithinAbs(440.0f, 40.0f));
+    }
+
+    SECTION("1x grain + 2x tape doubles pitch") {
+        harness.setGranularTempo(1.0f);
+        harness.setMasterTempo(2.0f);
+        auto audio = harness.processSeconds(0.6f);
+        auto left = leftChannel(audio, harness.getChannels());
+        REQUIRE_THAT(SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate()),
+                     WithinAbs(880.0f, 80.0f));
+    }
+
+    SECTION("2x grain + 2x tape doubles pitch (grain does not add more pitch)") {
+        harness.setGranularTempo(2.0f);
+        harness.setMasterTempo(2.0f);
+        auto audio = harness.processSeconds(1.0f);
+        auto steady = dropSeconds(audio, harness.getChannels(), harness.getSampleRate(), 0.3f);
+        auto left = leftChannel(steady, harness.getChannels());
+        REQUIRE(SignalAnalyzer::calculateRMS(left) > 0.01f);
+        REQUIRE_THAT(SignalAnalyzer::findDominantFrequency(left, harness.getSampleRate()),
+                     WithinAbs(880.0f, 80.0f));
     }
 }

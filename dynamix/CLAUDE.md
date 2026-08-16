@@ -9,22 +9,23 @@ Dynamix is a standalone real-time audio testing application for adaptive music i
 ## Common Development Commands
 
 ### Building
-- **Full build (first time)**: `./build-macos.sh`
-- **Quick incremental build**: `./quick-build.sh` or `ninja` in build directory
-- **Clean rebuild**: `./build-macos.sh clean`
-- **Debug build**: `./build-macos.sh debug`
-- **Bundled binary (portable)**: `./build-macos.sh bundle`
-- **Static build**: `./build-macos.sh static`
+- **Windows (this repo's primary day-to-day)**: `.\build-windows.ps1 -Config Release` or `build-windows-fast.bat`
+- **Windows tests**: `.\run-tests.bat` or `.\build-windows.ps1 -Config Release -Tests`
+- **macOS full build**: `./build-macos.sh`
+- **Linux**: `./build-linux.sh`
+- **Quick incremental (Unix)**: `./quick-build.sh` or `ninja` in the build directory
 
 ### Running
-- **Run application**: `cd build && ./dynamix`
+- **Windows**: `run-dynamix.bat` or `build\dynamix.exe`
+- **Unix**: `cd build && ./dynamix`
 
 ### Build System
 - Uses **CMake** with **Ninja** build system for performance
 - **Unity builds** enabled by default for faster compilation
 - **ccache** automatically used if available for 2x-10x faster rebuilds
+- **Dependencies managed via CMake FetchContent** (optional persistent `.deps/` on macOS)
 - **C++20** standard required
-- Dependencies managed via **CMake FetchContent** and **vcpkg** for minizip
+- Windows system package: **SDL2** (plus cmake/ninja/clang). PNG/JPEG/OpenAL/GLEW/minizip are not required.
 
 ## Code Architecture
 
@@ -64,21 +65,28 @@ src/
 ├── EventSystem.h/.cpp         # State transitions and effect automation
 ├── FilterManager.h/.cpp       # Audio effect parameter management
 ├── music_tester_api.h         # External C API definitions
+├── JsonValidator.h/.cpp       # Song/master JSON validation
+├── ConsoleLog.h/.cpp          # In-app log drawer
 └── Views/                     # Additional UI components
 ```
 
 ### Audio File Format
 - **Songs**: Directories containing `_song.json` + OGG tracks
 - **Master Events**: `_master.json` for global effects
-- **Only OGG files supported** for tracks
+- **OGG for tracks**; the validator also accepts `.wav`, `.aif`, `.aiff`
 - **Event-driven**: JSON defines events that trigger state changes
+- **Forgiving loader**: only structurally broken JSON fails; missing tracks, unknown effects, and out-of-range values become console warnings (see `fileformat.md`)
 
 ## Development Workflow
 
 ### Making Code Changes
 1. Edit source files
-2. Run `./quick-build.sh` for fast incremental build
-3. Test with `cd build && ./dynamix`
+2. Windows: `.\build-windows.ps1 -Config Release` (or Ctrl+Shift+B)
+3. Test with `.\run-tests.bat` (`[unit]` tier) or `.\build\dynamix_tests.exe` (full suite), then `.\run-dynamix.bat`
+
+The full suite mixes real audio through SoLoud's null driver, so it needs no audio device. Effect tests attach filters to a track through `FilterManager`; because a SoLoud voice only creates filter instances when it starts, attaching a filter to a playing track restarts it. Frequency analysis in `SignalAnalyzer` treats its input as one stream, so pass `extractChannel()` output rather than an interleaved capture.
+
+Unix: `./quick-build.sh` then `cd build && ./dynamix`
 
 ### Adding New Features
 - All audio tracks **loop continuously** - use volume=0 to disable
@@ -94,54 +102,56 @@ src/
 
 ## VSCode Integration
 
-### Required Extensions
-- **C/C++** (ms-vscode.cpptools) - IntelliSense and basic C++ support
-- **CodeLLDB** (vadimcn.vscode-lldb) - Debugging with modern LLDB
+Day-to-day development is on **Windows** (MSYS2 MinGW64 + Clang + gdb). macOS tasks remain for the other machine.
 
-### Available Tasks (Cmd+Shift+P → "Tasks: Run Task")
-- **Build Dynamix (Release - Unix)** - Full release build via `./build-macos.sh`
-- **Build Dynamix (Debug - Unix)** - Debug build via `./build-macos.sh debug`
-- **Build Dynamix (Fast - Unix)** - Fast debug build via `./build-macos.sh debug`
-- **Quick Build (Ninja Only - Unix)** - Fast incremental build via ninja
-- **Build and Run (Unix)** - Fast build + run (depends on Fast build + Run tasks)
-- **Clean Build** - Clean and rebuild
-- **Run Dynamix (No Build - Unix)** - Run without building via `./build/dynamix`
+### Required Extensions
+- **C/C++** (`ms-vscode.cpptools`) - IntelliSense and Windows gdb debugging
+
+### Available Tasks (Ctrl+Shift+B / Tasks: Run Task)
+- **Build Dynamix (Release - Windows)** - default build via `build-windows.ps1`
+- **Build Dynamix (Debug - Windows)** - debug build to `build_debug/`
+- **Build and Test (Windows)** - Release + Catch2 `[unit]`
+- **Run Dynamix (Windows)** - launch `build/dynamix.exe`
+- Unix tasks (`Build Dynamix (* - Unix)`) still wrap `./build-macos.sh`
 
 ### Launch Configurations (F5)
-- **Debug Dynamix** - Debug with breakpoints using CodeLLDB
-- **Run Dynamix (No Debug)** - Release mode run
+- **Debug Dynamix (Windows gdb)** - `build_debug/dynamix.exe` with MinGW gdb
+- **Run Dynamix (No Debug)** - Release binary
+
+Unix/macOS: `./build-macos.sh` then `cd build && ./dynamix`. CodeLLDB is optional on Mac.
 
 ## Dependencies and System Requirements
 
-### System Libraries (via Homebrew)
-- cmake, ninja, pkg-config, ccache
-- sdl2, libpng, jpeg, openal-soft, libogg, libvorbis
+### System Libraries (Windows / MSYS2)
+- `mingw-w64-x86_64-{cmake,ninja,clang,pkgconf,SDL2,gdb}` via `install-msys2-deps.bat`
+
+### System Libraries (macOS / Homebrew)
+- cmake, ninja, pkg-config, ccache, sdl2
 
 ### Third-Party Libraries (auto-downloaded)
 - **SoLoud** - Audio engine
 - **Dear ImGui** - GUI framework
 - **Signalsmith Stretch** - Real-time tempo stretching
 - **nlohmann/json** - JSON parsing
-- **minizip** - Archive handling (via vcpkg)
 
 ### Platform Support
-- **Primary**: macOS 10.15+ with Xcode Command Line Tools
-- **Build system**: CMake 3.24+, Ninja (optional but recommended)
+- **Primary day-to-day**: Windows 10/11 with MSYS2 MinGW64 (Clang + Ninja + SDL2). See `how-to-windows.md`.
+- **Also**: macOS 10.15+ with Xcode Command Line Tools; Linux via `./build-linux.sh`
+- **Build system**: CMake 3.24+, Ninja
 - **Compiler**: C++20 compatible (Clang 12+, GCC 10+)
 
 ## Troubleshooting
 
 ### Build Issues
-- Run `./build-macos.sh clean` for mysterious build failures
-- Ensure Xcode Command Line Tools installed: `xcode-select --install`
-- Check Homebrew dependencies: `brew install cmake ninja pkg-config sdl2 openal-soft`
+- Windows: `.\build-windows.ps1 -Config Release -Clean`, then `install-msys2-deps.bat` if cmake/clang/SDL2 are missing
+- Unix: `./build-macos.sh clean`; Homebrew: `brew install cmake ninja pkg-config sdl2`
 
 ### Audio Issues
-- Only OGG/WAV/AIF files supported
-- Check `sound_staging/` directory exists with proper format
+- Tracks are OGG in practice; the validator also accepts `.wav`, `.aif`, `.aiff`
+- Projects live in `~/Music/Dynamix` by default (Windows: `%USERPROFILE%\Music\Dynamix`); a project folder needs `_master.json` and each song folder needs `_song.json`
+- Loading problems are reported in the in-app console: most are warnings the loader recovers from (see `fileformat.md`)
 - Verify audio device permissions in macOS System Preferences
 
 ### VSCode/Debugging Issues
-- Install CodeLLDB extension for modern debugging
-- Reload window after first build for IntelliSense
-- Check `build/compile_commands.json` exists for proper IntelliSense
+- Install the C/C++ extension (`ms-vscode.cpptools`) and `mingw-w64-x86_64-gdb`
+- Reload window after first build for IntelliSense (`build/compile_commands.json`)

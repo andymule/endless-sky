@@ -2,134 +2,45 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Dynamix (Windows)",
-            "type": "lldb-dap",
+            "name": "Debug Dynamix (Windows gdb)",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix.exe",
+            "program": "${workspaceFolder}/build_debug/dynamix.exe",
             "args": [],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "preLaunchTask": "Build Dynamix (Debug - Windows)"
-        },
-        {
-            "name": "Debug Dynamix (macOS/Linux)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
-                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
-            },
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
+            "cwd": "${workspaceFolder}/build_debug",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\msys64\\mingw64\\bin;${env:PATH}"
+                }
             ],
-            "preLaunchTask": "Build Dynamix (Debug - Unix)"
-        },
-        {
-            "name": "Run Dynamix (Release - Windows)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix.exe",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "preLaunchTask": "Build Dynamix (Release - Windows)"
-        },
-        {
-            "name": "Run Dynamix (Release - macOS/Linux)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
-                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
-            },
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
-            ],
-            "preLaunchTask": "Build Dynamix (Release - Unix)"
-        },
-        {
-            "name": "Build and Run (Fast - Windows)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix.exe",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "noDebug": true,
-            "preLaunchTask": "Build and Run (Windows)"
-        },
-        {
-            "name": "Build and Run (Fast - macOS/Linux)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "noDebug": true,
-            "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
-                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
-            },
-            "preLaunchTask": "Build Dynamix (Fast - Unix)"
-        },
-        {
-            "name": "Run Dynamix (Direct - Windows)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix.exe",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false
-        },
-        {
-            "name": "Run Dynamix (Direct - macOS/Linux)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/dynamix",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "DYLD_LIBRARY_PATH": "/opt/homebrew/lib:${env:DYLD_LIBRARY_PATH}",
-                "LD_LIBRARY_PATH": "/usr/local/lib:/usr/lib/x86_64-linux-gnu:${env:LD_LIBRARY_PATH}"
-            },
-            "stopOnEntry": false,
-            "initCommands": [
-                "settings set target.process.stop-on-sharedlibrary-events false"
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
+            "preLaunchTask": "Build Dynamix (Debug - Windows)",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
             ]
         },
         {
-            "name": "Clean Build (Windows)",
-            "type": "lldb",
+            "name": "Run Dynamix (No Debug)",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "cmd.exe",
-            "args": [
-                "/c",
-                "echo Cleaned build directory."
+            "program": "${workspaceFolder}/build/dynamix.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\msys64\\mingw64\\bin;${env:PATH}"
+                }
             ],
-            "cwd": "${workspaceFolder}",
-            "noDebug": true,
-            "preLaunchTask": "Clean Build"
-        },
-        {
-            "name": "Clean Build (macOS/Linux)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "/bin/echo",
-            "args": [
-                "Cleaned build directory."
-            ],
-            "cwd": "${workspaceFolder}",
-            "noDebug": true,
-            "preLaunchTask": "Clean Build"
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
+            "preLaunchTask": "Build Dynamix (Release - Windows)"
         }
     ]
 }

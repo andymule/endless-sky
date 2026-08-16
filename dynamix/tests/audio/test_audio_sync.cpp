@@ -39,14 +39,13 @@ TEST_CASE("Multiple tracks play simultaneously", "[audio][sync]") {
     SECTION("Mixed signal contains both frequencies") {
         auto audio = harness.processSeconds(0.5f);
 
-        // Check for presence of both frequencies
-        bool has440 = SignalAnalyzer::hasFrequencyPeak(
-            SignalAnalyzer::calculateSpectrum(audio), 440.0f, harness.getSampleRate(), 0.1f);
-        bool has880 = SignalAnalyzer::hasFrequencyPeak(
-            SignalAnalyzer::calculateSpectrum(audio), 880.0f, harness.getSampleRate(), 0.1f);
+        // One channel at a time: the spectrum treats its input as a single
+        // stream, so an interleaved buffer reads as a detuned signal.
+        auto mono = SignalAnalyzer::extractChannel(audio, harness.getChannels());
+        auto spectrum = SignalAnalyzer::calculateSpectrum(mono);
 
-        // At least one should be detectable (spectrum analysis has limitations)
-        REQUIRE((has440 || has880 || SignalAnalyzer::calculateRMS(audio) > 0.1f));
+        REQUIRE(SignalAnalyzer::hasFrequencyPeak(spectrum, 440.0f, harness.getSampleRate(), 0.1f));
+        REQUIRE(SignalAnalyzer::hasFrequencyPeak(spectrum, 880.0f, harness.getSampleRate(), 0.1f));
     }
 }
 
@@ -57,8 +56,8 @@ TEST_CASE("Track positions remain synchronized", "[audio][sync]") {
     auto sine1 = SignalAnalyzer::generateSineWave(440.0f, 5.0f, harness.getSampleRate());
     auto sine2 = SignalAnalyzer::generateSineWave(880.0f, 5.0f, harness.getSampleRate());
 
-    int track0 = harness.loadTrackFromMemory(sine1, sine1.size() / 2);
-    int track1 = harness.loadTrackFromMemory(sine2, sine2.size() / 2);
+    REQUIRE(harness.loadTrackFromMemory(sine1, sine1.size() / 2) == 0);
+    REQUIRE(harness.loadTrackFromMemory(sine2, sine2.size() / 2) == 1);
 
     harness.playAllTracks();
 
@@ -93,8 +92,8 @@ TEST_CASE("Individual track volume control", "[audio][sync]") {
     auto sine440 = SignalAnalyzer::generateSineWave(440.0f, 1.0f, harness.getSampleRate());
     auto sine880 = SignalAnalyzer::generateSineWave(880.0f, 1.0f, harness.getSampleRate());
 
-    int track0 = harness.loadTrackFromMemory(sine440, sine440.size() / 2);
-    int track1 = harness.loadTrackFromMemory(sine880, sine880.size() / 2);
+    REQUIRE(harness.loadTrackFromMemory(sine440, sine440.size() / 2) == 0);
+    REQUIRE(harness.loadTrackFromMemory(sine880, sine880.size() / 2) == 1);
 
     harness.playAllTracks();
 
@@ -107,8 +106,8 @@ TEST_CASE("Individual track volume control", "[audio][sync]") {
 
         // Reset
         harness.clearAllTracks();
-        track0 = harness.loadTrackFromMemory(sine440, sine440.size() / 2);
-        track1 = harness.loadTrackFromMemory(sine880, sine880.size() / 2);
+        REQUIRE(harness.loadTrackFromMemory(sine440, sine440.size() / 2) == 0);
+        REQUIRE(harness.loadTrackFromMemory(sine880, sine880.size() / 2) == 1);
         harness.playAllTracks();
 
         // Mute one track

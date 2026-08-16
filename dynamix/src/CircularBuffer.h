@@ -148,6 +148,10 @@ namespace Dynamix {
             if (value <= 1)
                 return 2;
 
+            constexpr size_t maxPower = size_t(1) << (sizeof(size_t) * 8 - 1);
+            if (value >= maxPower)
+                return maxPower;
+
             size_t power = 1;
             while (power < value) {
                 power <<= 1;

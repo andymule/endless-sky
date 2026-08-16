@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AudioState.h"
-#include "AudioStreamProcessor.h"
 #include "FilterManager.h"
 #include "Logger.h"
 #include "SyncWav.h"
@@ -22,34 +21,6 @@
 #include <vector>
 
 namespace Dynamix {
-
-    // Forward declaration for granular processor
-    class AudioStreamProcessor;
-
-    // Custom filter to intercept bus audio and route through granular processor
-    class GranularInterceptFilter : public SoLoud::Filter {
-    public:
-        GranularInterceptFilter(AudioStreamProcessor* processor, bool* enabledFlag);
-        virtual SoLoud::FilterInstance* createInstance() override;
-
-    private:
-        AudioStreamProcessor* m_processor;
-        bool* m_enabledFlag;
-    };
-
-    class GranularInterceptFilterInstance : public SoLoud::FilterInstance {
-    public:
-        GranularInterceptFilterInstance(AudioStreamProcessor* processor, bool* enabledFlag);
-
-        virtual void filterChannel(float* aBuffer, unsigned int aSamples, float aSamplerate,
-                                   double aTime, unsigned int aChannel,
-                                   unsigned int aChannels) override;
-
-    private:
-        AudioStreamProcessor* m_processor;
-        bool* m_enabledFlag;
-        float m_lastPitchCompensation;
-    };
 
     // RAII wrapper for SoLoud engine
     class SoloudEngine {
@@ -180,18 +151,12 @@ namespace Dynamix {
         // Tempo/playback rate control
         void setGlobalPlaybackRate(float rate);
 
-        // Granular tempo control (pitch-preserving)
+        // Granular tempo control (pitch-preserving time stretch)
         void setGranularTempo(float tempo);
         float getGranularTempo() const;
         float getGranularLatencyMs() const;
         bool isGranularProcessorReady() const;
-        void setGranularEnabled(bool enabled);
         bool isGranularEnabled() const;
-
-        // Dual tape speed architecture for granular tempo
-        void updateDualTapeSpeed();
-        float calculateInternalTapeSpeed() const;
-        float calculatePitchCompensation() const;
 
         // Filter management
         void addFilterToTrack(size_t trackIndex, const std::string& filterName);
@@ -241,8 +206,6 @@ namespace Dynamix {
 
         std::unique_ptr<SoloudEngine> m_engine;
         std::unique_ptr<AudioBus> m_masterBus;
-        std::unique_ptr<AudioStreamProcessor> m_granularProcessor;
-        std::unique_ptr<GranularInterceptFilter> m_granularFilter;
         FilterManager m_filterManager;
         TrackManager m_trackManager;
         std::vector<TrackFilters> m_trackFilters;
@@ -253,21 +216,9 @@ namespace Dynamix {
         unsigned int m_busHandle = 0;
         SyncState m_syncState;
 
-        // Granular tempo processing
-        bool m_granularEnabled = false;
-        std::vector<float> m_captureBuffer;
-        std::vector<float> m_outputBuffer;
-
-        // Audio capture callback for granular processing
-        void processMasterOutput(float* buffer, unsigned int samples, unsigned int channels);
-        void testGranularProcessing();
-
-        // Dual tape speed architecture
-        float m_userTapeSpeed = 1.0f;     // User-controlled tape speed (0.1x - 4.0x)
-        float m_granularTempo = 1.0f;     // Granular tempo multiplier (0.5x - 2.0x)
-        float m_internalTapeSpeed = 1.0f; // Hidden: userTapeSpeed * granularTempo
-        float m_pitchCompensation = 1.0f; // Hidden: 1.0 / granularTempo
-        bool m_hasEverPlayed = false;     // Track if tracks have ever been played
+        float m_userTapeSpeed = 1.0f;
+        float m_granularTempo = 1.0f;
+        bool m_hasEverPlayed = false;
     };
 
 } // namespace Dynamix

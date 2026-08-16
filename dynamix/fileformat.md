@@ -1,8 +1,10 @@
-# Dynamix Dynamix File Format
+# Dynamix File Format
 
 ## Overview
 
-The Dynamix Dynamix uses a folder-based structure where each project contains a master bus and multiple songs. Songs are identified by their folder names, not by any JSON field.
+Dynamix uses a folder-based structure where each project contains a master bus and multiple songs. Songs are identified by their folder names, not by any JSON field.
+
+Everything up to "Event-Driven Song Format Specification" describes the format as it loads today; the specification that follows is the original design document, kept for background.
 
 ## Project Structure
 
@@ -60,9 +62,11 @@ Songs are stored in `_song.json` files within song folders. The song name is the
     - **masterTempo** (float): Song tempo multiplier
     - **granularTempo** (float): Granular tempo control
     - **tracks** (array): Track states
-      - **file** (string): Track filename (must exist in folder)
-      - **volume** (float): Track volume (0.0-1.0)
-      - **effects** (object): Effect configurations
+      - **file** (string): Track filename, expected to exist in the song folder
+      - **volume** (float): Track volume (0.0-2.0, where 1.0 is unity gain)
+      - **effects** (object): Effect configurations, keyed by effect name
+
+Effect parameters may be keyed by number (`"1"`) or by name (`"delay"`); names are matched case-insensitively and treat `-` and `_` alike. See [Available Effects and Parameters](#available-effects-and-parameters) for the parameters each effect takes.
 
 ## Master Bus JSON Format
 
@@ -100,6 +104,21 @@ The master bus is stored in `_master.json` at the project root.
 2. **Folder-driven workflow**: The GUI shows tracks based on actual .ogg files in the folder, not from JSON.
 3. **Auto-sync**: When loading songs, tracks missing from the folder are removed from events, and new tracks are added with default settings.
 4. **No song name field**: The `name` field in song JSON is deprecated and ignored.
+5. **Audio files**: OGG is the intended format; the validator also accepts `.wav`, `.aif`, and `.aiff`.
+
+## Loading Behavior
+
+A song loads unless its JSON is structurally broken (unparseable, or missing `events`/`state`). Everything else is reported in the in-app console as a warning and recovered from, so that an imperfect project still opens:
+
+| Situation | What happens |
+| --- | --- |
+| `events` array is empty | A default event is created |
+| Track file listed in JSON is missing | The track loads at volume 0 |
+| Effect name is not recognized | The effect is ignored |
+| Parameter key is not recognized | The parameter is ignored |
+| Parameter or volume is out of range | The value is clamped to the valid range |
+
+A folder counts as a project when it contains `_master.json`, and as a song when it contains `_song.json`. A project's own folder is never treated as one of its songs.
 
 # Event-Driven Song Format Specification
 

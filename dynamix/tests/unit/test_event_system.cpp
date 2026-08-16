@@ -10,7 +10,7 @@ using namespace DynamixTest;
 using Catch::Matchers::WithinAbs;
 
 TEST_CASE("EventSystem state capture", "[unit][event]") {
-    EventSystem eventSystem;
+    EventSystem eventSystem(nullptr);
 
     SECTION("Captures master tempo correctly") {
         // This test verifies the basic structure of state capture

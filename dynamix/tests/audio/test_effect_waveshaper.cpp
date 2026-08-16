@@ -38,7 +38,9 @@ TEST_CASE("Waveshaper effect produces distortion", "[audio][waveshaper]") {
         harness.setFilterParameter(static_cast<size_t>(trackIdx), "waveshaper", 1, 0.2f);  // Low amount
 
         auto lowDistortion = harness.processSeconds(0.3f);
-        float lowTHD = SignalAnalyzer::measureTHD(lowDistortion, 440.0f, harness.getSampleRate());
+        float lowTHD = SignalAnalyzer::measureTHD(
+            SignalAnalyzer::extractChannel(lowDistortion, harness.getChannels()), 440.0f,
+            harness.getSampleRate());
 
         harness.clearAllTracks();
         trackIdx = harness.loadTrackFromMemory(sine, sine.size() / 2);
@@ -47,7 +49,9 @@ TEST_CASE("Waveshaper effect produces distortion", "[audio][waveshaper]") {
         harness.setFilterParameter(static_cast<size_t>(trackIdx), "waveshaper", 1, 0.8f);  // High amount
 
         auto highDistortion = harness.processSeconds(0.3f);
-        float highTHD = SignalAnalyzer::measureTHD(highDistortion, 440.0f, harness.getSampleRate());
+        float highTHD = SignalAnalyzer::measureTHD(
+            SignalAnalyzer::extractChannel(highDistortion, harness.getChannels()), 440.0f,
+            harness.getSampleRate());
 
         // Higher amount should produce more THD
         REQUIRE(highTHD >= lowTHD);

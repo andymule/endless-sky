@@ -26,21 +26,22 @@ TEST_CASE("JsonValidator validates song JSON schema", "[unit][json]") {
         REQUIRE_FALSE(result.errors.empty());
     }
 
-    SECTION("Empty events array is rejected") {
+    SECTION("Empty events array is a warning") {
         nlohmann::json json = {{"events", nlohmann::json::array()}};
         auto result = validator.validateSongSchema(json);
-        REQUIRE_FALSE(result.isValid);
+        REQUIRE(result.isValid);
+        REQUIRE_FALSE(result.warnings.empty());
     }
 
     SECTION("Event missing name is rejected") {
         nlohmann::json json = {{"events", {{{"fadeTime", 1.0}, {"state", {{"tracks", nlohmann::json::array()}}}}}}};
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 
     SECTION("Event missing fadeTime is rejected") {
         nlohmann::json json = {{"events", {{{"name", "Test"}, {"state", {{"tracks", nlohmann::json::array()}}}}}}};
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 }
@@ -60,7 +61,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE(result.isValid);
     }
 
@@ -76,7 +77,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 
@@ -92,7 +93,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 
@@ -108,7 +109,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 
@@ -124,7 +125,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 
@@ -144,7 +145,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE(result.isValid);
     }
 
@@ -164,7 +165,7 @@ TEST_CASE("JsonValidator validates parameter ranges", "[unit][json]") {
                 }
             }]
         })");
-        auto result = validator.validateSongSchema(json);
+        auto result = validator.validateSongJson(json);
         REQUIRE_FALSE(result.isValid);
     }
 }
@@ -179,16 +180,34 @@ TEST_CASE("JsonValidator validates effect parameters", "[unit][json]") {
         REQUIRE(result.isValid);
     }
 
-    SECTION("Invalid effect name is rejected") {
+    SECTION("Invalid effect name is a warning") {
         nlohmann::json effectJson = {{"parameters", {{"0", 0.5f}}}};
         auto result = validator.validateEffect("invalid_effect", effectJson);
-        REQUIRE_FALSE(result.isValid);
+        REQUIRE(result.isValid);
+        REQUIRE_FALSE(result.warnings.empty());
     }
 
-    SECTION("Wet parameter out of range is rejected") {
+    SECTION("Wet parameter out of range is a warning") {
         nlohmann::json effectJson = {{"parameters", {{"0", 5.0f}}}};
         auto result = validator.validateEffect("echo", effectJson);
-        REQUIRE_FALSE(result.isValid);
+        REQUIRE(result.isValid);
+        REQUIRE_FALSE(result.warnings.empty());
+    }
+
+    SECTION("Named parameter keys are accepted") {
+        nlohmann::json effectJson = {
+            {"parameters", {{"wet", 0.6f}, {"samplerate", 8000.0f}, {"bitdepth", 3.0f}}}};
+        auto result = validator.validateEffect("lofi", effectJson);
+        REQUIRE(result.isValid);
+        REQUIRE(result.errors.empty());
+    }
+
+    SECTION("Unknown extra parameter IDs are warnings, not errors") {
+        nlohmann::json effectJson = {
+            {"parameters", {{"0", 0.5f}, {"1", 0.3f}, {"2", 0.5f}, {"9", 0.3f}}}};
+        auto result = validator.validateEffect("echo", effectJson);
+        REQUIRE(result.isValid);
+        REQUIRE_FALSE(result.warnings.empty());
     }
 }
 

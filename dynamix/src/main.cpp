@@ -1,13 +1,13 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define SDL_MAIN_HANDLED
 #include <windows.h>
 #endif
-#ifdef _WIN32
-#undef min
-#undef max
-#endif
+#include <algorithm>
+#include <cstring>
 #include <filesystem>
-#include <iostream>
+#include <string>
 
 // macOS specific includes
 #ifdef __APPLE__
@@ -277,28 +277,31 @@ std::string getExecutableDirectory() {
     return ".";
 }
 
-// Windows-specific SDL main handling
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
 #ifdef _WIN32
-#define SDL_MAIN_HANDLED
-#include <SDL2/SDL_main.h>
+    SDL_SetMainReady();
 #endif
 
-int main(int argc, char* argv[]) {
     LOG_INFO("Starting Dynamix application");
     
-    // Get the executable directory for proper path resolution
     std::string exeDir = getExecutableDirectory();
     LOG_INFO("Executable directory: " + exeDir);
 
-    // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         LOG_ERROR("Error initializing SDL: " + std::string(SDL_GetError()));
         return 1;
     }
 
-    // Configure OpenGL context for macOS
     const char* glsl_version = "#version 150";
+    (void)glsl_version;
+#ifdef __APPLE__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+#else
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+#endif
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
@@ -349,6 +352,7 @@ int main(int argc, char* argv[]) {
     // Initialize components with executable directory
     if (!controller.initialize(exeDir)) {
         LOG_ERROR("Failed to initialize AudioController");
+        g_controller = nullptr;
         SDL_GL_DeleteContext(glContext);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -357,6 +361,7 @@ int main(int argc, char* argv[]) {
 
     if (!view.Initialize(window, glContext)) {
         LOG_ERROR("Failed to initialize MainView");
+        g_controller = nullptr;
         controller.cleanup();
         SDL_GL_DeleteContext(glContext);
         SDL_DestroyWindow(window);
@@ -371,8 +376,9 @@ int main(int argc, char* argv[]) {
     while (view.IsRunning()) {
         // Calculate deltaTime
         Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1000.0f; // Convert to seconds
+        float deltaTime = static_cast<float>(currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
+        deltaTime = std::clamp(deltaTime, 0.0f, 0.1f);
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {

@@ -35,14 +35,36 @@ namespace Dynamix {
             }
             
             std::string getErrorSummary() const {
-                if (errors.empty()) return "No errors";
-                
-                std::string summary = "Validation errors (" + std::to_string(errors.size()) + "):\n";
-                for (size_t i = 0; i < errors.size(); ++i) {
-                    summary += "  " + std::to_string(i + 1) + ". " + errors[i] + "\n";
+                if (errors.empty() && warnings.empty()) {
+                    return "No issues";
+                }
+                std::string summary;
+                if (!errors.empty()) {
+                    summary += "Validation errors (" + std::to_string(errors.size()) + "):\n";
+                    for (size_t i = 0; i < errors.size(); ++i) {
+                        summary += "  " + std::to_string(i + 1) + ". " + errors[i] + "\n";
+                    }
+                }
+                if (!warnings.empty()) {
+                    summary += "Validation warnings (" + std::to_string(warnings.size()) + "):\n";
+                    for (size_t i = 0; i < warnings.size(); ++i) {
+                        summary += "  " + std::to_string(i + 1) + ". " + warnings[i] + "\n";
+                    }
                 }
                 return summary;
             }
+        };
+
+        // Accepted ranges, shared with the loaders so that what validates and
+        // what loads agree.
+        struct ValidationConstants {
+            static constexpr float MIN_FADE_TIME = 0.0f;
+            static constexpr float MAX_FADE_TIME = 60.0f;
+            static constexpr float MIN_TEMPO = 0.1f;
+            static constexpr float MAX_TEMPO = 4.0f;
+            static constexpr float MIN_VOLUME = 0.0f;
+            static constexpr float MAX_VOLUME = 2.0f;
+            static const std::vector<std::string> SUPPORTED_AUDIO_EXTENSIONS;
         };
 
         JsonValidator();
@@ -105,16 +127,6 @@ namespace Dynamix {
         bool requireObject(const nlohmann::json& json, const std::string& field,
                           ValidationResult& result, const std::string& context = "") const;
 
-        // Validation constants
-        struct ValidationConstants {
-            static constexpr float MIN_FADE_TIME = 0.0f;
-            static constexpr float MAX_FADE_TIME = 60.0f;
-            static constexpr float MIN_TEMPO = 0.1f;
-            static constexpr float MAX_TEMPO = 4.0f;
-            static constexpr float MIN_VOLUME = 0.0f;
-            static constexpr float MAX_VOLUME = 2.0f;
-            static const std::vector<std::string> SUPPORTED_AUDIO_EXTENSIONS;
-        };
     };
 
 } // namespace Dynamix

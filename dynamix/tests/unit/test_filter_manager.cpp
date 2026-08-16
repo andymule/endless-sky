@@ -93,7 +93,7 @@ TEST_CASE("FilterManager parameter ranges", "[unit][filter]") {
     }
 }
 
-TEST_CASE("FilterManager parameter validation", "[unit][filter]") {
+TEST_CASE("FilterManager rejects invalid parameter values", "[unit][filter]") {
     FilterManager manager;
 
     SECTION("Valid parameters pass validation") {
@@ -186,11 +186,11 @@ TEST_CASE("FilterManager parameter name mapping", "[unit][filter]") {
 TEST_CASE("FilterManager default values", "[unit][filter]") {
     FilterManager manager;
 
-    SECTION("Wet defaults to 0 (dry signal)") {
+    SECTION("Wet defaults to 1 (fully wet when a filter is added)") {
         for (const auto& filterName : getAllFilterNames()) {
             float defaultWet = manager.getParameterDefault(filterName, "wet");
             INFO("Filter: " << filterName);
-            REQUIRE(defaultWet == 0.0f);
+            REQUIRE(defaultWet == 1.0f);
         }
     }
 

@@ -116,12 +116,15 @@ std::string createMasterJsonWithEffects(
 }
 
 bool jsonEquivalent(const nlohmann::json& a, const nlohmann::json& b, float tolerance) {
-    if (a.type() != b.type()) {
-        return false;
+    // JSON has a single number type, so compare numerically instead of
+    // requiring the same storage type: a literal 0 is stored signed but parses
+    // back as unsigned, which is not a round-trip difference worth failing on.
+    if (a.is_number() && b.is_number()) {
+        return approxEqual(a.get<float>(), b.get<float>(), tolerance);
     }
 
-    if (a.is_number_float()) {
-        return approxEqual(a.get<float>(), b.get<float>(), tolerance);
+    if (a.type() != b.type()) {
+        return false;
     }
 
     if (a.is_object()) {
@@ -303,12 +306,12 @@ std::filesystem::path getInvalidJsonPath(const std::string& filename) {
 // ============================================================================
 
 std::vector<std::string> getAllFilterNames() {
-    return {"echo", "freeverb", "lofi", "flanger", "waveshaper", "robotize", "biquad"};
+    return {"echo", "freeverb", "lofi", "flanger", "waveshaper", "robotize", "biquad", "bassboost"};
 }
 
 std::vector<int> getFilterParameterIds(const std::string& filterName) {
     if (filterName == "echo") {
-        return {0, 1, 2}; // wet, delay, decay
+        return {0, 1, 2, 3}; // wet, delay, decay, filter
     } else if (filterName == "freeverb") {
         return {0, 1, 2, 3, 4}; // wet, freeze, roomSize, damp, width
     } else if (filterName == "lofi") {
@@ -321,6 +324,8 @@ std::vector<int> getFilterParameterIds(const std::string& filterName) {
         return {0, 1, 2}; // wet, freq, waveform
     } else if (filterName == "biquad") {
         return {0, 1, 2, 3}; // wet, type, freq, resonance
+    } else if (filterName == "bassboost") {
+        return {0, 1}; // wet, boost
     }
     return {};
 }
@@ -334,6 +339,7 @@ std::vector<FilterTestParams> getFilterTestConfigs() {
         {"waveshaper", {{0, 0.8f}, {1, 0.5f}}, "Medium distortion"},
         {"robotize", {{0, 0.8f}, {1, 5.0f}, {2, 0}}, "Robot voice effect"},
         {"biquad", {{0, 1.0f}, {1, 0}, {2, 500.0f}, {3, 2.0f}}, "Low-pass filter at 500Hz"},
+        {"bassboost", {{0, 1.0f}, {1, 2.0f}}, "Bass boost"},
     };
 }
 

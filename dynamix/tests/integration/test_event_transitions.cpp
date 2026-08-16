@@ -3,6 +3,7 @@
 #include "AudioState.h"
 #include "EventSystem.h"
 #include "SongManager.h"
+#include "AudioTestHarness.h"
 #include "TestHelpers.h"
 
 using namespace Dynamix;

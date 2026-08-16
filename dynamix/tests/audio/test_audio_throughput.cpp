@@ -119,7 +119,8 @@ TEST_CASE("Large buffer sizes work correctly", "[audio][performance]") {
 }
 
 TEST_CASE("Small buffer sizes work correctly", "[audio][performance]") {
-    AudioTestHarness harness(44100, 2, 256);  // Small buffer
+    // 512 frames is SoLoud's minimum buffer size (one sample granularity)
+    AudioTestHarness harness(44100, 2, 512);
     REQUIRE(harness.initialize());
 
     auto sine = SignalAnalyzer::generateSineWave(440.0f, 1.0f, harness.getSampleRate());

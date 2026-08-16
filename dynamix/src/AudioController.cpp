@@ -2,9 +2,9 @@
 #include "EventSystem.h"
 #include "Logger.h"
 #include <algorithm>
+#include <cctype>
 #include <ctime>
 #include <fstream>
-#include <iostream>
 #include <set>
 
 namespace Dynamix {
@@ -192,15 +192,9 @@ namespace Dynamix {
     bool AudioController::isSupportedFile(const std::string& filepath) const {
         std::filesystem::path path(filepath);
         std::string ext = path.extension().string();
-
-        // More efficient case-insensitive comparison for .ogg extension
-        if (ext.length() == 4 && (ext[0] == '.' || ext[0] == 'O' || ext[0] == 'o') &&
-            (ext[1] == 'o' || ext[1] == 'O') && (ext[2] == 'g' || ext[2] == 'G') &&
-            (ext[3] == 'g' || ext[3] == 'G')) {
-            return true;
-        }
-
-        return false;
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return ext == ".ogg";
     }
 
     void AudioController::toggleGlobalPlayback() {
@@ -348,9 +342,8 @@ namespace Dynamix {
 
     // Master tempo controls (tape-style playback speed)
     void AudioController::setMasterTempo(float tempo) {
-        // Store the tempo value for UI synchronization
+        tempo = std::clamp(tempo, 0.1f, 4.0f);
         m_currentTempo = tempo;
-        // Use the new dual tape speed architecture - this sets user tape speed
         m_audioSystem.setGlobalPlaybackRate(tempo);
     }
 
@@ -358,7 +351,7 @@ namespace Dynamix {
 
     // Granular tempo controls (pitch-preserving)
     void AudioController::setGranularTempo(float tempo) {
-        // Use the new dual tape speed architecture - this coordinates with user tape speed
+        tempo = std::clamp(tempo, 0.5f, 2.0f);
         m_audioSystem.setGranularTempo(tempo);
     }
 
@@ -688,7 +681,23 @@ namespace Dynamix {
                                "Failed to create _master.json: " + masterJsonPath.string());
                 return false;
             }
-            masterFile << "{\n  \"events\": []\n}\n";
+            masterFile << "{\n"
+                          "  \"name\": \"Master Bus\",\n"
+                          "  \"events\": [\n"
+                          "    {\n"
+                          "      \"name\": \"Normal\",\n"
+                          "      \"fadeTime\": 0.0,\n"
+                          "      \"state\": {\n"
+                          "        \"masterTempo\": 1.0,\n"
+                          "        \"granularTempo\": 1.0,\n"
+                          "        \"bus\": {\n"
+                          "          \"volume\": 1.0,\n"
+                          "          \"effects\": {}\n"
+                          "        }\n"
+                          "      }\n"
+                          "    }\n"
+                          "  ]\n"
+                          "}\n";
             masterFile.close();
 
             LOG_INFO_COMP("AudioController",
@@ -730,7 +739,19 @@ namespace Dynamix {
                                "Failed to create song JSON: " + songJsonPath.string());
                 return false;
             }
-            songFile << "{\n  \"events\": []\n}\n";
+            songFile << "{\n"
+                        "  \"events\": [\n"
+                        "    {\n"
+                        "      \"name\": \"Default\",\n"
+                        "      \"fadeTime\": 1.0,\n"
+                        "      \"state\": {\n"
+                        "        \"masterTempo\": 1.0,\n"
+                        "        \"granularTempo\": 1.0,\n"
+                        "        \"tracks\": []\n"
+                        "      }\n"
+                        "    }\n"
+                        "  ]\n"
+                        "}\n";
             songFile.close();
 
             LOG_INFO_COMP("AudioController", "Created new song folder: " + songDirPath.string());
@@ -847,15 +868,6 @@ namespace Dynamix {
         Song* song = const_cast<Song*>(mgr->findSongByFolder(m_currentSongName));
         if (!song)
             return false;
-
-        // Debug: print all track filenames in all events
-        for (const auto& event : song->events) {
-            std::cout << "[DEBUG] Event: " << event.name << " tracks: ";
-            for (const auto& track : event.state.tracks) {
-                std::cout << '"' << track.file << '"' << " ";
-            }
-            std::cout << std::endl;
-        }
 
         // Delete the actual file from the song folder
         std::filesystem::path filePath = song->folderPath / filename;
